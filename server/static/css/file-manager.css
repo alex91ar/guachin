@@ -1,0 +1,11 @@
+/* file-manager.css */
+body.embedded {
+  margin: 0;
+  background: transparent; /* or your admin background */
+  font: inherit;
+}
+
+/* optionally scope your file manager container */
+.file-manager-root {
+  padding: 16px;
+}

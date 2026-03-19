@@ -1,0 +1,300 @@
+<!-- templates/admin/modals.html -->
+<!-- One modal system only: .modal-overlay (id + hidden), .modal-backdrop, .modal-window, .modal-header, .modal-body, .modal-footer -->
+
+<!-- Add User Modal -->
+<div class="modal-overlay" id="add-user-modal" hidden>
+  <div class="modal-backdrop" data-close="add-user-modal"></div>
+  <div class="modal-window" data-modal-window>
+    <header class="modal-header" data-modal-drag-handle>
+      <h3>Add New User</h3>
+      <button class="icon-btn" type="button" data-close="add-user-modal" aria-label="Close">✖</button>
+    </header>
+    <div class="modal-body">
+      <form id="add-user-form">
+        <label><span>Username</span><input type="text" name="id" placeholder="johndoe" required></label>
+        <label><span>Password</span><input type="password" name="password" required></label>
+        <label><span>Confirm Password</span><input type="password" name="password_confirm" required></label>
+        <label><span>Email</span><input type="email" name="email" placeholder="user@example.com" required></label>
+
+        <div class="role-select-wrapper">
+          <div class="role-column">
+            <h4>Available Roles</h4>
+            <select id="available-roles-add" multiple size="6"></select>
+          </div>
+          <div class="role-actions">
+            <button type="button" id="add-role-to-user" class="btn small">→</button>
+            <button type="button" id="remove-role-from-user" class="btn small">←</button>
+          </div>
+          <div class="role-column">
+            <h4>Selected Roles</h4>
+            <select id="selected-roles-add" name="roles" multiple size="6"></select>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn subtle" data-close="add-user-modal">Cancel</button>
+          <button type="submit" class="btn primary">Create</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="modal-resize-handle" data-modal-resize-handle aria-hidden="true"></div>
+  </div>
+</div>
+
+<!-- Edit User Modal -->
+<div class="modal-overlay" id="edit-user-modal" hidden>
+  <div class="modal-backdrop" data-close="edit-user-modal"></div>
+
+  <div class="modal-window" data-modal-window>
+    <header class="modal-header" data-modal-drag-handle>
+      <h3>Edit User</h3>
+      <button class="icon-btn" type="button" data-close="edit-user-modal" aria-label="Close">✖</button>
+    </header>
+
+    <div class="modal-body">
+      <form id="edit-user-form">
+        <input type="hidden" name="id">
+        <label><span>Email</span><input type="email" name="email" required></label>
+
+        <div class="role-select-wrapper">
+          <div class="role-column">
+            <h4>Available Roles</h4>
+            <select id="available-roles-edit" multiple size="6"></select>
+          </div>
+          <div class="role-actions">
+            <button type="button" id="add-role-to-edit" class="btn small">→</button>
+            <button type="button" id="remove-role-from-edit" class="btn small">←</button>
+          </div>
+          <div class="role-column">
+            <h4>Selected Roles</h4>
+            <select id="selected-roles-edit" name="roles" multiple size="6"></select>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn subtle" data-close="edit-user-modal">Cancel</button>
+          <button type="submit" class="btn primary">Save</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="modal-resize-handle" data-modal-resize-handle aria-hidden="true"></div>
+  </div>
+</div>
+
+<!-- Change Password Modal -->
+<div class="modal-overlay" id="change-password-modal" hidden>
+  <div class="modal-backdrop" data-close="change-password-modal"></div>
+
+  <div class="modal-window" data-modal-window>
+    <header class="modal-header" data-modal-drag-handle>
+      <h3>Change Password</h3>
+      <button class="icon-btn" type="button" data-close="change-password-modal" aria-label="Close">✖</button>
+    </header>
+
+    <div class="modal-body">
+      <form id="change-password-form">
+        <input type="hidden" name="id">
+        <label><span>New Password</span><input type="password" name="password" required minlength="4"></label>
+
+        <div class="modal-footer">
+          <button type="button" class="btn subtle" data-close="change-password-modal">Cancel</button>
+          <button type="submit" class="btn primary">Update</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="modal-resize-handle" data-modal-resize-handle aria-hidden="true"></div>
+  </div>
+</div>
+
+<!-- Add Role Modal -->
+<div class="modal-overlay" id="add-role-modal" hidden>
+  <div class="modal-backdrop" data-close="add-role-modal"></div>
+
+  <div class="modal-window" data-modal-window>
+    <header class="modal-header" data-modal-drag-handle>
+      <h3>Add New Role</h3>
+      <button class="icon-btn" type="button" data-close="add-role-modal" aria-label="Close">✖</button>
+    </header>
+
+    <div class="modal-body">
+      <form id="add-role-form">
+        <label><span>Role Name</span><input type="text" name="id" placeholder="manager" required></label>
+        <label><span>Description</span><input type="text" name="description" placeholder="Manages users and projects"></label>
+
+        <div class="role-select-wrapper">
+          <div class="role-column">
+            <h4>Available Actions</h4>
+            <select id="available-actions-add" multiple size="6"></select>
+          </div>
+          <div class="role-actions">
+            <button type="button" id="add-action-to-role" class="btn small">→</button>
+            <button type="button" id="remove-action-from-role" class="btn small">←</button>
+          </div>
+          <div class="role-column">
+            <h4>Selected Actions</h4>
+            <select id="selected-actions-add" name="actions" multiple size="6"></select>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn subtle" data-close="add-role-modal">Cancel</button>
+          <button type="submit" class="btn primary">Create</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="modal-resize-handle" data-modal-resize-handle aria-hidden="true"></div>
+  </div>
+</div>
+
+<!-- Edit Role Modal -->
+<div class="modal-overlay" id="edit-role-modal" hidden>
+  <div class="modal-backdrop" data-close="edit-role-modal"></div>
+
+  <div class="modal-window" data-modal-window>
+    <header class="modal-header" data-modal-drag-handle>
+      <h3>Edit Role</h3>
+      <button class="icon-btn" type="button" data-close="edit-role-modal" aria-label="Close">✖</button>
+    </header>
+
+    <div class="modal-body">
+      <form id="edit-role-form">
+        <input type="hidden" name="id">
+        <label><span>Description</span><input type="text" name="description" placeholder="Describe this role"></label>
+
+        <div class="role-select-wrapper">
+          <div class="role-column">
+            <h4>Available Actions</h4>
+            <select id="available-actions-edit" multiple size="6"></select>
+          </div>
+          <div class="role-actions">
+            <button type="button" id="add-action-to-edit" class="btn small">→</button>
+            <button type="button" id="remove-action-from-edit" class="btn small">←</button>
+          </div>
+          <div class="role-column">
+            <h4>Selected Actions</h4>
+            <select id="selected-actions-edit" name="actions" multiple size="6"></select>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn subtle" data-close="edit-role-modal">Cancel</button>
+          <button type="submit" class="btn primary">Save</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="modal-resize-handle" data-modal-resize-handle aria-hidden="true"></div>
+  </div>
+</div>
+
+
+<!-- LOG DETAILS MODAL -->
+<div class="modal-overlay" id="log-modal" hidden>
+  <div class="modal-backdrop" data-close="log-modal"></div>
+  <div class="modal-window" data-modal-window style="width:min(980px,92vw);height:min(80vh,760px);">
+    <header class="modal-header" data-modal-drag-handle>
+      <h3 id="log-modal-title">Log entry</h3>
+      <button type="button" class="icon-btn" data-close="log-modal" aria-label="Close">✕</button>
+    </header>
+    <div class="modal-body">
+      <div class="kv-grid">
+        <div class="kv"><div class="k">ID</div><div class="v" id="log-modal-id">—</div></div>
+        <div class="kv"><div class="k">User</div><div class="v" id="log-modal-user">—</div></div>
+        <div class="kv"><div class="k">Method</div><div class="v" id="log-modal-method">—</div></div>
+        <div class="kv"><div class="k">Path</div><div class="v" id="log-modal-path">—</div></div>
+        <div class="kv"><div class="k">Response Code</div><div class="v" id="log-modal-code">—</div></div>
+      </div>
+
+      <div class="block">
+        <div class="block-title">Response</div>
+        <pre class="codebox" id="log-modal-response">—</pre>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn subtle" id="log-modal-copy">Copy response</button>
+        <button type="button" class="btn primary" data-close="log-modal" id="log-modal-ok">OK</button>
+      </div>
+    </div>
+    <div class="modal-resize-handle" data-modal-resize-handle aria-hidden="true"></div>
+  </div>
+</div>
+
+<!-- PASSKEYS: EDIT MODAL -->
+<div class="modal-overlay" id="edit-passkey-modal" hidden>
+  <div class="modal-backdrop" data-close="edit-passkey-modal"></div>
+  <div class="modal-window" data-modal-window style="width:min(720px,92vw);height:min(70vh,560px);">
+    <header class="modal-header" data-modal-drag-handle>
+      <h3>Edit Passkey</h3>
+      <button class="icon-btn" type="button" data-close="edit-passkey-modal" aria-label="Close">✖</button>
+    </header>
+    <div class="modal-body">
+      <form id="edit-passkey-form">
+        <input type="hidden" name="id">
+        <p class="meta" style="margin-top:0;">
+          Update the stored passkey data. (Usually you only edit metadata/label; credential/public key rarely change.)
+        </p>
+
+        <label>
+          <span>Label (optional)</span>
+          <input type="text" name="label" placeholder="My MacBook / YubiKey / Phone">
+        </label>
+
+        <label>
+          <span>Credential ID</span>
+          <input type="text" name="credential_id" readonly>
+        </label>
+
+        <label>
+          <span>Public Key</span>
+          <textarea name="public_key" rows="5" readonly></textarea>
+        </label>
+
+        <label>
+          <span>Sign Count</span>
+          <input type="number" name="sign_count" min="0" required>
+        </label>
+
+        <div class="modal-footer">
+          <button type="button" class="btn subtle" data-close="edit-passkey-modal">Cancel</button>
+          <button type="submit" class="btn primary">Save</button>
+        </div>
+      </form>
+    </div>
+    <div class="modal-resize-handle" data-modal-resize-handle aria-hidden="true"></div>
+  </div>
+</div>
+
+<!-- PASSKEYS: DELETE CONFIRM MODAL -->
+<div class="modal-overlay" id="delete-passkey-modal" hidden>
+  <div class="modal-backdrop" data-close="delete-passkey-modal"></div>
+  <div class="modal-window" data-modal-window style="width:min(560px,92vw);height:auto;">
+    <header class="modal-header" data-modal-drag-handle>
+      <h3>Delete Passkey</h3>
+      <button class="icon-btn" type="button" data-close="delete-passkey-modal" aria-label="Close">✖</button>
+    </header>
+    <div class="modal-body">
+      <form id="delete-passkey-form">
+        <input type="hidden" name="id">
+
+        <p class="meta" style="margin-top:0;">
+          This will remove this passkey from your account. You can’t use it to sign in anymore.
+        </p>
+
+        <div class="kv-grid" style="margin: .75rem 0;">
+          <div class="kv"><div class="k">ID</div><div class="v" id="delete-passkey-id">—</div></div>
+          <div class="kv"><div class="k">Credential</div><div class="v" id="delete-passkey-cred">—</div></div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn subtle" data-close="delete-passkey-modal">Cancel</button>
+          <button type="submit" class="btn danger">Delete</button>
+        </div>
+      </form>
+    </div>
+    <div class="modal-resize-handle" data-modal-resize-handle aria-hidden="true"></div>
+  </div>
+</div>

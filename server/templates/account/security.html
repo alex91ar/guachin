@@ -1,0 +1,280 @@
+{% extends "base.html" %}
+{% block title %}Your security — Guachin{% endblock %}
+{% block body_class %}page-security{% endblock %}
+
+{% block content %}
+<section class="auth-wrap">
+  <div class="auth-card">
+    <h2>Security</h2>
+    <p class="meta">Manage your security settings.</p>
+
+    <hr class="divider">
+
+    <div class="security-section">
+      <h3>Two-Factor Authentication</h3>
+      <p class="meta hidden" id="pre-message-enable">Add extra protection to your account.</p>
+      <p class="meta hidden" id="pre-message-disable">Enter your otp to disable Two-Factor Authentication</p>
+
+      <div id="2fa-section">
+        <div id="2fa-enable-ui" class="hidden">
+          <p class="meta">Scan this QR code with your authenticator app:</p>
+          <img id="2fa-qr" src="" alt="2FA QR Code" style="width:180px;margin:1rem auto;display:block;">
+          <p class="meta">Or enter this code manually:</p>
+          <p id="2fa-secret" class="meta code"></p>
+
+          <input type="text" id="2fa-otp-enable" placeholder="Enter 6-digit OTP" inputmode="numeric" pattern="[0-9]*"
+            maxlength="6">
+          <button id="enable-2fa" class="btn primary">Enable 2FA</button>
+        </div>
+
+        <div id="2fa-disable-ui" class="hidden">
+          <input type="text" id="2fa-otp-disable" placeholder="Enter 6-digit OTP" inputmode="numeric" pattern="[0-9]*"
+            maxlength="6">
+          <button id="disable-2fa" class="btn danger">Disable 2FA</button>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <div class="security-section">
+      <h3>Active sessions</h3>
+      <p class="meta">Review and manage your current sessions.</p>
+      <button type="button" class="btn secondary" id="open-sessions-modal">
+        View active sessions
+      </button>
+    </div>
+
+    <hr class="divider">
+
+    <div class="security-section">
+      <h3>Password</h3>
+      <p class="meta">Update your password. You’ll need your current one.</p>
+      <button type="button" class="btn secondary" id="open-change-password-modal">
+        Change password
+      </button>
+    </div>
+
+    <!-- Divider + Open Logs -->
+    <hr class="divider">
+
+    <div class="security-section">
+      <h3>Logs</h3>
+      <p class="meta">View recent security and request logs.</p>
+      <button type="button" class="btn secondary" id="open-logs">
+        Open logs
+      </button>
+    </div>
+    <hr class="divider">
+
+    <div class="security-section">
+      <h3>Passkeys</h3>
+      <p class="meta">Create a passkey for this device and manage your registered passkeys.</p>
+      <button type="button" class="btn secondary" id="open-passkeys-modal">
+        Manage passkeys
+      </button>
+    </div>
+
+
+  </div>
+</section>
+
+<!-- PASSKEYS MODAL -->
+<div class="modal-overlay hidden" id="passkeys-modal" role="dialog" aria-modal="true" aria-labelledby="pk-title">
+  <div class="modal-backdrop" data-close="passkeys-modal"></div>
+
+  <div class="modal-window" data-modal-window style="width:min(980px,92vw);height:min(75vh,720px);">
+    <header class="modal-header" data-modal-drag-handle>
+      <h3 id="pk-title">Your passkeys</h3>
+      <button
+        type="button"
+        class="icon-btn"
+        data-close="passkeys-modal"
+        id="close-passkeys-modal"
+        aria-label="Close"
+      >✖</button>
+    </header>
+
+    <div class="modal-body">
+      <div class="panel-actions" style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-bottom:.75rem;">
+        <button class="btn primary" id="create-passkey-on-device-btn">➕ Create passkey on this device</button>
+        <button class="btn subtle" id="refresh-passkeys-btn">⟳ Refresh</button>
+      </div>
+
+      <p id="result" class="error" style="display:block;"></p>
+
+      <div class="table-wrap" id="passkeys-table-wrapper">
+        <table class="nice-table" id="passkeys-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Credential ID</th>
+              <th>Sign count</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <p id="passkeys-empty" class="meta hidden">No passkeys found.</p>
+    </div>
+
+    <footer class="modal-footer">
+      <button type="button" class="btn subtle" data-close="passkeys-modal">Close</button>
+    </footer>
+
+    <div class="modal-resize-handle" data-modal-resize-handle aria-hidden="true"></div>
+  </div>
+</div>
+
+
+
+<!-- Change Password Modal -->
+<div class="modal-overlay hidden" id="change-password-modal" role="dialog" aria-modal="true" aria-labelledby="cp-title">
+  <div class="modal-backdrop" data-close="change-password-modal"></div>
+
+  <div class="modal-window" data-modal-window>
+    <header class="modal-header" data-modal-drag-handle>
+      <h3 id="cp-title">Change Password</h3>
+      <button type="button" class="icon-btn" data-close="change-password-modal" aria-label="Close">✖</button>
+    </header>
+
+    <div class="modal-body">
+      <form id="change-password-form" autocomplete="off">
+        <label>
+          <span>Current Password</span>
+          <div class="password-field">
+            <input type="password" name="old_password" id="old-password" required minlength="4">
+            <button type="button" class="toggle-password" data-target="old-password">👁</button>
+          </div>
+        </label>
+
+        <label>
+          <span>New Password</span>
+          <div class="password-field">
+            <input type="password" name="new_password" id="new-password" required minlength="4">
+            <button type="button" class="toggle-password" data-target="new-password">👁</button>
+          </div>
+        </label>
+
+        <label>
+          <span>Confirm New Password</span>
+          <div class="password-field">
+            <input type="password" name="confirm_new_password" id="confirm-password" required minlength="4">
+            <button type="button" class="toggle-password" data-target="confirm-password">👁</button>
+          </div>
+        </label>
+
+        <footer class="modal-footer">
+          <button type="button" class="btn subtle" data-close="change-password-modal">Cancel</button>
+          <button type="submit" class="btn primary">Update</button>
+        </footer>
+      </form>
+    </div>
+
+    <div class="modal-resize-handle" data-modal-resize-handle aria-hidden="true"></div>
+  </div>
+</div>
+
+<!-- USER LOGS MODAL -->
+<div class="modal-overlay hidden" id="user-logs-modal" role="dialog" aria-modal="true" aria-labelledby="ul-title">
+  <div class="modal-backdrop" data-close="user-logs-modal"></div>
+
+  <div class="modal-window" data-modal-window style="width:min(980px,92vw);height:min(80vh,760px);">
+    <header class="modal-header" data-modal-drag-handle>
+      <h3 id="ul-title">Your logs</h3>
+      <button type="button" class="icon-btn" data-close="user-logs-modal" aria-label="Close">✖</button>
+    </header>
+
+    <div class="modal-body">
+      <div class="panel-actions" style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-bottom:.75rem;">
+        <input type="text" id="user-logs-search" class="input small"
+          placeholder="Filter by id / method / path / code…" />
+        <button class="btn subtle" id="refresh-user-logs-btn">⟳ Refresh</button>
+      </div>
+
+      <!-- Tab content (single tab for now, but structured like a tab panel) -->
+      <div class="table-wrap" id="user-logs-table-wrapper">
+        <table class="nice-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>User</th>
+              <th>Method</th>
+              <th>Path</th>
+              <th>Response Code</th>
+              <th>Response</th>
+            </tr>
+          </thead>
+          <tbody id="logs-tbody"></tbody>
+        </table>
+      </div>
+
+      <p id="user-logs-empty" class="meta hidden">No logs found.</p>
+
+      <footer class="modal-footer">
+        <button type="button" class="btn subtle" data-close="user-logs-modal">Close</button>
+      </footer>
+    </div>
+
+    <div class="modal-resize-handle" data-modal-resize-handle aria-hidden="true"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="log-modal" hidden>
+  <div class="modal-backdrop" data-close="log-modal"></div>
+
+  <div class="modal-window" data-modal-window style="width:min(980px,92vw);height:min(80vh,760px);">
+    <header class="modal-header" data-modal-drag-handle>
+      <h3 id="log-modal-title">Log entry</h3>
+      <button type="button" class="icon-btn" data-close="log-modal" aria-label="Close">✕</button>
+    </header>
+
+    <div class="modal-body">
+      <div class="kv-grid">
+        <div class="kv">
+          <div class="k">ID</div>
+          <div class="v" id="log-modal-id">—</div>
+        </div>
+        <div class="kv">
+          <div class="k">User</div>
+          <div class="v" id="log-modal-user">—</div>
+        </div>
+        <div class="kv">
+          <div class="k">Method</div>
+          <div class="v" id="log-modal-method">—</div>
+        </div>
+        <div class="kv">
+          <div class="k">Path</div>
+          <div class="v" id="log-modal-path">—</div>
+        </div>
+        <div class="kv">
+          <div class="k">Response Code</div>
+          <div class="v" id="log-modal-code">—</div>
+        </div>
+      </div>
+
+      <div class="block">
+        <div class="block-title">Response</div>
+        <pre class="codebox" id="log-modal-response">—</pre>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn subtle" id="log-modal-copy">Copy response</button>
+        <button type="button" class="btn primary" data-close="log-modal" id="log-modal-ok">OK</button>
+      </div>
+    </div>
+
+    <div class="modal-resize-handle" data-modal-resize-handle aria-hidden="true"></div>
+  </div>
+</div>
+
+<div class="toast-container"></div>
+<script>let global_sudo = false;</script>
+<script defer src="{{ url_for('static', filename='js/session.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/security.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/logs.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/passkey_register.js') }}"></script>
+
+{% endblock %}

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Your Profile — Guachin{% endblock %}
+
+{% block content %}
+<body class="page-profile">
+<section class="auth-wrap">
+  <div class="auth-card">
+    <h2>Your Profile</h2>
+    <p class="meta">Manage your account and security settings.</p>
+
+    <div id="profile-status" class="meta muted">Loading your data...</div>
+
+    <form id="profile-form" class="hidden stack">
+      <label>
+        <span>Username</span>
+        <input type="text" id="profile-name" name="id" readonly>
+      </label>
+
+      <label>
+        <span>Email</span>
+        <input type="email" id="profile-email" name="email" required>
+      </label>
+
+      <label>
+        <span>Description</span>
+        <textarea id="profile-description" name="description" placeholder="Tell us something about you..."></textarea>
+      </label>
+
+      <div id="legal-fields"></div>
+
+      <button type="button" class="btn primary w-100" id="save-profile">Save Changes</button>
+    </form>
+
+  </div>
+</section>
+
+<!-- Toast Container -->
+<div class="toast-container"></div>
+
+<script defer src="{{ url_for('static', filename='js/profile.js') }}"></script>
+</body>
+{% endblock %}

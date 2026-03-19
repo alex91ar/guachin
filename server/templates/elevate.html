@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta name="csrf-token" content="{{ g.csrf_token }}">
+<body>
+{% include "urls.html" %}
+{% include "partials/auth_modals.html" %}
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/unified.css') }}">
+
+<script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+<script src="{{ url_for('static', filename='js/login.js') }}"></script>
+<script>
+
+function is_sudo_enabled(){
+  return (getUser()["twofa_enabled"]);
+}
+
+function is_sudo_needed() {
+  return fetch(window.am_i_admin_API, { credentials: "include" })
+    .then(res => res.json())
+    .then(json => json.message === true);
+}
+
+if (!is_sudo_needed()){ 
+  console.log("Sudo already enabled.");
+  document.location = window.admin_HTML;
+} 
+console.log("Need to enable sudo");
+if(!is_sudo_enabled()){
+  console.log("Enabling sudo...");
+    const res = fetch(window.get_sudo_API, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ otp:"111111" })
+  }).then(res => {
+  // always parse JSON, even on errors
+  return res.json().then(json => ({
+    ok: res.ok,
+    status: res.status,
+    json
+  }));
+  })
+  .then(({ ok, status, json }) => {
+    new_session(json.message.access_jwt, json.message.refresh_jwt, json.message.user_obj);
+    document.location = window.admin_HTML;
+  });
+}
+
+document.getElementById("sudo-modal").hidden = false;
+
+          
+</script>
+
+</body>
+</html>

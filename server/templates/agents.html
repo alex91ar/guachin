@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Agents{% endblock %}
+{% block body_class %}page-admin{% endblock %}
+
+{% block content %}
+
+<script src="{{ url_for('static', filename='js/agents.js') }}"></script>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='css/agents.css') }}">
+
+<div class="admin-container fade-in">
+  <header class="admin-header">
+    <div>
+      <h1>Agents</h1>
+      <p class="muted">Manage and interact with your registered agents</p>
+    </div>
+  </header>
+
+  <div class="agents-layout">
+    <aside class="shells-sidebar">
+      <div class="shells-sidebar-header">Shells</div>
+      <div id="shells-empty" class="shells-empty">No active shells.</div>
+      <div id="shells-menu" class="shells-menu"></div>
+    </aside>
+
+    <div class="agents-main">
+      <section id="tab-agents" class="tab-panel show">
+        <div class="panel-header">
+          <h2>Agents</h2>
+          <div class="panel-actions">
+            <button class="btn subtle" id="refresh-agents-btn" onclick="loadAgents()">⟳ Refresh</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="nice-table" id="agents-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>IP</th>
+                <th>OS</th>
+                <th>Last Seen</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="agents-tbody">
+              <tr>
+                <td colspan="5" class="muted">Loading agents...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p id="agents-empty" class="meta hidden">No agents found.</p>
+      </section>
+
+      <div id="shell-views"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+{% block head %}
+<head>
+  {% include "urls.html" %}
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="csrf-token" content="{{ g.csrf_token }}">
+
+  <title>{% block title %}Guachin - Agent{% endblock %}</title>
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/unified.css') }}">
+  <script defer src="{{ url_for('static', filename='js/main.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+  <script defer src="{{ url_for('static', filename='js/modals_global.js') }}"></script>
+</head>
+{% endblock %}
+
+<body class="{% block body_class %}{% endblock %}">
+  <div class="page-container">
+
+    <header class="site-header glass">
+      <div class="header-inner">
+        <a href="/" class="brand">
+          <span class="brand-dot"></span> Guachin
+        </a>
+
+        <div class="header-right">
+          <span id="username-display" class="username-display" hidden></span>
+
+          <button
+            id="burger"
+            class="burger"
+            aria-label="Toggle menu"
+            aria-expanded="false"
+            aria-controls="site-nav"
+            type="button"
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        </div>
+
+        <nav id="site-nav" class="nav-links">
+          <a href="javascript:window.location=window.home_HTML">Home</a>
+          <a href="javascript:window.location=window.login_page_HTML" hidden id="login-link">Login</a>
+          <a href="javascript:window.location=window.signup_page_HTML" hidden id="signup-link">Signup</a>
+          <a href="javascript:window.location=window.agents_page_HTML" hidden id="agents-link">Agents</a>
+          <a href="javascript:window.location=window.profile_page_HTML" hidden id="profile-link">Profile</a>
+          <a href="javascript:window.location=window.security_page_HTML" hidden id="security-link">Security</a>
+          <a href="javascript:logoutUser()" hidden id="logout-link">Logout</a>
+
+          <a href="javascript:window.location=window.admin_HTML" hidden id="admin-link">Admin</a>
+        </nav>
+      </div>
+    </header>
+
+    <script>
+      
+    </script>
+
+    {% include "partials/auth_modals.html" %}
+
+    {% block content %}{% endblock %}
+  </div>
+</body>
+</html>

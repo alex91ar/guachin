@@ -1,0 +1,38 @@
+# --- Core ---
+Flask>=3.0.0
+Flask-WTF>=1.2.1
+Flask-JWT-Extended>=4.6.0
+
+# --- Database (Postgres + ORM + Migrations) ---
+SQLAlchemy>=2.0.20
+psycopg[binary]>=3.1.10      # PostgreSQL driver
+alembic>=1.13.1              # DB migrations
+
+# --- Security / Auth ---
+argon2-cffi>=23.1.0           # Password hashing
+PyJWT>=2.8.0                  # JWT handling (used by flask-jwt-extended)
+pyotp>=2.9.0                  # Two-factor auth (TOTP)
+qrcode[pil]>=7.4.2            # 2FA QR code generation
+
+# --- Utilities ---
+blake3>=0.3.3                 # Fast hashing (used in config)
+requests>=2.31.0
+python-dotenv>=1.0.1          # (optional) environment loading
+
+# --- Development / Formatting ---
+black>=24.3.0
+mypy>=1.8.0
+flake8>=7.0.0
+flask_sqlalchemy
+pymysql
+flask_sock
+psutil
+pyyaml
+ua-parser
+user-agents
+geoip2
+dockerx
+flask-admin
+webauthn
+fido2>=1.1.0
+pywinpty; platform_system == "Windows"

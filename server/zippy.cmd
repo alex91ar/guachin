@@ -1,0 +1,1 @@
+"C:\Program Files\7-Zip\7z" a -tzip project.zip . -xr!data -xr!.git -xr!.venv -xr!__pycache__ -xr!GeoLite2-City.mmdb

@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Guachin — Red-Teaming Agent for Adversary Assessments{% endblock %}
+
+{% block body_class %}app-shell{% endblock %}
+
+{% block content %}
+<body class="page-home">
+
+<!-- 🔹 HERO SECTION -->
+<section class="hero-section fade-in">
+
+  <div class="hero-content">
+    <h1>Red-Team Smarter. Automate Adversary Assessments.</h1>
+    <h2>Guachin is your agent for controlled red-teaming operations.</h2>
+    <p>
+      Guachin helps security teams execute red-teaming assessments with speed, structure, and control.
+      Launch agent-driven workflows, simulate adversarial activity, and validate defensive posture
+      across services, hosts, and exposed attack surfaces. Focus on assessment outcomes without the clutter.
+    </p>
+
+    <div class="hero-buttons">
+      <a href="{{ url_for('html_pages.html.login_page') }}" class="btn secondary">Launch Guachin</a>
+    </div>
+  </div>
+</section>
+
+<!-- 🔹 WAVE DIVIDER TRANSITION -->
+<section class="wave-transition"></section>
+
+<!-- 🔹 FEATURE CARDS -->
+<section class="featured fade-in">
+  <h3 class="section-title">Core Capabilities</h3>
+  <div class="listing-grid">
+
+    <div class="listing-card">
+      <img src="{{ url_for('static', filename='img/ports.png') }}" alt="Agent Operations">
+      <div class="listing-info">
+        <h4>Agent-Driven Operations</h4>
+        <p>Coordinate assessment tasks through a dedicated red-teaming agent built for controlled execution.</p>
+      </div>
+    </div>
+
+    <div class="listing-card">
+      <img src="{{ url_for('static', filename='img/terminal.png') }}" alt="Assessment Workflows">
+      <div class="listing-info">
+        <h4>Assessment Workflows</h4>
+        <p>Run repeatable red-team procedures for enumeration, validation, and adversary simulation.</p>
+        <a href="{{ url_for('html_pages.html.login_page') }}" class="btn primary">Launch</a>
+      </div>
+    </div>
+
+    <div class="listing-card">
+      <img src="{{ url_for('static', filename='img/recon.png') }}" alt="Red Team Insights">
+      <div class="listing-info">
+        <h4>Adversary Emulation</h4>
+        <p>Support red-teaming assessments with automated recon, service interaction, and exposure validation.</p>
+        <a href="{{ url_for('html_pages.html.login_page') }}" class="btn primary">Start</a>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- 🔹 CTA SECTION -->
+<section class="cta-section fade-in">
+  <h2>Ready to run your next red-team assessment with Guachin?</h2>
+  <a href="{{ url_for('html_pages.html.login_page') }}" class="btn secondary">Get Started</a>
+</section>
+
+</body>
+{% endblock %}

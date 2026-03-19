@@ -1,0 +1,115 @@
+<!-- 2FA Modal (global) -->
+<div class="modal-overlay" id="twofa-modal" hidden>
+  <div class="modal-backdrop" data-close="twofa-modal"></div>
+
+  <div class="modal-window" data-modal-window>
+    <header class="modal-header" data-modal-drag-handle>
+      <h3 id="twofa-title">Two-Factor Authentication</h3>
+      <button class="icon-btn" type="button" data-close="twofa-modal" aria-label="Close">✖</button>
+    </header>
+
+    <div class="modal-body">
+      <form id="twofa-form">
+        <label>
+          <span>Enter your 2FA code below:</span>
+          <input type="text" id="twofa-code" name="twofa-code" inputmode="numeric"
+                 maxlength="6" pattern="[0-9]{6}" placeholder="123456" required />
+        </label>
+
+        <div class="modal-footer">
+          <button id="twofa-cancel" type="button" class="btn subtle" data-close="twofa-modal">Cancel</button>
+          <button id="twofa-submit" type="submit" class="btn primary">Confirm</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="modal-resize-handle" data-modal-resize-handle aria-hidden="true"></div>
+  </div>
+</div>
+
+<!-- SUDO Modal (global) -->
+<div class="modal-overlay" id="sudo-modal" hidden>
+  <div class="modal-backdrop" data-close="sudo-modal"></div>
+
+  <div class="modal-window" data-modal-window>
+    <header class="modal-header" data-modal-drag-handle>
+      <h3 id="sudo-title">Enter OTP to login</h3>
+      <button class="icon-btn" type="button" data-close="sudo-modal" aria-label="Close">✖</button>
+    </header>
+
+    <div class="modal-body">
+      <form id="sudo-form">
+        <label>
+          <span>One-Time Password (OTP)</span>
+          <input type="text" id="sudo-otp" name="otp" inputmode="numeric"
+                 maxlength="6" pattern="[0-9]{6}" placeholder="123456" required />
+        </label>
+
+        <div class="modal-footer">
+          <button id="sudo-cancel" type="button" class="btn subtle" data-close="sudo-modal">Cancel</button>
+          <button id="sudo-submit" type="submit" class="btn primary">Confirm</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="modal-resize-handle" data-modal-resize-handle aria-hidden="true"></div>
+  </div>
+</div>
+
+<script>
+const input = document.getElementById("twofa-code");
+const input2 = document.getElementById("sudo-otp");
+
+input.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    submitInput();
+  }
+});
+
+input2.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    submitInput();
+  }
+});
+
+</script>
+
+<!-- Sessions modal (global) -->
+<div class="modal-overlay" id="sessions-modal" hidden>
+  <div class="modal-backdrop" data-close="sessions-modal"></div>
+
+  <div class="modal-window" data-modal-window style="width: min(1100px, 92vw); height: min(80vh, 820px);">
+    <header class="modal-header" data-modal-drag-handle>
+      <h2 id="sessions-title">Active sessions</h2>
+      <button type="button" class="icon-btn" data-close="sessions-modal" aria-label="Close">✕</button>
+    </header>
+
+    <div class="modal-body">
+      <p class="meta">These are the current sessions for your account.</p>
+
+      <div id="sessions-table-wrapper" class="table-wrap hidden">
+        <table class="nice-table sessions-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>User agent</th>
+              <th>Source IP</th>
+              <th>Geo-location</th>
+              <th>Access expiry</th>
+              <th>Refresh expiry</th>
+              <th>Access status</th>
+              <th>Refresh status</th>
+              <th>Privilege</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="sessions-tbody"></tbody>
+        </table>
+      </div>
+
+      <p class="meta" id="sessions-empty">No active sessions found.</p>
+    </div>
+
+    <div class="modal-resize-handle" data-modal-resize-handle aria-hidden="true"></div>
+  </div>
+</div>

@@ -1,0 +1,1 @@
+tar --exclude='.venv' --exclude='GeoLite2-City.mmdb' --exclude='data' --exclude='.git' --exclude='__pycache__' -zcf file.tar.gz .

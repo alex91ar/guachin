@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Reset Password — Guachin{% endblock %}
+{% block content %}
+<script defer src="{{ url_for('static', filename='js/reset.js') }}"></script>
+
+<section class="auth-wrap">
+  <div class="auth-card">
+    <h2>Reset your password</h2>
+    <p class="meta">Choose a new password for your account.</p>
+
+    <div id="reset-error-box" class="error-box hidden"></div>
+
+    <form id="reset-form" class="stack">
+      <input type="hidden" id="reset-token">
+      <label>
+        <span>New password</span>
+        <input type="password" id="new-password" required autocomplete="new-password" />
+      </label>
+      <label>
+        <span>Confirm password</span>
+        <input type="password" id="confirm-password" required autocomplete="new-password" />
+      </label>
+      <button type="submit" class="btn primary w-100">Change password</button>
+    </form>
+  </div>
+</section>
+
+<div id="toast-container"></div>
+{% endblock %}

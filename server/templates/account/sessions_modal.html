@@ -1,0 +1,40 @@
+{# templates/account/sessions_modal.html #}
+<div id="sessions-modal" class="modal-backdrop hidden">
+  <div class="modal sessions-modal" role="dialog" aria-modal="true" aria-labelledby="sessions-modal-title">
+    <header>
+      <h2 id="sessions-modal-title">Active sessions</h2>
+      <button type="button" class="icon-btn" aria-label="Close">
+        ✕
+      </button>
+    </header>
+
+    <p class="meta">These are the current sessions for your account.</p>
+
+    <div id="sessions-table-wrapper" class="table-wrap hidden">
+      <table class="nice-table sessions-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>User agent</th>
+            <th>Source IP</th>
+            <th>Geo-location</th>
+
+            <th>Access expiry</th>
+            <th>Refresh expiry</th>
+
+            <th>Access status</th>
+            <th>Refresh status</th>
+
+            <th>Privilege</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="sessions-tbody"></tbody>
+      </table>
+    </div>
+
+    <p class="meta" id="sessions-empty">No active sessions found.</p>
+  </div>
+</div>
+<script src="{{ url_for('static', filename='js/session.js') }}"></script>
+<script src="{{ url_for('static', filename='js/security.js') }}"></script>

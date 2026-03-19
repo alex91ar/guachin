@@ -1,0 +1,11 @@
+<script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/file-manager.css') }}">
+<script>
+    const src = "{{ url_for('sudo_api.system.jwt_to_cookie') }}";
+    fetch(src,{credentials: "same-origin"});
+</script>
+<body class="{% if request.args.get('embed') %}embedded{% endif %}">
+
+<iframe src="/admin/fileadmin?embed=1" class="filemanager-frame" style="width:100%; height:80vh; border:none;"></iframe>
+
+</body>

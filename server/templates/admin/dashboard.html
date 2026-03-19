@@ -1,0 +1,311 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block body_class %}page-admin{% endblock %}
+
+{% block content %}
+<script>
+(async () => {  
+  try {
+    const res = await fetch(window.am_i_admin_API, { credentials: "include" });
+    const json = await res.json();
+    console.log("Am I admin?");
+    console.log(json.message);
+    if (json.message != true) {
+      window.location.replace("/admin/elevate"); 
+      return; // ⛔ stop executing anything else
+    }
+    console.log("User already admin...");
+    // ✅ user is admin → continue loading
+    window.global_sudo = true;
+    loadUsers();
+
+  } catch (e) {
+    // fail closed
+    window.location.replace("/admin/elevate");
+  }
+})();
+</script>
+
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/xterm.css') }}">
+<script src="{{ url_for('static', filename='js/xterm.min.js') }}"></script>
+<script>let global_sudo = true;</script>
+<script src="{{ url_for('static', filename='js/logs.js') }}"></script>
+<script src="{{ url_for('static', filename='js/session.js') }}"></script>
+<script src="{{ url_for('static', filename='js/actions.js') }}"></script>
+<script src="{{ url_for('static', filename='js/passkeys.js') }}"></script>
+<script src="{{ url_for('static', filename='js/passkey_register.js') }}"></script>
+
+<div class="admin-container fade-in">
+  <header class="admin-header">
+    <div>
+      <h1>Admin Dashboard</h1>
+      <p class="muted">Manage users, roles, and actions</p>
+    </div>
+    <div class="sudo-badge" id="sudo-badge" hidden>🛡️ Sudo Active</div>
+  </header>
+
+<nav class="tabs">
+  <button class="tab active" data-tab="users" onclick="activateTab('users')">👥 Users</button>
+  <button class="tab" data-tab="passkeys" onclick="activateTab('passkeys')">🔑 Passkeys</button>
+  <button class="tab" data-tab="roles" onclick="activateTab('roles')">🧩 Roles</button>
+  <button class="tab" data-tab="actions" onclick="activateTab('actions')">⚙️ Actions</button>
+  <button class="tab" data-tab="system" onclick="activateTab('system')">💻 System</button>
+  <button class="tab" data-tab="logs" onclick="activateTab('logs')">🧾 Logs</button>
+  <button class="tab" data-tab="configuration" onclick="activateTab('configuration')">🧾 Configuration</button>
+  <button class="tab" data-tab="filemanager" onclick="activateTab('filemanager')">
+    📁 File Manager
+  </button>
+</nav>
+
+
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    let hash = window.location.hash.replace("#", "");
+    if (!hash) {
+      hash = "{{ section }}";
+    }
+    activateTab(hash || "users");
+  });
+</script>
+
+<section class="tab-content hidden" id="tab-filemanager">
+<div id="filemanager" >
+  <h2>File Manager</h2>
+  <iframe
+    src="/file-manager-iframe"
+    style="width:100%; height:80vh; border:none;"
+    loading="lazy">
+  </iframe>
+</div>
+</section>
+
+<section class="tab-content hidden" id="tab-passkeys">
+  <div class="panel-head">
+    <h2>Passkeys</h2>
+
+    <div class="panel-actions">
+      <button class="btn subtle" type="button" onclick="loadPasskeys()">Refresh</button>
+      <button id="create-passkey-on-device-btn" class="btn primary" type="button" data-open="add-passkey-modal">+ Add Passkey</button>
+    </div>
+  </div>
+      <p id="result" class="error" style="display:block;"></p>
+
+  <div id="passkeys-empty" class="empty-state hidden">
+    No passkeys found.
+  </div>
+
+  <div id="passkeys-table-wrapper" class="hidden">
+    <table class="table" id="passkeys-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>User</th>
+          <th>Credential ID</th>
+          <th>Sign Count</th>
+          <th class="right">Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</section>
+
+
+
+
+<!-- CONFIGURATION -->
+<section id="tab-configuration" class="tab-panel">
+  <div class="panel-header">
+    <h2>Configuration</h2>
+    <div class="panel-actions">
+      <input type="text" id="config-search" class="input small" placeholder="Filter by key / value…" />
+      <button class="btn subtle" id="refresh-config-btn" onclick="refreshConfig();">⟳ Refresh</button>
+
+      <p class="meta"></p>
+    </div>
+  </div>
+  <div>
+      <h3>Careful modifying these preferences, as they might break the application.</h3>
+  </div>
+
+  <p class="meta">View and update Flask app configuration. Use “Persist” to write changes into <code>config.py</code>.</p>
+
+  <div class="table-wrap" id="config-table-wrapper">
+    <table class="nice-table" id="config-table">
+      <thead>
+        <tr>
+          <th style="width: 26%;">Key</th>
+          <th style="width: 54%;">Value</th>
+          <th style="width: 14%;">Persist</th>
+          <th class="right" style="width: 1%;">Action</th>
+        </tr>
+      </thead>
+      <tbody id="config-tbody"></tbody>
+    </table>
+  </div>
+
+  <p id="config-empty" class="meta hidden">No configuration entries found.</p>
+
+  <hr class="divider" style="margin:1.25rem 0;">
+
+  <div class="panel-header" style="padding:0;">
+    <h3 style="margin:0;">Add / Update property</h3>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr auto auto;gap:.5rem;align-items:end;margin-top:.75rem;">
+    <label style="margin:0;">
+      <span class="meta">Property</span>
+      <input class="input" id="config-new-key" placeholder="MY_SETTING" />
+    </label>
+
+    <label style="margin:0;">
+      <span class="meta">Value (JSON)</span>
+      <input class="input" id="config-new-value" placeholder='"hello" or 123 or {"a":1}' />
+    </label>
+
+    <label style="margin:0;display:flex;gap:.5rem;align-items:center;user-select:none;">
+      <input type="checkbox" id="config-new-persist" />
+      <span class="meta">Persist</span>
+    </label>
+
+    <button class="btn primary" id="config-new-save">Save</button>
+  </div>
+</section>
+
+<section class="tab-panel hidden" id="tab-passkeys" data-tab-panel="passkeys">
+  <div class="panel-head">
+    <div>
+      <h2 style="margin:0;">Passkeys</h2>
+      <p class="meta" style="margin:.25rem 0 0 0;">Manage passkeys for the current user.</p>
+    </div>
+
+    <div class="panel-actions" style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
+      <button type="button" class="btn subtle" id="refresh-passkeys-btn">Refresh</button>
+      <button type="button" class="btn primary" id="add-passkey-btn">+ Add</button>
+    </div>
+  </div>
+
+  <div id="passkeys-table-wrapper" class="block" style="margin-top:1rem;">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Credential</th>
+          <th>Sign Count</th>
+          <th class="right">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="passkeys-tbody"></tbody>
+    </table>
+  </div>
+
+  <div id="passkeys-empty" class="empty-state hidden" style="margin-top:1rem;">
+    <p>No passkeys found.</p>
+  </div>
+</section>
+
+
+  <!-- LOGS -->
+  <section id="tab-logs" class="tab-panel">
+    <div class="panel-header">
+      <h2>Logs</h2>
+      <div class="panel-actions">
+        <input type="text" id="logs-search" class="input small"
+               placeholder="Filter by id / user / method / path / code…" />
+        <button class="btn subtle" id="refresh-logs-btn">⟳ Refresh</button>
+      </div>
+    </div>
+
+    <p class="meta">Recent request logs captured by the server.</p>
+
+    <div class="table-wrap" id="logs-table-wrapper">
+      <table class="nice-table">
+        <thead>
+          <tr>
+            <th>ID</th><th>User</th><th>Method</th><th>Path</th><th>Response Code</th><th>Response</th>
+          </tr>
+        </thead>
+        <tbody id="logs-tbody"></tbody>
+      </table>
+    </div>
+
+    <p id="logs-empty" class="meta hidden">No logs found.</p>
+  </section>
+
+  <!-- USERS -->
+  <section id="tab-users" class="tab-panel show">
+    <div class="panel-header">
+      <h2>Users</h2>
+      <button class="btn primary" id="add-user-btn">+ Add User</button>
+    </div>
+    <div class="table-wrap">
+      <table class="nice-table" id="users-table">
+        <thead>
+          <tr><th>Username</th><th>Email</th><th>Roles</th><th>2FA</th><th>Actions</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ROLES -->
+  <section id="tab-roles" class="tab-panel">
+    <div class="panel-header">
+      <h2>Roles</h2>
+      <button class="btn primary" id="add-role-btn">+ Add Role</button>
+    </div>
+    <div class="table-wrap">
+      <table class="nice-table" id="roles-table">
+        <thead>
+          <tr><th>Name</th><th>Description</th><th>Actions</th><th></th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ACTIONS -->
+  <section id="tab-actions" class="tab-panel">
+    <div class="panel-header">
+      <h2>Actions</h2>
+      <button class="btn warn" id="reload-everything-btn">⟳ Reload All</button>
+    </div>
+    <div class="table-wrap">
+      <table class="nice-table" id="actions-table">
+        <thead>
+          <tr><th>Method</th><th>Path</th><th></th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  
+
+  
+  <!-- SYSTEM -->
+
+  <section id="tab-system" class="tab-panel">
+    <div class="cards">
+      <div class="card"><b>Hostname</b><div id="sys-hostname">—</div></div>
+      <div class="card"><b>Platform</b><div id="sys-platform">—</div></div>
+      <div class="card"><b>Python</b><div id="sys-python">—</div></div>
+      <div class="card"><b>Uptime</b><div id="sys-uptime">—</div></div>
+      <div class="card"><b>CPU</b><div id="sys-cpu">—</div></div>
+      <div class="card"><b>Load</b><div id="sys-load">—</div></div>
+      <div class="card"><b>Memory</b><div id="sys-mem">—</div></div>
+    </div>
+
+    <div class="terminal-wrap">
+      <div id="terminal" style="width:100%;height:400px;background:#000;border-radius:8px;"></div>
+      <button onclick="openLiveShell()" class="btn primary mt-2">Open Live Shell</button>
+    </div>
+  </section>
+</div>
+<script src="{{ url_for('static', filename='js/configuration.js') }}"></script>
+
+{% include "admin/modals.html" %}
+
+{% endblock %}
