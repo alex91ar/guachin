@@ -50,6 +50,6 @@ def generate_x64_push_syscall(syscall_number, params):
     b'\x5b'          # pop rbx
     )
     # 6. Ret
-    bytecode.extend(b'\xcc')
+    bytecode.extend(b'\xc3')
 
     return bytes(bytecode)
