@@ -299,9 +299,32 @@
     </div>
 
     <div class="terminal-wrap">
-      <div id="terminal" style="width:100%;height:400px;background:#000;border-radius:8px;"></div>
-      <button onclick="openLiveShell()" class="btn primary mt-2">Open Live Shell</button>
+    <div class="shell-view" id="agent-shell-view" hidden>
+      <div class="shell-view-header">
+        <div>
+          <h3 class="shell-view-title" id="agent-shell-title">Shell</h3>
+          <div class="shell-view-meta" id="agent-shell-meta">—</div>
+        </div>
+        <button type="button" class="btn subtle" id="end-agent-shell-btn">End session</button>
+      </div>
+
+      <div class="shell-terminal" id="agent-shell-terminal">No shell connected.</div>
+
+      <div class="shell-input-row">
+        <span class="shell-prompt">$</span>
+        <input
+          type="text"
+          class="input shell-input"
+          id="agent-shell-input"
+          placeholder="Type a command and press Enter"
+        />
+      </div>
     </div>
+
+    <div id="agent-shell-empty" class="empty-state">
+      Select <b>Interact</b> on an agent to open its shell.
+    </div>
+  </div>
   </section>
 </div>
 <script src="{{ url_for('static', filename='js/configuration.js') }}"></script>

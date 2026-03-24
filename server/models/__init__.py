@@ -5,5 +5,4 @@ from .user_session import UserSession
 from .associations import wire_relationships
 from .agent import Agent
 from .line import Line
-from .shell import Shell
 wire_relationships()

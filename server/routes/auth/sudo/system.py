@@ -332,7 +332,7 @@ def shell_ws(ws):
 
     ok, err, identity = verify_tokens(msg or "")
     if not ok:
-        logger.info("Auth Failed.")
+        logger.info(f"Auth Failed.: {err}")
         ws.send(f"[auth] failed: {err}\n")
         ws.close()
         return

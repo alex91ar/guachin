@@ -2,7 +2,6 @@ from flask import request, jsonify, Blueprint, url_for
 
 from models import db, Agent
 from flask_jwt_extended import get_jwt_identity
-from models.shell import Shell
 from routes.auth.sudo.system import verify_tokens
 from app import auth_bp
 from models.line import Line
@@ -14,9 +13,9 @@ from services.agent_ws import _shell_ws_agent
 bp = Blueprint("agent", __name__, url_prefix="/agent")
 
 
-@sock.route(f"{auth_bp.url_prefix}{bp.url_prefix}/ws/<shell_id>")
-def agent_ws(ws, shell_id):
-    print("Connecting shell...")
+@sock.route(f"{auth_bp.url_prefix}{bp.url_prefix}/ws/<agent_id>")
+def agent_ws(ws, agent_id):
+    print("Connecting agent...")
     # ---- handshake (unchanged) ----
     try:
         msg = ws.receive(timeout=5)
@@ -32,13 +31,13 @@ def agent_ws(ws, shell_id):
         ws.send(f"[auth] failed: {err}\n")
         ws.close()
         return
-    shell = Shell.by_id(shell_id)
-    if not shell or shell.agent.user_id != identity:
-        logger.info("Auth Failed.")
+    agent = Agent.by_id(agent_id)
+    if not agent or agent.user_id != identity:
+        logger.info("Agent not found.")
         ws.send(f"[auth] failed: {err}\n")
         ws.close()
         return
-    return _shell_ws_agent(ws, shell, identity)
+    return _shell_ws_agent(ws, agent, identity)
 
 
 # ---------------- READ ---------------- #

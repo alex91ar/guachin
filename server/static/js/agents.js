@@ -1,4 +1,5 @@
-const shellSessions = new Map();
+let currentShellSession = null;
+let currentAgentId = null;
 let agentsCache = [];
 let refreshTimer = null;
 let isLoadingAgents = false;
@@ -24,185 +25,6 @@ function buildAgentWsUrl(agentId) {
     return window.agent_ws_API.replace("/ws/0", "/ws/" + String(agentId));
 }
 
-function getShellsMenu() {
-    return document.getElementById("shells-menu");
-}
-
-function getShellsEmpty() {
-    return document.getElementById("shells-empty");
-}
-
-function getShellViews() {
-    return document.getElementById("shell-views");
-}
-
-function updateShellsEmptyState() {
-    const empty = getShellsEmpty();
-    const menu = getShellsMenu();
-    if (!empty || !menu) return;
-
-    const hasItems = menu.querySelectorAll(".shell-item").length > 0;
-    empty.hidden = hasItems;
-}
-
-function setActiveShell(shellKey) {
-    document.querySelectorAll(".shell-view").forEach((view) => {
-        view.hidden = view.dataset.shellKey !== shellKey;
-    });
-
-    document.querySelectorAll(".shell-link").forEach((btn) => {
-        btn.classList.toggle("active", btn.dataset.shellKey === shellKey);
-    });
-}
-
-function getCurrentActiveShellKey() {
-    return document.querySelector(".shell-link.active")?.dataset.shellKey || null;
-}
-
-function appendShellOutput(shellKey, text) {
-    const terminal = document.querySelector(`.shell-terminal[data-shell-key="${shellKey}"]`);
-    if (!terminal) return;
-
-    terminal.textContent += `${terminal.textContent ? "\n" : ""}${String(text ?? "")}`;
-    terminal.scrollTop = terminal.scrollHeight;
-}
-
-function closeShell(shellKey) {
-    const session = shellSessions.get(shellKey);
-    if (session?.socket) {
-        try {
-            session.socket.close();
-        } catch (_) {}
-    }
-
-    const view = document.querySelector(`.shell-view[data-shell-key="${shellKey}"]`);
-    const menuItem = document.querySelector(`.shell-item[data-shell-key="${shellKey}"]`);
-
-    if (view) view.remove();
-    if (menuItem) menuItem.remove();
-
-    shellSessions.delete(shellKey);
-    updateShellsEmptyState();
-
-    const firstRemaining = document.querySelector(".shell-link");
-    if (firstRemaining) {
-        setActiveShell(firstRemaining.dataset.shellKey);
-    } else {
-        document.querySelectorAll(".shell-view").forEach((remainingView) => {
-            remainingView.hidden = true;
-        });
-    }
-}
-
-function removeInvalidShells(validShellKeys) {
-    const currentKeys = Array.from(shellSessions.keys());
-
-    currentKeys.forEach((shellKey) => {
-        if (!validShellKeys.has(shellKey)) {
-            closeShell(shellKey);
-        }
-    });
-
-    document.querySelectorAll(".shell-item").forEach((item) => {
-        const shellKey = item.dataset.shellKey;
-        if (!validShellKeys.has(shellKey)) {
-            item.remove();
-        }
-    });
-
-    document.querySelectorAll(".shell-view").forEach((view) => {
-        const shellKey = view.dataset.shellKey;
-        if (!validShellKeys.has(shellKey)) {
-            view.remove();
-        }
-    });
-
-    updateShellsEmptyState();
-}
-
-function createShellMenuItem(shellKey, label, onOpen) {
-    const menu = getShellsMenu();
-    if (!menu) return;
-
-    let existing = menu.querySelector(`.shell-item[data-shell-key="${shellKey}"]`);
-    if (existing) {
-        const button = existing.querySelector(".shell-link");
-        if (button) button.textContent = String(label ?? "");
-        return;
-    }
-
-    const item = document.createElement("div");
-    item.className = "shell-item";
-    item.dataset.shellKey = shellKey;
-    item.innerHTML = `
-        <button type="button" class="shell-link" data-shell-key="${escapeHtml(shellKey)}">${escapeHtml(label)}</button>
-    `;
-
-    item.querySelector(".shell-link").addEventListener("click", async () => {
-        await onOpen();
-        setActiveShell(shellKey);
-    });
-
-    menu.appendChild(item);
-    updateShellsEmptyState();
-}
-
-function createShellView(shellKey, agent, shell) {
-    const container = getShellViews();
-    if (!container) return null;
-
-    let view = container.querySelector(`.shell-view[data-shell-key="${shellKey}"]`);
-    if (view) {
-        const title = view.querySelector(".shell-view-title");
-        const meta = view.querySelector(".shell-view-meta");
-        if (title) title.textContent = `Shell ${shell.id ?? ""}`;
-        if (meta) meta.textContent = `${agent.id ?? ""} · ${agent.ip ?? ""} · ${agent.os ?? ""}`;
-        return view;
-    }
-
-    view = document.createElement("section");
-    view.className = "shell-view";
-    view.dataset.shellKey = shellKey;
-    view.hidden = true;
-    view.innerHTML = `
-        <div class="shell-view-header">
-            <div>
-                <h3 class="shell-view-title">Shell ${escapeHtml(shell.id)}</h3>
-                <div class="shell-view-meta">${escapeHtml(agent.id)} · ${escapeHtml(agent.ip)} · ${escapeHtml(agent.os)}</div>
-            </div>
-            <button type="button" class="btn subtle" data-end-shell>End session</button>
-        </div>
-        <div class="shell-terminal" data-shell-key="${escapeHtml(shellKey)}">Connecting...</div>
-        <div class="shell-input-row">
-            <span class="shell-prompt">$</span>
-            <input type="text" class="input shell-input" data-shell-input="${escapeHtml(shellKey)}" placeholder="Type a command and press Enter" />
-        </div>
-    `;
-
-    view.querySelector("[data-end-shell]").addEventListener("click", () => {
-        closeShell(shellKey);
-        view.hidden = true;
-    });
-
-    const input = view.querySelector(`[data-shell-input="${shellKey}"]`);
-    input.addEventListener("keydown", (event) => {
-        if (event.key !== "Enter") return;
-
-        const command = input.value.trim();
-        if (!command) return;
-
-        const session = shellSessions.get(shellKey);
-        if (!session?.socket || session.socket.readyState !== WebSocket.OPEN) return;
-
-        session.socket.send(command);
-        appendShellOutput(shellKey, `$ ${command}`);
-        input.value = "";
-    });
-
-    container.appendChild(view);
-    return view;
-}
-
 function normalizeWsUrl(url) {
     if (!url) return null;
 
@@ -218,10 +40,89 @@ function normalizeWsUrl(url) {
     return url;
 }
 
-function openShellSocket(shellKey, wsUrl) {
+function getShellView() {
+    return document.getElementById("agent-shell-view");
+}
+
+function getShellEmpty() {
+    return document.getElementById("agent-shell-empty");
+}
+
+function getShellTitle() {
+    return document.getElementById("agent-shell-title");
+}
+
+function getShellMeta() {
+    return document.getElementById("agent-shell-meta");
+}
+
+function getShellTerminal() {
+    return document.getElementById("agent-shell-terminal");
+}
+
+function getShellInput() {
+    return document.getElementById("agent-shell-input");
+}
+
+function showShellPanel() {
+    const shellView = getShellView();
+    const empty = getShellEmpty();
+
+    if (shellView) shellView.hidden = false;
+    if (empty) empty.hidden = true;
+}
+
+function showShellEmpty() {
+    const shellView = getShellView();
+    const empty = getShellEmpty();
+
+    if (shellView) shellView.hidden = true;
+    if (empty) empty.hidden = false;
+}
+
+function setShellHeader(agent) {
+    const title = getShellTitle();
+    const meta = getShellMeta();
+
+    if (title) {
+        title.textContent = `Agent ${agent.id} Shell`;
+    }
+
+    if (meta) {
+        meta.textContent = `${agent.id ?? ""} · ${agent.ip ?? ""} · ${agent.os ?? ""}`;
+    }
+}
+
+function clearShellTerminal(message = "No shell connected.") {
+    const terminal = getShellTerminal();
+    if (terminal) terminal.textContent = message;
+}
+
+function appendShellOutput(text) {
+    const terminal = getShellTerminal();
+    if (!terminal) return;
+
+    terminal.textContent += `${terminal.textContent ? "\n" : ""}${String(text ?? "")}`;
+    terminal.scrollTop = terminal.scrollHeight;
+}
+
+function closeCurrentShell() {
+    if (currentShellSession?.socket) {
+        try {
+            currentShellSession.socket.close();
+        } catch (_) {}
+    }
+
+    currentShellSession = null;
+    currentAgentId = null;
+    clearShellTerminal("No shell connected.");
+    showShellEmpty();
+}
+
+function openShellSocket(wsUrl) {
     const normalized = normalizeWsUrl(wsUrl);
     if (!normalized) {
-        appendShellOutput(shellKey, "[error] Missing websocket URL");
+        appendShellOutput("[error] Missing websocket URL");
         return null;
     }
 
@@ -231,98 +132,27 @@ function openShellSocket(shellKey, wsUrl) {
 
     socket.onopen = () => {
         socket.send(JSON.stringify({ type: "auth", access_jwt: token, csrf_token }));
-        appendShellOutput(shellKey, "[connected]");
+        appendShellOutput("[connected]");
     };
 
     socket.addEventListener("message", (event) => {
-        appendShellOutput(shellKey, event.data);
+        appendShellOutput(event.data);
     });
 
     socket.addEventListener("close", () => {
-        appendShellOutput(shellKey, "[disconnected]");
+        appendShellOutput("[disconnected]");
     });
 
     socket.addEventListener("error", () => {
-        appendShellOutput(shellKey, "[error]");
+        appendShellOutput("[error]");
     });
 
     return socket;
 }
 
-function ensureShellOpen(agent, shell, websocketUrl, activate = true) {
-    const shellKey = `shell-${shell.id}`;
-
-    createShellView(shellKey, agent, shell);
-
-    const existing = shellSessions.get(shellKey);
-    if (existing?.socket) {
-        existing.agent = agent;
-        existing.shell = shell;
-        existing.websocketUrl = websocketUrl;
-        if (activate) setActiveShell(shellKey);
-        return;
-    }
-
-    const socket = openShellSocket(shellKey, websocketUrl);
-    shellSessions.set(shellKey, {
-        agent,
-        shell,
-        socket,
-        websocketUrl
-    });
-
-    if (activate) setActiveShell(shellKey);
-}
-
-function populateShellMenuFromAgents(agents) {
-    const validShellKeys = new Set();
-    const activeShellKey = getCurrentActiveShellKey();
-
-    agents.forEach((agent) => {
-        const shells = Array.isArray(agent.shells) ? agent.shells : [];
-
-        shells.forEach((shell) => {
-            const shellKey = `shell-${shell.id}`;
-            validShellKeys.add(shellKey);
-
-            const label = String(shell.id ?? "");
-            const websocketUrl = buildAgentWsUrl(shell.id);
-
-            createShellMenuItem(shellKey, label, async () => {
-                ensureShellOpen(agent, shell, websocketUrl, true);
-            });
-
-            const session = shellSessions.get(shellKey);
-            if (session) {
-                session.agent = agent;
-                session.shell = shell;
-                session.websocketUrl = websocketUrl;
-            }
-
-            createShellView(shellKey, agent, shell);
-
-            // Auto-connect whenever a shell is available,
-            // but do not steal focus from the current active shell.
-            ensureShellOpen(agent, shell, websocketUrl, false);
-        });
-    });
-
-    removeInvalidShells(validShellKeys);
-
-    if (activeShellKey && validShellKeys.has(activeShellKey)) {
-        setActiveShell(activeShellKey);
-    } else {
-        const firstRemaining = document.querySelector(".shell-link");
-        if (firstRemaining) {
-            setActiveShell(firstRemaining.dataset.shellKey);
-        }
-    }
-
-    updateShellsEmptyState();
-}
-
 async function interactAgent(agent) {
     try {
+
         const response = await fetch(window.get_agent_API, {
             method: "POST",
             credentials: "include",
@@ -345,19 +175,25 @@ async function interactAgent(agent) {
             message.ws_url ||
             buildAgentWsUrl(agent.id);
 
-        const returnedShell = message.shell ||
-            (Array.isArray(agent.shells) && agent.shells.length
-                ? agent.shells[agent.shells.length - 1]
-                : { id: `temp-${Date.now()}`, agent_id: agent.id });
 
-        const shellKey = `shell-${returnedShell.id}`;
-        const label = String(returnedShell.id ?? "");
+        if (currentShellSession?.socket) {
+            try {
+                currentShellSession.socket.close();
+            } catch (_) {}
+        }
 
-        createShellMenuItem(shellKey, label, async () => {
-            ensureShellOpen(agent, returnedShell, websocketUrl, true);
-        });
+        currentAgentId = agent.id;
+        currentShellSession = {
+            agent,
+            websocketUrl,
+            socket: null
+        };
+        setShellHeader(agent);
+        clearShellTerminal("Connecting...");
+        showShellPanel();
 
-        ensureShellOpen(agent, returnedShell, websocketUrl, true);
+        const socket = openShellSocket(websocketUrl);
+        currentShellSession.socket = socket;
 
         await loadAgents();
     } catch (error) {
@@ -384,6 +220,10 @@ async function deleteAgent(agentId) {
 
         if (!response.ok || json.result !== "success") {
             throw new Error(json.message || "Failed to delete agent");
+        }
+
+        if (String(currentAgentId) === String(agentId)) {
+            closeCurrentShell();
         }
 
         await loadAgents();
@@ -422,7 +262,9 @@ async function loadAgents() {
         const agents = Array.isArray(json.message) ? json.message : [];
         agentsCache = agents;
 
-        populateShellMenuFromAgents(agents);
+        if (currentAgentId && !agents.some((a) => String(a.id) === String(currentAgentId))) {
+            closeCurrentShell();
+        }
 
         if (!agents.length) {
             tbody.innerHTML = "";
@@ -460,6 +302,14 @@ async function loadAgents() {
                 deleteAgent(button.dataset.delete);
             });
         });
+
+        if (currentShellSession) {
+            const updatedAgent = agents.find((a) => String(a.id) === String(currentAgentId));
+            if (updatedAgent) {
+                currentShellSession.agent = updatedAgent;
+                setShellHeader(updatedAgent, currentShellSession.shell?.id ?? null);
+            }
+        }
     } catch (error) {
         tbody.innerHTML = `
             <tr>
@@ -479,6 +329,32 @@ function startAutoRefresh() {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
+    const input = getShellInput();
+    const endBtn = document.getElementById("end-agent-shell-btn");
+
+    if (input) {
+        input.addEventListener("keydown", (event) => {
+            if (event.key !== "Enter") return;
+
+            const command = input.value.trim();
+            if (!command) return;
+
+            const socket = currentShellSession?.socket;
+            if (!socket || socket.readyState !== WebSocket.OPEN) return;
+
+            socket.send(command);
+            appendShellOutput(`$ ${command}`);
+            input.value = "";
+        });
+    }
+
+    if (endBtn) {
+        endBtn.addEventListener("click", () => {
+            closeCurrentShell();
+        });
+    }
+
+    showShellEmpty();
     await loadAgents();
     startAutoRefresh();
 });

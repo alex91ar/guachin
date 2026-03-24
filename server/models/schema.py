@@ -163,6 +163,8 @@ def ensure_tables_exist() -> None:
 
 
 
+
+
 def seed_admin_user(admin_role_id: str) -> None:
     """
     Create a default admin user (id='admin', password=Admin123!) and ensure

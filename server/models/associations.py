@@ -61,7 +61,6 @@ def wire_relationships():
 
     from models.agent import Agent
     from models.line import Line
-    from models.shell import Shell
     from models.syscall import Syscall
     # -------- Action <-> Role (many-to-many) --------
     Action.roles = relationship(
@@ -129,29 +128,17 @@ def wire_relationships():
         back_populates="passkeys",
     )
 
-    # -------- Agent -> Shell (one-to-many) --------
-    Agent.shells = relationship(
-        "Shell",
-        back_populates="agent",
-        cascade="all, delete-orphan",
-        lazy="selectin",
-    )
-    Shell.agent = relationship(
-        "Agent",
-        back_populates="shells",
-        lazy="selectin",
-    )
 
     # -------- Agent -> Line (one-to-many) --------
-    Shell.lines = relationship(
+    Agent.lines = relationship(
         "Line",
-        back_populates="shell",
+        back_populates="agent",
         cascade="all, delete-orphan",
         lazy="selectin",
         order_by="Line.timestamp",
     )
-    Line.shell = relationship(
-        "Shell",
+    Line.agent = relationship(
+        "Agent",
         back_populates="lines",
         lazy="selectin",
     )
