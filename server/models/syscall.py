@@ -12,7 +12,6 @@ class Syscall(Base):
     name = db.Column(db.String(255))
     syscall = db.Column(db.Integer)
     def __init__(self, agent_id, name, syscall):
-        print(f"Creating syscall agent_id {agent_id} name {name} syscall {syscall}.")
         self.agent_id = agent_id
         self.name = name
         self.syscall = syscall
@@ -27,7 +26,7 @@ class Syscall(Base):
     
 
     @classmethod
-    def save_syscalls_bytes(cls, agent_id, data: bytes):
+    def save_syscalls_bytes(cls, agent_id, data: bytes, db_session):
         if not data:
             raise ValueError("Input string is empty")
 
@@ -58,11 +57,11 @@ class Syscall(Base):
 
                 objs.append(Syscall(agent_id, name, syscall_number))
 
-            db.session.add_all(objs)
-            db.session.commit()
+            db_session.add_all(objs)
+            db_session.commit()
 
         except Exception:
-            db.session.rollback()
+            db_session.rollback()
             raise
        
 

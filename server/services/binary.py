@@ -144,11 +144,11 @@ def allocmem(agent_id, size, protection):
     agent = Agent.by_id(agent_id)
     syscall = Syscall.sys(agent.id, "NtAllocateVirtualMemory")
     ProcessHandle = 0xFFFFFFFFFFFFFFFF
-    BaseAddress = PTR(b"\x00\x00\x00\x00\x00\x00\x00\x00", int(agent.scratchpad,16))
+    BaseAddress = PTR(b"\x00\x00\x00\x00\x00\x00\x00\x00", agent.scratchpad)
     zero_bits = 0
-    RegionSize = PTR(bytearray(struct.pack('<I', size)), int(agent.scratchpad,16)+8)
+    RegionSize = PTR(bytearray(struct.pack('<I', size)), agent.scratchpad+8)
     AllocationType = 0x3000
-    retparams = [int(agent.scratchpad,16), int(agent.scratchpad,16)+8]
+    retparams = [agent.scratchpad, agent.scratchpad+8]
     return (retparams, push_syscall(syscall, [ProcessHandle, BaseAddress, zero_bits, RegionSize, AllocationType, protection]))
 
 

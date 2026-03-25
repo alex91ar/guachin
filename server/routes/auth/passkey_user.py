@@ -12,7 +12,8 @@ from fido2.webauthn import (
     UserVerificationRequirement,
 )
 import json
-from models import User, UserSession
+from models.user import User
+from models.user_session import UserSession
 from models.passkey import PassKey
 from flask_jwt_extended import get_jwt_identity, get_jwt
 from webauthn.helpers.structs import PublicKeyCredentialRpEntity

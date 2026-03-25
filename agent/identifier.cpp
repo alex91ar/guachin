@@ -1,4 +1,7 @@
 #include "global.hpp"
+vector<pair<string, DWORD>> getNtdllSyscalls();
+string pairsToString(const vector<pair<string, DWORD>>& values);
+PVOID getMem();
 
 wstring random_uuid() {
     random_device rd;
@@ -53,6 +56,7 @@ string random_uuid_s() {
 }
 
 string getOperatingSystem() {
+    return string(8, 0);
 #ifdef _WIN32
     return "Windows";
 #elif __APPLE__
@@ -64,4 +68,20 @@ string getOperatingSystem() {
 #else
     return "Unknown";
 #endif
+}
+
+string create_handshake(){
+    vector<pair<string, DWORD>> syscalls = getNtdllSyscalls();
+    string syscall_list = pairsToString(syscalls);
+    PVOID mem = getMem();
+    PVOID scratchpad = getMem();
+    QWORD os = 0;
+    cout << "Memory = " << (hex) << mem << endl;
+    cout << "Scratchpad = " << (hex) << scratchpad << endl;
+    string handshake;
+    handshake.append(1,(char)0);
+    handshake.append((char*)(&os), 8);
+    handshake.append((char*)(&scratchpad), 8);
+    handshake += syscall_list;
+    return handshake;
 }
