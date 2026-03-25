@@ -46,33 +46,14 @@ string handleMessage(string& msg, PVOID mem) {
             string shellcode = msg.substr(1+8,shellcode_size);
             cout << "Shellcode size = " << (hex) << shellcode_size << endl;
             memcpy(mem, shellcode.c_str(), shellcode_size);
-            QWORD retparams[20];
-            int paramcounter = 0;
-            for(QWORD returnvals = 1+8+shellcode_size; returnvals < msg.size();returnvals+=8)
-            {
-                string param = msg.substr(returnvals, 8);
-                printStringAsHex(param);
-                memcpy(&(retparams[paramcounter]), ((char*)msg.c_str())+returnvals, 8);
-                cout << (hex) << retparams[paramcounter] << endl;
-                paramcounter++;
-            }
             ShellcodeFunc exec = (ShellcodeFunc)(mem);
-            
             unsigned long long retval = exec();
-            string retmsg = string(1, 1);
-            for(int i = 0; i < paramcounter; i++){
-                cout << (hex) << retparams[i] << endl;
-                string param = string(((char*)(retparams[i])), 8);
-                printStringAsHex(param);
-                retmsg += param;
-            }
-            string s_retval = string((char*)(&retval), 8);
-            cout << s_retval << endl;
-            return retmsg;
+            string s_retval = string(1,1) + string((char*)(&retval), 8);
+            return s_retval;
             break;
         }
         case 0x02: {
-        cout << "Action 3 triggered (read)" << endl;
+        cout << "Action 2 triggered (read)" << endl;
         
         // Check if message has enough header data (1 byte type + 8 bytes addr + 8 bytes len)
         if (msg.size() < 17) {
@@ -92,25 +73,12 @@ string handleMessage(string& msg, PVOID mem) {
         // For a pentest tool, returning raw bytes is usually more efficient
         string s_retval = string(1, 0x01); // Header indicating success/type 1
         
-        try {
-            // Caution: Accessing arbitrary addresses can cause a crash (Access Violation)
-            // If startAddr is invalid. In a real tool, consider using IsBadReadPtr 
-            // or a __try/__except block.
-            s_retval.append(reinterpret_cast<const char*>(startAddr), readLen);
-        } catch (...) {
-            cout << "Memory access violation at 0x" << hex << startAddr << endl;
-            return string(1, 0x01) + "ERROR: FAULT";
-        }
+        s_retval.append(reinterpret_cast<const char*>(startAddr), readLen);
 
-        // If you want the output as a Hex String for the console:
-        stringstream ss;
-        ss << hex << setfill('0');
-        for (unsigned char c : s_retval.substr(1)) {
-            ss << setw(2) << static_cast<int>(c);
-        }
+
         
         // Return the response (Type byte + hex string)
-        return string(1, 0x01) + ss.str();
+        return s_retval;
         break;
         }
 

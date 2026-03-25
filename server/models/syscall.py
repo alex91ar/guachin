@@ -8,9 +8,9 @@ class Syscall(Base):
         db.UniqueConstraint("agent_id", "name", name="uq_syscalls_agent_name"),
     )
     id = db.Column(db.Integer, primary_key=True)
-    agent_id = db.Column(db.String(255), db.ForeignKey("agents.id"), nullable=False, index=True)
+    agent_id = db.Column(db.String(255), db.ForeignKey("agents.id", ondelete="CASCADE"), nullable=False, index=True)
     name = db.Column(db.String(255))
-    syscall = db.Column(db.Integer)
+    syscall = db.Column(db.BigInteger)
     def __init__(self, agent_id, name, syscall):
         self.agent_id = agent_id
         self.name = name

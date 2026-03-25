@@ -78,13 +78,17 @@ vector<pair<string, void*>> getNtdllExports() {
     return exports;
 }
 
-vector<pair<string, DWORD>> getNtdllSyscalls(){
+vector<pair<string, QWORD>> getNtdllSyscalls(){
     vector<pair<string, void*>> exports = getNtdllExports();
-    vector<pair<string, DWORD>> returns;
+    vector<pair<string, QWORD>> returns;
     for (const auto& item : exports) {
-        DWORD dwSyscall = readNextDwordIfPatternMatches(item.second);
+        QWORD dwSyscall = readNextDwordIfPatternMatches(item.second);
         if(dwSyscall != 0xFFFFFFFF){
             returns.emplace_back(item.first, dwSyscall);
+        }
+        else{
+            QWORD export_addy = (QWORD) item.second;
+            returns.emplace_back(item.first, export_addy);
         }
     }
     return returns;

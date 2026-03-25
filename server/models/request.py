@@ -3,15 +3,17 @@ from models.basemodel import Base, db
 from sqlalchemy.sql import func
 from models.db import get_session
 from sqlalchemy import select
+from sqlalchemy.dialects.mysql import LONGBLOB
+
 
 class Request(Base):
     __tablename__ = "requests"
 
     id = db.Column(db.Integer, primary_key=True)
-    agent_id = db.Column(db.String(255), db.ForeignKey("agents.id"), nullable=False)
+    agent_id = db.Column(db.String(255), db.ForeignKey("agents.id", ondelete="CASCADE"), nullable=False)
     content = db.Column(db.LargeBinary, nullable=True)
     timestamp = db.Column(db.DateTime(timezone=True), server_default=func.now(), nullable=False)
-    response = db.Column(db.LargeBinary, nullable=True)
+    response = db.Column(LONGBLOB, nullable=True)
     sent = db.Column(db.Boolean, nullable=False, default=False)
 
     def to_dict(self):

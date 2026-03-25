@@ -60,7 +60,7 @@ class PTR():
 
         return bytes(bytecode)
 
-def push_syscall(syscall_number, params, retparams= []):
+def push_syscall(syscall_number, params):
     bytecode = bytearray()
     bytecode.extend(b'\x53')      # push rbx
     bytecode.extend(b'\x55')      # push rbp
@@ -132,6 +132,85 @@ def push_syscall(syscall_number, params, retparams= []):
     bytecode.extend(b'\xc3')
 
     return (bytes(bytecode))
+
+
+def push_rtl_func(func_add, params):
+    bytecode = bytearray()
+    bytecode.extend(b'\x53')      # push rbx
+    bytecode.extend(b'\x55')      # push rbp
+    bytecode.extend(b'\x57')      # push rdi
+    bytecode.extend(b'\x56')      # push rsi
+    bytecode.extend(b'\x41\x54')  # push r12
+    bytecode.extend(b'\x41\x55')  # push r13
+    bytecode.extend(b'\x41\x56')  # push r14
+    bytecode.extend(b'\x41\x57')  # push r15
+    # 1. PUSH Extra Parameters (5 and above) FIRST
+    # These must be pushed in REVERSE order (right-to-left)
+    if len(params) > 4:
+        for param in reversed(params[4:]):
+            if type(param) == PTR:
+                bytecode.extend(param.code)
+                # MOV RAX, imm64
+                bytecode.extend(b'\x48\xb8')
+                bytecode.extend(struct.pack('<Q', param.memory))
+            else:
+                bytecode.extend(b'\x48\xb8')
+                bytecode.extend(struct.pack('<Q', param))
+            # PUSH RAX
+            bytecode.extend(b'\x50')
+
+
+    # 2. ALLOCATE SHADOW SPACE (0x20 bytes) LAST
+    # This pushes 0x0 4 times.
+    bytecode.extend(b'\x6A\x00')
+    bytecode.extend(b'\x6A\x00')
+    bytecode.extend(b'\x6A\x00')
+    bytecode.extend(b'\x6A\x00')
+
+    # 3. Load Parameters 1-4 into Registers (RCX, RDX, R8, R9)
+    regs = [b'\x48\xb9', b'\x48\xba', b'\x49\xb8', b'\x49\xb9']
+    for i in range(min(len(params), 4)):
+        if type(params[i]) == PTR:
+            bytecode.extend(params[i].code)
+            bytecode.extend(regs[i])
+            bytecode.extend(struct.pack('<Q', params[i].memory))
+        else:
+            bytecode.extend(regs[i])
+            bytecode.extend(struct.pack('<Q', params[i]))
+
+    # MOV RAX, imm64
+    # Set the function on RAX
+    bytecode.extend(b'\x48\xb8')
+    bytecode.extend(struct.pack('<Q', func_add))
+
+    # 5. This pushes 0x0
+    bytecode.extend(b'\x6A\x00')
+    # 6. Syscall Instruction
+    bytecode.extend(b'\xff\xD0')
+
+    #align
+    bytecode.extend(b"\x48\x83\xc4")
+    stack_align = 0x28
+    if len(params) > 4:
+        stack_align +=8*(len(params)-4)
+    bytecode.extend(struct.pack('<B',stack_align))
+
+    bytecode.extend(
+    b'\x41\x5f'      # pop r15
+    b'\x41\x5e'      # pop r14
+    b'\x41\x5d'      # pop r13
+    b'\x41\x5c'      # pop r12
+    b'\x5e'          # pop rsi
+    b'\x5f'          # pop rdi
+    b'\x5d'          # pop rbp
+    b'\x5b'          # pop rbx
+    )
+    # 7. ret
+    bytecode.extend(b'\xc3')
+
+    return (bytes(bytecode))
+
+
 
 def readmemory(address, size):
     retmessage = bytearray()

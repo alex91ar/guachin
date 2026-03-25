@@ -45,6 +45,7 @@ def agent_ws(ws, agent_id):
 def list_agents():
     """List all agents."""
     try:
+        Agent.cleanup_agents()
         id = get_jwt_identity()
         agents = Agent.by_user_name(id)
 

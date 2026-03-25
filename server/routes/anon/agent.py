@@ -50,7 +50,6 @@ def parse_handshake(msg, agent_id):
 def handle_msg_type(request_id):
     request_obj = None
     while True:
-        print("Checking...")
         db_session, request_obj = Request.by_id_lock(request_id)
         if request_obj is None:
             break
@@ -65,6 +64,8 @@ def handle_msg_type(request_id):
     if msg_type == 0x00:
         # handshake
         parse_handshake(payload, request_obj.agent_id)
+    elif msg_type == 0x01:
+        return payload
     else:
         print(f"Unknown message type {msg_type}")
 
@@ -110,11 +111,10 @@ def server_agent_ws(ws, agent_id):
         req.sent = True
         db_session.commit()
         db_session.remove()
+        return True
 
     def save_request_response(request_id, message):
-        print(f"Saving response {request_id}")
         db_session, req = Request.by_id_lock(request_id)
-        print(f"Saving response {req}")
 
         req.response = message
         db_session.commit()
@@ -128,7 +128,6 @@ def server_agent_ws(ws, agent_id):
             while not stop_event.is_set():
                 try:
                     request_obj = Request.by_agent(agent_id)
-                    print(f"Got a request {request_obj}")
 
                     if request_obj is None:
                         time.sleep(1)
@@ -211,11 +210,12 @@ def server_agent_ws(ws, agent_id):
                 save_request_response(current_request_id, message)
 
     finally:
+        print(f"Closing websocket with agent {agent_id}")
         stop_event.set()
         if agent is not None:
             try:
-                agent.online = False
-                agent.save()
+                print(f"Setting {agent_id} as offline")
+                Agent.to_offline(agent_id)
             except Exception:
                 logger.exception("Failed updating agent %s offline state", agent_id)
 

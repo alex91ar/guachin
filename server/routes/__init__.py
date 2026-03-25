@@ -208,10 +208,10 @@ def enforce_rbac():
     method = request.method
     key = gen_key(path, method)
     action_keys = get_jwt().get("perms", [])
-    logger.info(
-        "enforce_rbac: user=%s path=%s method=%s generated_key=%s user_perms_count=%d",
-        get_jwt().get("sub"), path, method, key, len(action_keys)
-    )
+    #logger.info(
+    #    "enforce_rbac: user=%s path=%s method=%s generated_key=%s user_perms_count=%d",
+    #    get_jwt().get("sub"), path, method, key, len(action_keys)
+    #)
     if key not in action_keys:
         logger.info("enforce_rbac: permission_denied key_missing_in_claims")
         return jsonify({

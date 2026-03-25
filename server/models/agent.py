@@ -1,6 +1,4 @@
 from datetime import datetime
-from sqlalchemy.orm import relationship
-
 from models.basemodel import Base, db
 
 
@@ -10,7 +8,7 @@ class Agent(Base):
     id = db.Column(db.String(255), primary_key=True)
     ip = db.Column(db.String(255), nullable=True)
     os = db.Column(db.BigInteger, nullable=True)
-    online = db.Column(db.Boolean, nullable=False, default=False)
+    online = db.Column(db.Boolean, nullable=False, default=True)
     last_seen = db.Column(db.DateTime(timezone=True), nullable=True)
     user_id = db.Column(db.String(255), db.ForeignKey("users.id"), nullable=True)
     scratchpad = db.Column(db.BigInteger, nullable=True)
@@ -30,5 +28,18 @@ class Agent(Base):
         self.user_id = user_id
 
     @classmethod
+    def to_offline(cls, agent_id):
+        db.session.query(cls).filter_by(id=agent_id).update({
+            "online": False,
+            "last_seen": datetime.utcnow()
+        })
+        db.session.commit()
+
+    @classmethod
     def by_user_name(cls, user_name: str):
         return cls.query.filter_by(user_id=user_name)
+
+    @classmethod
+    def cleanup_agents(cls):
+        cls.query.filter_by(online=False).delete(synchronize_session=False)
+        db.session.commit()
