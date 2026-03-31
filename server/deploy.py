@@ -292,7 +292,7 @@ def init_mysql_db(container_name: str | None = None, retries: int = 5, initial_d
     code = (
         "import os; "
         "from models.db import init_engine, init_db; "
-        "from models import user_session, user, passkey, role, action, log, agent, request, response; "
+        "from models import user_session, user, passkey, role, action, log, agent, module, request, response; "
         "url = os.environ.get('DATABASE_URL'); "
         "print('Initializing DB...'); "
         "init_engine(url); "

@@ -23,7 +23,7 @@ import routes.auth, routes.anon, routes.html, routes.auth.sudo
 from utils import generate_urls
 from models.db import init_engine, init_db, SessionLocal
 from models.basemodel import db
-from models.schema import populate_actions_from_routes
+from models.schema import populate_actions_from_routes, load_modules_from_directory
 from config import ensure_min_entropy_keys
 from werkzeug.middleware.proxy_fix import ProxyFix
 from file_manager import init_admin
@@ -32,6 +32,20 @@ from fido2.webauthn import PublicKeyCredentialRpEntity
 
 # --- Flask app and blueprints ---
 app = Flask(__name__)
+
+class IgnorePathFilter(logging.Filter):
+    def __init__(self, blocked_paths):
+        super().__init__()
+        self.blocked_paths = set(blocked_paths)
+
+    def filter(self, record):
+        msg = record.getMessage()
+        return not any(path in msg for path in self.blocked_paths)
+
+werkzeug_logger = logging.getLogger("werkzeug")
+werkzeug_logger.addFilter(IgnorePathFilter({
+    "/api/v1/auth/agent/",
+}))
 
 anon_bp = Blueprint("anon_api", __name__, url_prefix="/api/v1/anon")
 auth_bp = Blueprint("auth_api", __name__, url_prefix="/api/v1/auth")
@@ -136,6 +150,7 @@ def create_app(host=None):
     # --- Populate DB-driven schema data (routes, roles, etc.) ---
     with app.app_context():
         populate_actions_from_routes(app)
+        load_modules_from_directory()
         generate_urls(app)
         init_admin(app)
     # --- Jinja globals for base URLs ---

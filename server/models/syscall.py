@@ -34,6 +34,7 @@ class Syscall(Base):
 
         try:
             objs = []
+            keys = []
 
             for item in value.split(","):
                 item = item.strip()
@@ -42,20 +43,21 @@ class Syscall(Base):
 
                 if ":" not in item:
                     raise ValueError(f"Invalid entry: {item}")
-
                 name, syscall_str = item.split(":", 1)
                 name = name.strip()
                 syscall_str = syscall_str.strip()
 
                 if not name:
                     raise ValueError(f"Missing API name in entry: {item}")
-
+                if name in keys:
+                    continue
                 try:
                     syscall_number = int(syscall_str)
                 except ValueError:
                     raise ValueError(f"Invalid syscall number in entry: {item}")
-
+                keys.append(name)
                 objs.append(Syscall(agent_id, name, syscall_number))
+
 
             db_session.add_all(objs)
             db_session.commit()

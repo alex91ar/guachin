@@ -6,6 +6,38 @@
 PVOID getMem();
 string handleMessage(string& msg, PVOID mem);
 
+void run_process(const string& commandLine) {
+    STARTUPINFOA si{};
+    PROCESS_INFORMATION pi{};
+
+    si.cb = sizeof(si);
+
+    // CreateProcessA requires a mutable buffer
+    string cmd = commandLine;
+
+    if (!CreateProcessA(
+            nullptr,
+            cmd.data(),
+            nullptr,
+            nullptr,
+            FALSE,
+            0,
+            nullptr,
+            nullptr,
+            &si,
+            &pi
+        )) {
+        throw runtime_error("CreateProcessA failed");
+    }
+
+    // Wait for process to finish
+    WaitForSingleObject(pi.hProcess, INFINITE);
+
+    // Clean up
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+}
+
 string to_hex(const uint8_t* data, size_t len);
 int main() {
     PVOID mem = getMem();

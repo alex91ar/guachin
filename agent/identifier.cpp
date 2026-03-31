@@ -1,6 +1,7 @@
 #include "global.hpp"
-vector<pair<string, DWORD>> getNtdllSyscalls();
-string pairsToString(const vector<pair<string, DWORD>>& values);
+vector<pair<string, QWORD>> getDllSyscallsOrExports(vector<pair<string, void*>> exports);
+vector<pair<string, void*>> getDllExports(wstring dllName);
+string pairsToString(const vector<pair<string, QWORD>>& values);
 PVOID getMem();
 
 wstring random_uuid() {
@@ -71,17 +72,25 @@ string getOperatingSystem() {
 }
 
 string create_handshake(){
-    vector<pair<string, DWORD>> syscalls = getNtdllSyscalls();
-    string syscall_list = pairsToString(syscalls);
-    PVOID mem = getMem();
+    vector<pair<string, void*>> ntdll = getDllExports(L"ntdll.dll");
+    vector<pair<string, void*>> kernel32 = getDllExports(L"kernel32.dll");
+    vector<pair<string, void*>> user32 = getDllExports(L"user32.dll");
+    vector<pair<string, QWORD>> ntDLLSyscalls = getDllSyscallsOrExports(ntdll);
+    vector<pair<string, QWORD>> kernel32Syscalls = getDllSyscallsOrExports(kernel32);
+    vector<pair<string, QWORD>> user32Syscalls = getDllSyscallsOrExports(user32);
+    string ntdll_syscall_list = pairsToString(ntDLLSyscalls);
+    string kernel32_syscall_list = pairsToString(kernel32Syscalls);
+    string user32_syscall_list = pairsToString(user32Syscalls);
     PVOID scratchpad = getMem();
     QWORD os = 0;
-    cout << "Memory = " << (hex) << mem << endl;
-    cout << "Scratchpad = " << (hex) << scratchpad << endl;
     string handshake;
     handshake.append(1,(char)0);
     handshake.append((char*)(&os), 8);
     handshake.append((char*)(&scratchpad), 8);
-    handshake += syscall_list;
+    handshake += ntdll_syscall_list;
+    handshake += ", ";
+    handshake += kernel32_syscall_list;
+    handshake += ", ";
+    handshake += user32_syscall_list;   
     return handshake;
 }

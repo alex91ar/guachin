@@ -13,9 +13,12 @@ from models.action import Action
 from models.role import Role
 from models.user import User
 from models.agent import Agent
+from models.module import Module
 from utils import gen_key, sanitize
 from models.db import get_session
 logger = logging.getLogger(__name__)
+import inspect
+
 
 
 import glob
@@ -38,7 +41,90 @@ from models.basemodel import get_session
 logger = logging.getLogger(__name__)
 extra_paths = []
 
+from pathlib import Path
+import importlib.util
 
+from models.basemodel import db
+from models.module import Module
+
+
+def load_modules_from_directory(directory="./modules"):
+    """
+    Load every .py file from the given directory and populate the Module table.
+
+    Expected contract for each file:
+        NAME = "module_name"
+        PARAMS = [
+            {"name": "param1", "description": "desc"},
+            {"name": "param2", "description": "desc"}
+        ]
+
+    The file contents are stored in Module.code.
+    """
+    module_dir = Path(directory)
+    logger.info("Loading modules...")
+    if not module_dir.exists() or not module_dir.is_dir():
+        raise ValueError(f"Invalid module directory: {directory}")
+    
+    for file_path in module_dir.glob("*.py"):
+        if file_path.name.startswith("__"):
+            continue
+
+        module_name_for_import = f"dynamic_module_{file_path.stem}"
+
+        spec = importlib.util.spec_from_file_location(
+            module_name_for_import,
+            str(file_path)
+        )
+        if spec is None or spec.loader is None:
+            logger.error(f"Could not load spec for {file_path}")
+            continue
+
+        py_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(py_module)
+        if not hasattr(py_module, "function"):
+            logger.error(f"{file_path.name} missing 'function'")
+            continue
+        func = getattr(py_module, "function")
+        if not callable(func):
+            logger.error(f"'function' in {file_path.name} is not callable")
+            continue
+        
+        
+        name = getattr(py_module, "NAME", file_path.stem)
+        params = getattr(py_module, "PARAMS", [])
+        description = getattr(py_module, "DESCRIPTION", "")
+        dependencies = getattr(py_module, "DEPENDENCIES", [])
+
+        if not isinstance(params, list):
+            logger.error(f"{file_path.name}: PARAMS must be a list")
+            continue
+        code = ""
+        for attr in dir(py_module):
+            if callable(getattr(py_module, attr)) and not attr.startswith("__"):
+                code += inspect.getsource(getattr(py_module, attr))
+
+        existing = Module.query.filter_by(name=name).first()
+
+        if existing:
+            existing.code = code
+            existing.params = params
+            existing.description = description
+            existing.dependencies = dependencies
+            record = existing
+        else:
+            record = Module(
+                name=name,
+                code=code,
+                params=params,
+                description=description,
+                dependencies=dependencies,
+            )
+            db.session.add(record)
+
+        logger.info(f"Loaded module {name}")
+
+    db.session.commit()
 
 def get_action_keys() -> list[str]:
     """
@@ -115,6 +201,7 @@ def populate_actions_from_routes(app: Flask, refresh: bool = False) -> bool:
         # --- Clear and reassign actions ---
         admin_role.actions.clear()
         user_role.actions.clear()
+        Agent.clear_table()
 
         if new_actions:
             for k in set(new_actions):

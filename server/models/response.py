@@ -34,9 +34,8 @@ class Response(Base):
         session.commit()
     
     @classmethod
-    def by_agent(cls, agent_id, session=None):
-        owns_session = session is None
-        session = session or get_session()
+    def by_agent(cls, agent_id):
+        session = get_session()
 
         try:
             stmt = (
@@ -47,13 +46,11 @@ class Response(Base):
             )
             return session.execute(stmt).scalar_one_or_none()
         finally:
-            if owns_session:
-                session.close()
+            session.close()
     
     @classmethod
-    def by_request_id(cls, request_id, session=None):
-        owns_session = session is None
-        session = session or get_session()
+    def by_request_id(cls, request_id):
+        session = get_session()
 
         try:
             while True:
@@ -66,8 +63,5 @@ class Response(Base):
                 res_obj = session.execute(stmt).scalar_one_or_none()
                 if res_obj is not None:
                     return res_obj
-                else:
-                    time.sleep(0.5)
         finally:
-            if owns_session:
-                session.close()
+            session.close()

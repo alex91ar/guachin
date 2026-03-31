@@ -8,10 +8,11 @@ class Agent(Base):
     id = db.Column(db.String(255), primary_key=True)
     ip = db.Column(db.String(255), nullable=True)
     os = db.Column(db.BigInteger, nullable=True)
-    online = db.Column(db.Boolean, nullable=False, default=True)
+    online = db.Column(db.Boolean, nullable=False, default=True, index=True)
     last_seen = db.Column(db.DateTime(timezone=True), nullable=True)
     user_id = db.Column(db.String(255), db.ForeignKey("users.id"), nullable=True)
     scratchpad = db.Column(db.BigInteger, nullable=True)
+    offset = db.Column(db.BigInteger, nullable=False, default=0)
 
     def to_dict(self):
         return {

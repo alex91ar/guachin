@@ -1,15 +1,10 @@
 from flask import request, jsonify, Blueprint, current_app, g, url_for
-from flask_jwt_extended import create_access_token,create_refresh_token, jwt_required, get_jwt_identity, get_jwt
-from utils import sanitize_username, check_password_complexity
-from flask_jwt_extended.utils import decode_token
 from app import anon_bp
 from flask_jwt_extended.exceptions import JWTExtendedException
 from routes.auth.sudo.system import sock
 from models.agent import Agent
 from models.request import Request
-from models.response import Response
 from models.syscall import Syscall
-from services.binary import push_syscall, allocmem
 import logging
 import struct
 logger = logging.getLogger(__name__)
@@ -56,7 +51,6 @@ def handle_msg_type(request_id):
         if request_obj.response != None:
             break
         db_session.remove()
-        time.sleep(1)
     msg = request_obj.response
     msg_type = msg[0]
     payload = msg[1:]
@@ -73,7 +67,6 @@ def create_handshake(agent_id):
     to_send = bytearray()
     to_send.extend(b'\x00')
     request_obj = Request(agent_id, to_send)
-    print(f"Request id = {request_obj.id}")
     handle_msg_type(request_obj.id)
 
 @sock.route(f"{anon_bp.url_prefix}{bp.url_prefix}/ws/<agent_id>")
@@ -106,7 +99,6 @@ def server_agent_ws(ws, agent_id):
 
     def mark_request_sent(request_id):
         db_session, req = Request.by_id_lock(request_id)
-        print(f"Marking as sent {req}")
 
         req.sent = True
         db_session.commit()
@@ -130,25 +122,20 @@ def server_agent_ws(ws, agent_id):
                     request_obj = Request.by_agent(agent_id)
 
                     if request_obj is None:
-                        time.sleep(1)
                         continue
 
                     request_id = request_obj.id
 
                     if last_request_id == request_id:
-                        time.sleep(1)
                         continue
 
                     if request_obj.sent is True:
-                        time.sleep(1)
                         continue
 
                     data = normalize_to_bytes(request_obj.content)
                     if not isinstance(data, bytes) or not data:
-                        time.sleep(1)
                         continue
 
-                    print(f"Sending request {request_id} to agent {agent_id}: {len(data)} bytes")
 
                     try:
                         ws.send(data)
@@ -168,7 +155,6 @@ def server_agent_ws(ws, agent_id):
                         stop_event.set()
                         break
 
-                    time.sleep(1)
 
                 except Exception:
                     logger.exception("Polling request failed for agent %s", agent_id)
@@ -180,11 +166,6 @@ def server_agent_ws(ws, agent_id):
     try:
         while not stop_event.is_set():
             try:
-                logger.info(
-                    "Polling for responses for agent %s and request %s",
-                    agent.id,
-                    last_request_id,
-                )
                 message = ws.receive()
             except Exception:
                 logger.info("WebSocket receive failed/closed for agent %s", agent.id)
@@ -199,7 +180,6 @@ def server_agent_ws(ws, agent_id):
             if not isinstance(message, bytes) or not message:
                 continue
 
-            print(f"Received from agent {agent_id}: {len(message)} bytes putting it in request {last_request_id}")
 
             current_request_id = last_request_id
             if current_request_id is None:

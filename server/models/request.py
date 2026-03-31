@@ -27,7 +27,6 @@ class Request(Base):
         }
 
     def __init__(self, agent_id, content, timeout=10, interval=0.2):
-        print(f"New request for agent {agent_id}: {content}")
         self.agent_id = agent_id
         self.content = content
 

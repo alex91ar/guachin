@@ -20,10 +20,9 @@ DWORD readNextDwordIfPatternMatches(const void* address) {
     return *(dwordPtr + 1);
 }
 
-vector<pair<string, void*>> getNtdllExports() {
+vector<pair<string, void*>> getDllExports(wstring dllName) {
     vector<pair<string, void*>> exports;
-
-    HMODULE module = GetModuleHandleW(L"ntdll.dll");
+    HMODULE module = LoadLibraryW(dllName.c_str());
     if (!module) {
         return exports;
     }
@@ -78,8 +77,7 @@ vector<pair<string, void*>> getNtdllExports() {
     return exports;
 }
 
-vector<pair<string, QWORD>> getNtdllSyscalls(){
-    vector<pair<string, void*>> exports = getNtdllExports();
+vector<pair<string, QWORD>> getDllSyscallsOrExports(vector<pair<string, void*>> exports){
     vector<pair<string, QWORD>> returns;
     for (const auto& item : exports) {
         QWORD dwSyscall = readNextDwordIfPatternMatches(item.second);
@@ -94,7 +92,7 @@ vector<pair<string, QWORD>> getNtdllSyscalls(){
     return returns;
 }
 
-string pairsToString(const vector<pair<string, DWORD>>& values) {
+string pairsToString(const vector<pair<string, QWORD>>& values) {
     ostringstream out;
 
     for (size_t i = 0; i < values.size(); ++i) {
