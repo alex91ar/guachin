@@ -43,6 +43,41 @@ class Module(Base):
             helpmsg += f"\t\t{param["name"]}: {param["description"]}. Type = {param["type"]}\n"
         return helpmsg
 
+    def prepare_namespace(self):
+
+
+        namespace = {}
+
+        for dependency in self.dependencies:
+            logger.info(f"Loading dependency {dependency} into {self.name}")
+
+
+            dep_module = Module.get(dependency)
+            if dep_module is None:
+                logger.error(f"Missing dependency {dependency}")
+                raise ValueError(f"Missing dependency {dependency}")
+
+
+            # First load the dependency's own dependencies
+            dep_namespace = dep_module.prepare_namespace()
+
+            # Then execute the dependency code inside that namespace
+            temp_namespace = dict(dep_namespace)
+            exec(dep_module.code, temp_namespace)
+
+            func = temp_namespace.get("function")
+            if func is None:
+                logger.error(f"Dependency {dependency} did not define 'function'")
+                raise ValueError(f"Dependency {dependency} did not define 'function'")
+
+            # Make nested dependencies available to the current module too
+            namespace |= dep_namespace
+
+            # Expose the dependency itself
+            namespace[dependency] = func
+
+        return namespace
+
     def exec(self, agent_id, args):
         if len(args) != len(self.params):
             return self.get_module_help()
@@ -53,18 +88,9 @@ class Module(Base):
                 logger.error(f"Invalid argument {args[i]}. {self.params[i]}")
                 return self.get_module_help()
             casted_args.append(casted_arg)
-
-        namespace = {}
-        dependencies = []
-        for dependency in self.dependencies:
-            dep_module = Module.get(dependency)
-            if dep_module is None:
-                logger.error(f"Missing dependency {dependency}")
-                return f"Missing dependency {dependency}"
-            exec(dep_module.code, namespace)
-            dependencies.append(namespace["function"])
+        namespace = self.prepare_namespace()
         exec(self.code, namespace)
-        retvals = namespace["function"](agent_id, casted_args, dependencies)
+        retvals = namespace["function"](agent_id, casted_args)
         retmsg = ""
         for i, (name, value) in enumerate(retvals.items()):
             retmsg += f"{name} = "

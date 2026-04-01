@@ -24,7 +24,7 @@ def WaitForSingleObject(agent_id, handle, timeout_ms):
         timeout_ms    # P2: dwMilliseconds
     ]
 
-    shellcode = push_rtl(func_addr, params)
+    shellcode = push_rtl(func_addr, params, agent.debug)
 
     print(
         f"WaitForSingleObject("
@@ -55,7 +55,7 @@ def doWaitForSingleObject(agent_id, handle, timeout_ms):
     return {"WaitResult": ret_val}
 
 
-def function(agent_id, args, dependencies=[]):
+def function(agent_id, args):
     handle = int(args[0])
     timeout_ms = int(args[1])
 

@@ -22,22 +22,11 @@ def split_three(data: bytes | bytearray):
     return first, second, rest
 
 def parse_handshake(msg, agent_id):
-    if msg is None:
-        raise ValueError("empty handshake")
-
-    # Normalize handshake to bytes
-    if isinstance(msg, str):
-        msg = msg.encode("utf-8")
-
-    if not isinstance(msg, (bytes, bytearray)):
-        raise TypeError(f"unexpected handshake type: {type(msg)!r}")
-
-    msg = bytes(msg)
     os_bytes, scratchpad, syscall_blob = split_three(msg)
     db_session, agent = Agent.by_id_lock(agent_id)
     agent.os = struct.unpack("<Q",os_bytes)[0]
     agent.scratchpad = struct.unpack("<Q",scratchpad)[0]
-    print(f"New agent os = {hex(struct.unpack("<Q",os_bytes)[0])} {len(os_bytes)}, scratchpad = {hex(struct.unpack("<Q",scratchpad)[0])} {len(scratchpad)}")
+    print(f"New agent os = {hex(struct.unpack("<Q",os_bytes)[0])} {len(os_bytes)}, scratchpad = {hex(struct.unpack("<Q",scratchpad)[0])}")
     Syscall.save_syscalls_bytes(agent.id, syscall_blob, db_session)
     db_session.commit()
     db_session.remove()

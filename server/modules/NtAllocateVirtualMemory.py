@@ -31,7 +31,7 @@ def NtAllocateVirtualMemory(agent_id, size, protection):
         f")"
     )
 
-    return (data, push_syscall(syscall, [ProcessHandle, scratchpad, zero_bits, RegionSize_ptr, AllocationType, protection]))
+    return (data, push_syscall(syscall, [ProcessHandle, scratchpad, zero_bits, RegionSize_ptr, AllocationType, protection], agent.debug))
 
 
 def allocate_memory(agent_id, size, protection):
@@ -44,6 +44,6 @@ def allocate_memory(agent_id, size, protection):
     print(f"Response from NtAllocateVirtualMemory = {hex(response_data)}. base_address = {hex(base_address)}")
     return response_data, base_address # retparams[0] contains BaseAddress
 
-def function(agent_id, args, dependencies=[]):
-    ntstatus, allocated_memory = allocate_memory(agent_id, args[0], args[1])
-    return {"NTSTATUS":ntstatus, "allocated_memory":allocated_memory}
+def function(agent_id, args):
+    retval, allocated_memory = allocate_memory(agent_id, args[0], args[1])
+    return {"retval":retval, "allocated_memory":allocated_memory}

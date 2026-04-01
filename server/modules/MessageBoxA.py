@@ -37,7 +37,7 @@ def MessageBoxA(agent_id, text, title):
 
     # Generate the library call shellcode
     
-    shellcode = push_rtl(func_addr, params)
+    shellcode = push_rtl(func_addr, params, agent.debug)
     
     # Combine the data for the private buffer
     data = text_data + title_data
@@ -59,7 +59,7 @@ def showMessageBox(agent_id, text, title):
 
     return {"Clicked": ret_val}
 
-def function(agent_id, args, dependencies = []):
+def function(agent_id, args):
     text = args[0]
     title = args[1]
 

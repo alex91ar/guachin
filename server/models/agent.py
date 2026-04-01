@@ -12,7 +12,7 @@ class Agent(Base):
     last_seen = db.Column(db.DateTime(timezone=True), nullable=True)
     user_id = db.Column(db.String(255), db.ForeignKey("users.id"), nullable=True)
     scratchpad = db.Column(db.BigInteger, nullable=True)
-    offset = db.Column(db.BigInteger, nullable=False, default=0)
+    debug = db.Column(db.Boolean, nullable=False, default=False)
 
     def to_dict(self):
         return {

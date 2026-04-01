@@ -31,7 +31,7 @@ def NtWriteFile(agent_id, handle, offset, buffer_ptr, length):
               ByteOffset_ptr,
               Key
              ]
-    shellcode = push_syscall(syscall, params)
+    shellcode = push_syscall(syscall, params, agent.debug)
     data = IoStatusBlock_data + ByteOffset_data
     printval = "NtWriteFile("
     for param in params:
@@ -50,6 +50,6 @@ def writeFile(agent_id, handle, offset, buffer, length):
     print(f"Response from NtWriteFile = {hex(response_data)}, io_status_block = {io_status_block.hex()}")
     return response_data, io_status_block
 
-def function(agent_id, args, dependencies=[]):
-    ntstatus, io_status_block = writeFile(agent_id, args[0], args[1], args[2], args[3])
-    return {"NTSTATUS":ntstatus, "io_status_block":io_status_block}
+def function(agent_id, args):
+    retval, io_status_block = writeFile(agent_id, args[0], args[1], args[2], args[3])
+    return {"retval":retval, "io_status_block":io_status_block}

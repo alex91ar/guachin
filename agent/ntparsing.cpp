@@ -1,107 +1,67 @@
 #include "global.hpp"
-#include <winnt.h>
-#include <utility>
-#include <cstdint>
-#include <cstddef>
-#include <optional>
-#include <array>
-#include <cstring>
+#include <stdint.h>
+#include <iostream>
+using namespace std;
 
-DWORD readNextDwordIfPatternMatches(const void* address) {
+// Pattern: mov r10, rcx; mov eax, ... (4C 8B D1 B8)
+#define SYSCALL_PATTERN 0xb8d18b4c
 
-    constexpr DWORD kPattern = 0xb8d18b4c; // pre-determined pattern
+typedef uint64_t QWORD;
 
-    const DWORD* dwordPtr = static_cast<const DWORD*>(address);
-
-    if (*dwordPtr != kPattern) {
-        return 0xFFFFFFFF;
+// Check if an export address points to a standard syscall stub
+QWORD checkForSyscall(const void* address) {
+    const uint32_t* dwordPtr = static_cast<const uint32_t*>(address);
+    // If pattern match, extract the syscall ID (EAX) which is at address + 4
+    if (*dwordPtr == SYSCALL_PATTERN) {
+        return (QWORD)(*(dwordPtr + 1));
     }
-
-    return *(dwordPtr + 1);
+    return 0xFFFFFFFFFFFFFFFF;
 }
 
-vector<pair<string, void*>> getDllExports(wstring dllName) {
-    vector<pair<string, void*>> exports;
-    HMODULE module = LoadLibraryW(dllName.c_str());
-    if (!module) {
-        return exports;
-    }
+// Populate a result buffer with [NameLen(1)][Name...][Value(8)]
+// Returns total bytes written to outBuffer
+size_t enumerateExportsAndSyscalls(const char* dllName, char* outBuffer, size_t outCapacity) {
+    HMODULE module = LoadLibrary(dllName);
+    if (!module) return 0;
 
     auto* dos = reinterpret_cast<PIMAGE_DOS_HEADER>(module);
-    if (dos->e_magic != IMAGE_DOS_SIGNATURE) {
-        return exports;
-    }
+    if (dos->e_magic != IMAGE_DOS_SIGNATURE) return 0;
 
-    auto* nt = reinterpret_cast<PIMAGE_NT_HEADERS>(
-        reinterpret_cast<BYTE*>(module) + dos->e_lfanew
-    );
-    if (nt->Signature != IMAGE_NT_SIGNATURE) {
-        return exports;
-    }
-
+    auto* nt = reinterpret_cast<PIMAGE_NT_HEADERS>(reinterpret_cast<uint8_t*>(module) + dos->e_lfanew);
     const auto& dir = nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT];
-    if (!dir.VirtualAddress || !dir.Size) {
-        return exports;
-    }
+    if (!dir.VirtualAddress || !dir.Size) return 0;
 
-    auto* exp = reinterpret_cast<PIMAGE_EXPORT_DIRECTORY>(
-        reinterpret_cast<BYTE*>(module) + dir.VirtualAddress
-    );
+    auto* exp = reinterpret_cast<PIMAGE_EXPORT_DIRECTORY>(reinterpret_cast<uint8_t*>(module) + dir.VirtualAddress);
+    uint32_t* names = reinterpret_cast<uint32_t*>(reinterpret_cast<uint8_t*>(module) + exp->AddressOfNames);
+    uint32_t* functions = reinterpret_cast<uint32_t*>(reinterpret_cast<uint8_t*>(module) + exp->AddressOfFunctions);
+    uint16_t* ordinals = reinterpret_cast<uint16_t*>(reinterpret_cast<uint8_t*>(module) + exp->AddressOfNameOrdinals);
 
-    auto* names = reinterpret_cast<DWORD*>(
-        reinterpret_cast<BYTE*>(module) + exp->AddressOfNames
-    );
+    size_t offset = 0;
 
-    auto* functions = reinterpret_cast<DWORD*>(
-        reinterpret_cast<BYTE*>(module) + exp->AddressOfFunctions
-    );
+    for (uint32_t i = 0; i < exp->NumberOfNames; ++i) {
+        const char* exportName = reinterpret_cast<const char*>(reinterpret_cast<uint8_t*>(module) + names[i]);
+        uint16_t ordinalIndex = ordinals[i];
+        uint32_t rva = functions[ordinalIndex];
+        void* address = reinterpret_cast<void*>(reinterpret_cast<uint8_t*>(module) + rva);
 
-    auto* ordinals = reinterpret_cast<WORD*>(
-        reinterpret_cast<BYTE*>(module) + exp->AddressOfNameOrdinals
-    );
-
-    for (DWORD i = 0; i < exp->NumberOfNames; ++i) {
-        const char* exportName = reinterpret_cast<const char*>(
-            reinterpret_cast<BYTE*>(module) + names[i]
-        );
-
-        WORD ordinalIndex = ordinals[i];
-        DWORD rva = functions[ordinalIndex];
-        void* address = reinterpret_cast<void*>(
-            reinterpret_cast<BYTE*>(module) + rva
-        );
-
-        exports.emplace_back(string(exportName), address);
-    }
-
-    return exports;
-}
-
-vector<pair<string, QWORD>> getDllSyscallsOrExports(vector<pair<string, void*>> exports){
-    vector<pair<string, QWORD>> returns;
-    for (const auto& item : exports) {
-        QWORD dwSyscall = readNextDwordIfPatternMatches(item.second);
-        if(dwSyscall != 0xFFFFFFFF){
-            returns.emplace_back(item.first, dwSyscall);
+        // Determine if it's a Syscall ID or a raw Address
+        QWORD value = checkForSyscall(address);
+        if (value == 0xFFFFFFFFFFFFFFFF) {
+            value = (QWORD)address;
         }
-        else{
-            QWORD export_addy = (QWORD) item.second;
-            returns.emplace_back(item.first, export_addy);
-        }
-    }
-    return returns;
-}
 
-string pairsToString(const vector<pair<string, QWORD>>& values) {
-    ostringstream out;
+        // Serialization Step
+        size_t nameLen = 0;
+        while (exportName[nameLen] != '\0' && nameLen < 255) nameLen++;
 
-    for (size_t i = 0; i < values.size(); ++i) {
-        out << values[i].first << ":" << values[i].second;
-
-        if (i + 1 < values.size()) {
-            out << ",";
-        }
+        // Stay within bounds: [1 byte Len] + [nameLen] + [8 byte Value]
+        if (offset + 1 + nameLen + 8 > outCapacity) break;
+        outBuffer[offset++] = (uint8_t)nameLen;
+        memcpy(outBuffer + offset, exportName, nameLen);
+        offset += nameLen;
+        memcpy(outBuffer + offset, &value, 8);
+        offset += 8;
     }
 
-    return out.str();
+    return offset; // Return bytes written for the C2 loop 
 }

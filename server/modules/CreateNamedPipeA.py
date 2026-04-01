@@ -39,7 +39,7 @@ def CreateNamedPipeA(agent_id, pipename):
         lpSecurityAttributes               # lpSecurityAttributes
     ]
 
-    shellcode = push_rtl(func_addr, params)
+    shellcode = push_rtl(func_addr, params, agent.debug)
 
     data = pipename_data
 
@@ -70,12 +70,12 @@ def createNamedPipe(agent_id, pipename):
 
     ret_val = int.from_bytes(send_and_wait(agent_id, shellcode), 'little')
     print(f"Response from CreateNamedPipe = {hex(ret_val)}")
-    return {"PipeHandle": ret_val}
+    return {"retval": ret_val}
 
 
-def function(agent_id, args, dependencies = []):
+def function(agent_id, args):
+    print(f"Calling CreateNamedPipeA {args}")
     pipename = args[0]
-    pipename = "\\\\.\\pipe\\" + pipename
     result = createNamedPipe(
         agent_id,
         pipename

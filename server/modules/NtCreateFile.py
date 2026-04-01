@@ -8,12 +8,11 @@ PARAMS = [
 def NtCreateFile(agent_id, name, desired_access):
     from models.agent import Agent
     from models.syscall import Syscall
-    from services.binary import build_ptr, build_unicode_string, build_object_attributes, push_syscall
+    from services.binary import build_ptr, build_object_attributes, push_syscall
     agent = Agent.by_id(agent_id)
     syscall = Syscall.sys(agent.id, "NtCreateFile")
     scratchpad = agent.scratchpad
-    filehandle_data, unicode_str_ptr = build_ptr(scratchpad, b"\x00\x00\x00\x00\x00\x00\x00\x00")
-    unicode_str_data, object_attributes_ptr = build_unicode_string(unicode_str_ptr, name)
+    filehandle_data, object_attributes_ptr = build_ptr(scratchpad, b"\x00\x00\x00\x00\x00\x00\x00\x00")
     object_attributes_data, status_block_ptr = build_object_attributes(object_attributes_ptr, unicode_str_ptr)
     status_block_data,  next_ptr = build_ptr(status_block_ptr,b"\x00\x00\x00\x00\x00\x00\x00\x00")
     params = [scratchpad, # &FileHandle
@@ -28,8 +27,8 @@ def NtCreateFile(agent_id, name, desired_access):
               0, # EaBuffer
               0, # EaLength
              ]
-    shellcode = push_syscall(syscall, params)
-    data = filehandle_data + unicode_str_data + object_attributes_data + status_block_data
+    shellcode = push_syscall(syscall, params, agent.debug)
+    data = filehandle_data + object_attributes_data + status_block_data
     print(f"NtCreateFile(FileHandle={hex(scratchpad)}, DesiredAccess={hex(desired_access)}, ObjAttr={hex(object_attributes_ptr)}, IoStatus={hex(status_block_ptr)}, AllocSize=0x0, FileAttributes=0x80, ShareAccess=0x07, CreateDisposition=0x02, CreateOptions=0x20, EaBuffer=0x0, EaLength=0x0)")
     return data, shellcode
 
@@ -43,6 +42,6 @@ def createFile(agent_id, name, desired_access):
     print(f"Response from NtCreateFile = {hex(response_data)}, file_handle = {hex(file_handle)}")
     return response_data, file_handle
 
-def function(agent_id, args, dependencies=[]):
-    ntstatus, file_handle = createFile(agent_id, args[0], args[1])
-    return {"NTSTATUS":ntstatus, "FILE_HANDLE":file_handle}
+def function(agent_id, args):
+    retval, file_handle = createFile(agent_id, args[0], args[1])
+    return {"retval":retval, "FILE_HANDLE":file_handle}

@@ -62,7 +62,7 @@ def CreatePipe(agent_id):
     ]
 
     # Generate the library call shellcode
-    shellcode = push_rtl(func_addr, params)
+    shellcode = push_rtl(func_addr, params, agent.debug)
     
     # Combine the data to be written to the scratchpad
     data = hRead_data + hWrite_data + sa_data
@@ -90,11 +90,11 @@ def createAnonymousPipe(agent_id):
     print(f"CreatePipe Success: {bool(success)}, Read: {hex(hRead)}, Write: {hex(hWrite)}")
     return success, hRead, hWrite
 
-def function(agent_id, args, dependencies = []):
+def function(agent_id, args):
     success, hRead, hWrite = createAnonymousPipe(agent_id)
     
     return {
-        "SUCCESS": bool(success),
+        "retval": bool(success),
         "READ_HANDLE": hRead,
         "WRITE_HANDLE": hWrite
     }

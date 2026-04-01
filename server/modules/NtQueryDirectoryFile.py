@@ -50,7 +50,7 @@ def NtQueryDirectoryFile(agent_id, handle, buffer_ptr, buffer_size):
     ]
 
     # Generate the shellcode to trigger the syscall
-    shellcode = push_syscall(syscall, params)
+    shellcode = push_syscall(syscall, params, agent.debug)
     
     # Only IoStatusBlock_data is written to the scratchpad here
     # Since the results go to buffer_ptr, we don't include them in 'data'
@@ -67,22 +67,22 @@ def queryDirectoryToBuffer(agent_id, handle, buffer_ptr, buffer_size):
     write_scratchpad(agent_id, data)
     
     # 2. Execute the syscall on the agent
-    response_ntstatus = int.from_bytes(send_and_wait(agent_id, shellcode), byteorder='little')
+    response_retval = int.from_bytes(send_and_wait(agent_id, shellcode), byteorder='little')
     
     # 3. Read the IoStatusBlock from the scratchpad to see how many bytes were actually written
     # The 'Information' field (offset 8-15) contains the number of bytes populated in buffer_ptr
     io_status_raw = read_scratchpad(agent_id, 16)
     bytes_written = int.from_bytes(io_status_raw[8:16], byteorder='little')
     
-    print(f"NTSTATUS: {hex(response_ntstatus)}, Bytes Returned: {bytes_written}")
-    return response_ntstatus, bytes_written
+    print(f"retval: {hex(response_retval)}, Bytes Returned: {bytes_written}")
+    return response_retval, bytes_written
 
-def function(agent_id, args, dependencies=[]):
+def function(agent_id, args):
     # args: [handle, buffer_ptr, buffer_size]
-    ntstatus, bytes_count = queryDirectoryToBuffer(agent_id, args[0], args[1], args[2])
+    retval, bytes_count = queryDirectoryToBuffer(agent_id, args[0], args[1], args[2])
     
     return {
-        "NTSTATUS": ntstatus, 
+        "retval": retval, 
         "bytes_written": bytes_count,
         "location": hex(args[1])
     }

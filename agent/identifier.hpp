@@ -1,3 +1,1 @@
-wstring random_uuid();
-string random_uuid_s();
-string getOperatingSystem();
+void random_uuid(wchar_t* out);

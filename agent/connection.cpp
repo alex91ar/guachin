@@ -2,14 +2,6 @@
 
 using namespace std;
 
-vector<uint8_t> stringToBytes(const string& s) {
-    return vector<uint8_t>(s.begin(), s.end());
-}
-
-string bytesToString(const vector<uint8_t>& bytes) {
-    return string(bytes.begin(), bytes.end());
-}
-
 void cleanup(WebSocketClient& client) {
     if (client.websocket) {
         WinHttpCloseHandle(client.websocket);
@@ -31,9 +23,9 @@ void cleanup(WebSocketClient& client) {
 
 bool connectWebSocket(
     WebSocketClient& client,
-    const wstring& host,
+    const wchar_t* host,
     INTERNET_PORT port,
-    const wstring& path,
+    const wchar_t* path,
     bool useHttps
 ) {
     client.session = WinHttpOpen(
@@ -44,37 +36,22 @@ bool connectWebSocket(
         0
     );
 
-    if (!client.session) {
-        cerr << "WinHttpOpen failed: " << GetLastError() << endl;
-        return false;
-    }
+    if (!client.session) return false;
 
-    client.connect = WinHttpConnect(
-        client.session,
-        host.c_str(),
-        port,
-        0
-    );
-
-    if (!client.connect) {
-        cerr << "WinHttpConnect failed: " << GetLastError() << endl;
-        return false;
-    }
+    client.connect = WinHttpConnect(client.session, host, port, 0);
+    if (!client.connect) return false;
 
     client.request = WinHttpOpenRequest(
         client.connect,
         L"GET",
-        path.c_str(),
+        path,
         nullptr,
         WINHTTP_NO_REFERER,
         WINHTTP_DEFAULT_ACCEPT_TYPES,
         useHttps ? WINHTTP_FLAG_SECURE : 0
     );
 
-    if (!client.request) {
-        cerr << "WinHttpOpenRequest failed: " << GetLastError() << endl;
-        return false;
-    }
+    if (!client.request) return false;
 
     if (useHttps) {
         DWORD securityFlags =
@@ -88,7 +65,6 @@ bool connectWebSocket(
                 WINHTTP_OPTION_SECURITY_FLAGS,
                 &securityFlags,
                 sizeof(securityFlags))) {
-            cerr << "WinHttpSetOption(SECURITY_FLAGS) failed: " << GetLastError() << endl;
             return false;
         }
     }
@@ -98,7 +74,6 @@ bool connectWebSocket(
             WINHTTP_OPTION_UPGRADE_TO_WEB_SOCKET,
             nullptr,
             0)) {
-        cerr << "WinHttpSetOption(WEB_SOCKET) failed: " << GetLastError() << endl;
         return false;
     }
 
@@ -110,20 +85,15 @@ bool connectWebSocket(
             0,
             0,
             0)) {
-        cerr << "WinHttpSendRequest failed: " << GetLastError() << endl;
         return false;
     }
 
     if (!WinHttpReceiveResponse(client.request, nullptr)) {
-        cerr << "WinHttpReceiveResponse failed: " << GetLastError() << endl;
         return false;
     }
 
     client.websocket = WinHttpWebSocketCompleteUpgrade(client.request, 0);
-    if (!client.websocket) {
-        cerr << "WinHttpWebSocketCompleteUpgrade failed: " << GetLastError() << endl;
-        return false;
-    }
+    if (!client.websocket) return false;
 
     WinHttpCloseHandle(client.request);
     client.request = nullptr;
@@ -131,76 +101,60 @@ bool connectWebSocket(
     return true;
 }
 
-bool sendBinary(HINTERNET websocket, const vector<uint8_t>& message) {
+bool sendBinary(HINTERNET websocket, const char* data, size_t size) {
     DWORD result = WinHttpWebSocketSend(
         websocket,
         WINHTTP_WEB_SOCKET_BINARY_MESSAGE_BUFFER_TYPE,
-        message.empty() ? nullptr : const_cast<uint8_t*>(message.data()),
-        static_cast<DWORD>(message.size())
+        size == 0 ? nullptr : (void*)data,
+        static_cast<DWORD>(size)
     );
 
-    if (result != NO_ERROR) {
-        cerr << "WinHttpWebSocketSend failed: " << result << endl;
-        return false;
-    }
-
-    return true;
+    return result == NO_ERROR;
 }
 
-bool receiveBinary(HINTERNET websocket, vector<uint8_t>& output) {
-    output.clear();
+bool receiveBinary(
+    HINTERNET websocket,
+    char* output,
+    size_t outputCapacity,
+    size_t& receivedSize
+) {
+    receivedSize = 0;
 
-    vector<uint8_t> buffer(4096);
+    char buffer[4096];
 
     while (true) {
         DWORD bytesRead = 0;
-        WINHTTP_WEB_SOCKET_BUFFER_TYPE bufferType = WINHTTP_WEB_SOCKET_BINARY_FRAGMENT_BUFFER_TYPE;
+        WINHTTP_WEB_SOCKET_BUFFER_TYPE bufferType;
 
         DWORD result = WinHttpWebSocketReceive(
             websocket,
-            buffer.data(),
-            static_cast<DWORD>(buffer.size()),
+            buffer,
+            sizeof(buffer),
             &bytesRead,
             &bufferType
         );
 
-        if (result != NO_ERROR) {
-            cerr << "WinHttpWebSocketReceive failed: " << result << endl;
-            return false;
-        }
+        if (result != NO_ERROR) return false;
 
-        if (bufferType == WINHTTP_WEB_SOCKET_CLOSE_BUFFER_TYPE) {
-            cerr << "Server closed the WebSocket." << endl;
-            return false;
-        }
+        if (bufferType == WINHTTP_WEB_SOCKET_CLOSE_BUFFER_TYPE) return false;
 
         if (bufferType != WINHTTP_WEB_SOCKET_BINARY_MESSAGE_BUFFER_TYPE &&
             bufferType != WINHTTP_WEB_SOCKET_BINARY_FRAGMENT_BUFFER_TYPE) {
-            cerr << "Received non-binary WebSocket frame." << endl;
             return false;
         }
 
-        output.insert(output.end(), buffer.begin(), buffer.begin() + bytesRead);
+        // Prevent overflow
+        if (receivedSize + bytesRead > outputCapacity) {
+            return false;
+        }
+
+        memcpy(output + receivedSize, buffer, bytesRead);
+        receivedSize += bytesRead;
 
         if (bufferType == WINHTTP_WEB_SOCKET_BINARY_MESSAGE_BUFFER_TYPE) {
             break;
         }
     }
 
-    return true;
-}
-
-bool sendText(HINTERNET websocket, const string& message) {
-    vector<uint8_t> data(message.begin(), message.end());
-    return sendBinary(websocket, data);
-}
-
-bool receiveText(HINTERNET websocket, string& output) {
-    vector<uint8_t> data;
-    if (!receiveBinary(websocket, data)) {
-        return false;
-    }
-
-    output.assign(data.begin(), data.end());
     return true;
 }

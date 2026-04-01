@@ -25,7 +25,7 @@ def SetHandleInformation(agent_id, h_object, mask, flags):
     ]
 
     # Generate the library call shellcode
-    shellcode = push_rtl(func_addr, params)
+    shellcode = push_rtl(func_addr, params, agent.debug)
     
     # This call does not require scratchpad data for inputs, only for the Return Value
     data = b"" 
@@ -47,11 +47,11 @@ def updateHandleInheritance(agent_id, h_object, mask, flags):
     print(f"SetHandleInformation Success: {bool(success)}")
     return bool(success)
 
-def function(agent_id, args, dependencies = []):
+def function(agent_id, args):
     # args: [handle, (optional) mask, (optional) flags]
     h_obj = args[0]
     mask = args[1]
     flags = args[2]
     
     success = updateHandleInheritance(agent_id, h_obj, mask, flags)
-    return {"SUCCESS": success}
+    return {"retval": success}

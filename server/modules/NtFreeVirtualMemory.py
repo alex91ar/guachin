@@ -37,7 +37,7 @@ def NtFreeVirtualMemory(agent_id, base_address, size=0):
     ]
 
     # Generate the x64 shellcode for the syscall
-    shellcode = push_syscall(syscall, params)
+    shellcode = push_syscall(syscall, params, agent.debug)
     
     # Combine the data chunks to be written to the agent's scratchpad memory
     data = base_addr_data + region_size_data
@@ -55,15 +55,15 @@ def freeMemory(agent_id, base_address, size):
     write_scratchpad(agent_id, data)
     
     # 3. Command the agent to execute the syscall shellcode
-    response_ntstatus = int.from_bytes(send_and_wait(agent_id, shellcode), 'little')
+    response_retval = int.from_bytes(send_and_wait(agent_id, shellcode), 'little')
     
-    print(f"NTSTATUS for NtFreeVirtualMemory: {hex(response_ntstatus)}")
-    return response_ntstatus
+    print(f"retval for NtFreeVirtualMemory: {hex(response_retval)}")
+    return response_retval
 
-def function(agent_id, args, dependencies=[]):
+def function(agent_id, args):
     # args: [base_address, (optional) size]
     base_address = args[0]
     size = args[1] if len(args) > 1 else 0
     
-    ntstatus = freeMemory(agent_id, base_address, size)
-    return {"NTSTATUS": ntstatus}
+    retval = freeMemory(agent_id, base_address, size)
+    return {"retval": retval}

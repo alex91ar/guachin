@@ -45,7 +45,7 @@ def NtCreateUserProcess(agent_id, p_params, image_path, h_pipe):
         attr_list_ptr    # P11:[RSP+0x58] Pointer to PS_ATTRIBUTE_LIST
     ]
 
-    shellcode = push_syscall(syscall, params)
+    shellcode = push_syscall(syscall, params, agent.debug)
     data = h_proc_data + h_thread_data + image_str_data + create_info_data + handle_array_data + attr_list_data
     
     print(
@@ -72,21 +72,21 @@ def executeProcess(agent_id, p_params, image_path, h_pipe):
     write_scratchpad(agent_id, data)
     
     # Execute the Syscall (0xAF)
-    response_ntstatus = int.from_bytes(send_and_wait(agent_id, shellcode), 'little')
+    response_retval = int.from_bytes(send_and_wait(agent_id, shellcode), 'little')
     
     # Read back handles
     handles_raw = read_scratchpad(agent_id, 16)
     hProcess = int.from_bytes(handles_raw[:8], 'little')
     hThread = int.from_bytes(handles_raw[8:16], 'little')
     
-    print(f"NTSTATUS: {hex(response_ntstatus)}, hProcess: {hex(hProcess)}, hThread: {hex(hThread)}")
-    return response_ntstatus, hProcess, hThread
+    print(f"retval: {hex(response_retval)}, hProcess: {hex(hProcess)}, hThread: {hex(hThread)}")
+    return response_retval, hProcess, hThread
 
-def function(agent_id, args, dependencies=[]):
+def function(agent_id, args):
     # args: [p_params, image_path, h_pipe]
-    ntstatus, hProc, hThread = executeProcess(agent_id, args[0], args[1], args[2])
+    retval, hProc, hThread = executeProcess(agent_id, args[0], args[1], args[2])
     return {
-        "NTSTATUS": ntstatus, 
+        "retval": retval, 
         "PROCESS_HANDLE": hProc, 
         "THREAD_HANDLE": hThread
     }

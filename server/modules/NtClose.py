@@ -13,7 +13,7 @@ def NtClose(agent_id, handle):
     params = [
         handle
              ]
-    shellcode = push_syscall(syscall, params)
+    shellcode = push_syscall(syscall, params, agent.debug)
 
     print(
         f"NtClose("
@@ -29,6 +29,6 @@ def closeHandle(agent_id, handle):
     print(f"Response from NtClose = {hex(response_data)}")
     return response_data
 
-def function(agent_id, args, dependencies=[]):
-    ntstatus = closeHandle(agent_id, args[0])
-    return {"NTSTATUS":ntstatus}
+def function(agent_id, args):
+    retval = closeHandle(agent_id, args[0])
+    return {"retval":retval}

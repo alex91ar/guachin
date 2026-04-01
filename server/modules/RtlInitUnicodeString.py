@@ -14,7 +14,7 @@ def RtlInitUnicodeString(agent_id, buffer_add, string_ptr):
     params = [buffer_add, 
               string_ptr,
              ]
-    shellcode = push_rtl(call_add, params)
+    shellcode = push_rtl(call_add, params, agent.debug)
     print(f"RtlInitUnicodeString(DestinationString={hex(buffer_add)}, SourceString={hex(string_ptr)})")
     return None, shellcode
 
@@ -29,6 +29,6 @@ def InitUS(agent_id, buffer_add, string):
     print(f"Response from RtlInitUnicodeString = {hex(response_data)}")
     return response_data
 
-def function(agent_id, args, dependencies=[]):
+def function(agent_id, args):
     retval = InitUS(agent_id, args[0], args[1])
     return {"OUTLEN":retval, "buffer":args[0]}

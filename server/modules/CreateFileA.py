@@ -33,7 +33,7 @@ def CreateFileA(agent_id, filename, desired_access):
         0                 # hTemplateFile
     ]
 
-    shellcode = push_rtl(func_addr, params)
+    shellcode = push_rtl(func_addr, params, agent.debug)
 
     data = filename_data
 
@@ -50,10 +50,10 @@ def createFile(agent_id, filename, desired_access):
 
     ret_val = int.from_bytes(send_and_wait(agent_id, shellcode), 'little')
 
-    return {"FileHandle": hex(ret_val)}
+    return {"retval": hex(ret_val)}
 
 
-def function(agent_id, args, dependencies = []):
+def function(agent_id, args):
     filename = args[0]
     desired_access = args[1]
 
