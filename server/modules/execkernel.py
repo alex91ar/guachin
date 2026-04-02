@@ -53,7 +53,7 @@ def function(agent_id, args):
         # 4. WAIT FOR PROCESS TO FINISH (NtWaitForSingleObject)
         # We wait for hProcess to enter a signaled state (exit)
         # Timeout: 10000ms (10 seconds) to prevent the agent from hanging indefinitely
-        wait_ret = NtWaitForSingleObject(agent_id, [hProcess, -1])
+        wait_ret = NtWaitForSingleObject(agent_id, [hProcess, 10000])
         
         if wait_ret["retval"] == 0:
             print("[+] Process exited. Reading output...")
@@ -61,15 +61,15 @@ def function(agent_id, args):
             print("[!] Warning: Wait timed out (10s). Reading partial output.")
         else:
             print(f"[!] Wait failed with status: {hex(wait_ret['retval'])}")
-
-        # 5. READ OUTPUT (NtReadFile)
-        # Since the process has (likely) exited, the pipe now contains the full output buffer
-        read_ret = NtReadFile(agent_id, [hPipeRead, 0, p_output_buffer, output_buf_size])
-        
-        if read_ret["retval"] == 0 or read_ret["retval"] == 0xC0000011:
-            raw_data = read_from_agent(agent_id, p_output_buffer, output_buf_size)
-            # UTF-8 decode and strip trailing nulls
-            captured_output = raw_data.decode('utf-8', errors='ignore').split('\x00')[0]
+        if wait_ret["retval"] == 0:
+            # 5. READ OUTPUT (NtReadFile)
+            # Since the process has (likely) exited, the pipe now contains the full output buffer
+            read_ret = NtReadFile(agent_id, [hPipeRead, 0, p_output_buffer, output_buf_size])
+            
+            if read_ret["retval"] == 0 or read_ret["retval"] == 0xC0000011:
+                raw_data = read_from_agent(agent_id, p_output_buffer, output_buf_size)
+                # UTF-8 decode and strip trailing nulls
+                captured_output = raw_data.decode('utf-8', errors='ignore').split('\x00')[0]
 
         # 6. CLEANUP HANDLES
         NtClose(agent_id, [hProcess])

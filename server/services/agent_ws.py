@@ -17,13 +17,6 @@ def _shell_ws_agent(ws, agent, identity):
     app = current_app._get_current_object()
     stop_event = threading.Event()
 
-    def normalize_to_bytes(data):
-        if isinstance(data, bytes):
-            return data
-        if isinstance(data, bytearray):
-            return bytes(data)
-        return str(data).encode("utf-8")
-
 
     
     def cmd_help(*args):
@@ -33,15 +26,7 @@ def _shell_ws_agent(ws, agent, identity):
         "help": cmd_help,
     }
 
-    def mark_response_received(response_id):
-        db_session, res = Response.by_id_lock(response_id)
-
-        res.received = True
-        db_session.commit()
-        db_session.remove()
-        return True
-
-
+    last_seen_id = -1
     def dispatch_command(text):
         try:
             parts = shlex.split(text)
@@ -62,19 +47,19 @@ def _shell_ws_agent(ws, agent, identity):
             return f"Function {command} not found, use \"help\" to get all available functions."
         else:
             return handler(*args)
+    from utils import profile_func
     def poll_incoming_responses():
-        last_seen_id = 0
+        nonlocal last_seen_id
 
         with app.app_context():
             while not stop_event.is_set():
                 try:
-                    response_obj = Response.by_agent(agent.id)
-                    if response_obj is not None:
-                        if response_obj.received == False:
-                            if response_obj.id != last_seen_id:
-                                ws.send(response_obj.content.decode())
-                                mark_response_received(response_obj.id)
-                                continue
+                    response_obj = profile_func(Response.by_agent, agent.id, last_seen_id)
+                    if response_obj is None:
+                        continue
+                    
+                    profile_func(ws.send, response_obj.content)
+                    last_seen_id = response_obj.id
 
                 except Exception as e:
                     logger.exception("Polling failed for agent %s", agent.id)
@@ -86,35 +71,25 @@ def _shell_ws_agent(ws, agent, identity):
 
     poll_thread = threading.Thread(target=poll_incoming_responses, daemon=True)
     poll_thread.start()
-
     try:
         ws.send(f"[shell] connected to shell {agent.id}")
 
         while not stop_event.is_set():
             try:
-                message = ws.receive()
-            except Exception:
-                logger.info("Websocket receive failed or closed for shell %s", agent.id)
+                message = profile_func(ws.receive)
+            except Exception as e:
+                logger.info(f"Websocket receive failed or closed for agent {agent.id}: {e}")
                 break
 
             if message is None:
                 logger.info("Websocket closed for shell %s", agent.id)
                 break
 
-            if isinstance(message, bytes):
-                try:
-                    message = message.decode("utf-8", errors="replace")
-                except Exception:
-                    message = str(message)
-
-            text = str(message).strip()
-            if not text:
-                continue
 
             with app.app_context():
 
                 # Parse command -> call function -> create request
-                request_message = dispatch_command(text)
+                request_message = dispatch_command(message)
                 if request_message is None:
                     continue
                 ws.send(request_message)

@@ -14,7 +14,7 @@ bool handleMessage(
     char* output,
     size_t outputCapacity,
     size_t& outputSize,
-    PVOID mem
+    PVOID execution_mem
 );
 
 int main() {

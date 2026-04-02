@@ -11,3 +11,4 @@ struct WebSocketClient {
 };
 
 extern PVOID scratchpad;
+unsigned long long measure(unsigned long long (*func)()) ;

@@ -7,6 +7,7 @@ from models.request import Request
 from models.syscall import Syscall
 import logging
 import struct
+from utils import profile_func
 logger = logging.getLogger(__name__)
 
 bp = Blueprint("agent", __name__, url_prefix='/agent')
@@ -26,7 +27,7 @@ def parse_handshake(msg, agent_id):
     db_session, agent = Agent.by_id_lock(agent_id)
     agent.os = struct.unpack("<Q",os_bytes)[0]
     agent.scratchpad = struct.unpack("<Q",scratchpad)[0]
-    print(f"New agent os = {hex(struct.unpack("<Q",os_bytes)[0])} {len(os_bytes)}, scratchpad = {hex(struct.unpack("<Q",scratchpad)[0])}")
+    print(f"New agent os = {hex(agent.os)} {len(os_bytes)}, scratchpad = {hex(agent.scratchpad)}")
     Syscall.save_syscalls_bytes(agent.id, syscall_blob, db_session)
     db_session.commit()
     db_session.remove()
@@ -43,7 +44,6 @@ def handle_msg_type(request_id):
     msg = request_obj.response
     msg_type = msg[0]
     payload = msg[1:]
-
     if msg_type == 0x00:
         # handshake
         parse_handshake(payload, request_obj.agent_id)
@@ -77,22 +77,7 @@ def server_agent_ws(ws, agent_id):
 
     app = current_app._get_current_object()
     stop_event = threading.Event()
-    last_request_id = None
-
-    def normalize_to_bytes(data):
-        if isinstance(data, str):
-            return data.encode("utf-8")
-        if isinstance(data, bytearray):
-            return bytes(data)
-        return data
-
-    def mark_request_sent(request_id):
-        db_session, req = Request.by_id_lock(request_id)
-
-        req.sent = True
-        db_session.commit()
-        db_session.remove()
-        return True
+    last_request_id = -1
 
     def save_request_response(request_id, message):
         db_session, req = Request.by_id_lock(request_id)
@@ -108,41 +93,12 @@ def server_agent_ws(ws, agent_id):
         with app.app_context():
             while not stop_event.is_set():
                 try:
-                    request_obj = Request.by_agent(agent_id)
-
+                    request_obj = Request.by_agent(agent_id, last_request_id)
                     if request_obj is None:
                         continue
-
-                    request_id = request_obj.id
-
-                    if last_request_id == request_id:
-                        continue
-
-                    if request_obj.sent is True:
-                        continue
-
-                    data = normalize_to_bytes(request_obj.content)
-                    if not isinstance(data, bytes) or not data:
-                        continue
-
-
-                    try:
-                        ws.send(data)
-                        last_request_id = request_id
-                        
-
-                        if not mark_request_sent(request_id):
-                            stop_event.set()
-                            break
-
-                    except Exception:
-                        logger.exception(
-                            "Failed sending request %s to agent %s",
-                            request_id,
-                            agent_id,
-                        )
-                        stop_event.set()
-                        break
+                    ws.send(request_obj.content)
+                    last_request_id = request_obj.id
+                    
 
 
                 except Exception:
@@ -155,7 +111,7 @@ def server_agent_ws(ws, agent_id):
     try:
         while not stop_event.is_set():
             try:
-                message = ws.receive()
+                message = profile_func(ws.receive)
             except Exception:
                 logger.info("WebSocket receive failed/closed for agent %s", agent.id)
                 break
@@ -163,11 +119,6 @@ def server_agent_ws(ws, agent_id):
             if message is None:
                 logger.info("WebSocket closed for agent %s", agent.id)
                 break
-
-            message = normalize_to_bytes(message)
-
-            if not isinstance(message, bytes) or not message:
-                continue
 
 
             current_request_id = last_request_id

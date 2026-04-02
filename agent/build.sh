@@ -4,7 +4,7 @@ set -e  # stop on error
 
 # ===== CONFIG =====
 COMPILER="x86_64-w64-mingw32-g++"
-OUTPUT_DIR="build"
+OUTPUT_DIR="./"
 TARGET="$OUTPUT_DIR/client.exe"
 
 SOURCES=(
@@ -14,6 +14,7 @@ SOURCES=(
   ntparsing.cpp
   memoryhandling.cpp
   actionhandling.cpp
+  profiling.cpp
 )
 
 FLAGS=(

@@ -4,6 +4,7 @@ from config import Config
 import blake3
 import os
 import json
+import time
 
 def sanitize_for_output(s: str) -> str:
     # mapping for characters we must always escape (use JSON-compatible escapes)
@@ -44,6 +45,18 @@ def _sanitize_recursive(obj):
         return obj
 
 LENGTH_KEY = 16
+
+def profile_func(func, *args, **kwargs):
+    start = time.perf_counter()
+
+    result = func(*args, **kwargs)
+
+    end = time.perf_counter()
+    elapsed_ms = (end - start) * 1000
+    if elapsed_ms > 50:
+        print(f"{func.__name__} took {elapsed_ms:.3f} ms")
+
+    return result
 
 def generate_urls(app):
     """Generate templates/urls.html containing JS window variables for each route."""

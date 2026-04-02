@@ -14,7 +14,6 @@ class Response(Base):
     timestamp = db.Column(db.DateTime(timezone=True), server_default=func.now(), nullable=False)
     content = db.Column(db.LargeBinary, nullable=True)
     request = db.Column(db.Integer,db.ForeignKey("requests.id", ondelete="CASCADE"),nullable=True,index=True)
-    received = db.Column(db.Boolean, nullable=False, default=False)
 
     def to_dict(self):
         return {
@@ -34,14 +33,14 @@ class Response(Base):
         session.commit()
     
     @classmethod
-    def by_agent(cls, agent_id):
+    def by_agent(cls, agent_id, last_request_id):
         session = get_session()
 
         try:
             stmt = (
                 select(cls)
-                .where(cls.agent_id == agent_id, cls.received.is_(False))
-                .order_by(cls.id.asc())
+                .where(cls.agent_id == agent_id, cls.id > last_request_id)
+                .order_by(cls.id.desc())
                 .limit(1)
             )
             return session.execute(stmt).scalar_one_or_none()

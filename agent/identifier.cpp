@@ -32,8 +32,7 @@ void random_uuid(wchar_t* out) {
     out[pos] = L'\0'; // null terminate
 }
 
-// Refactored createHandshake using raw memory buffers
-size_t createHandshake(char* resp, size_t respMax, void* scratchpad) {
+size_t createHandshake(char* resp, size_t respMax) {
     if (respMax < 17) return 0; // Minimum size for [Type][OS][Scratchpad]
 
     size_t offset = 0;

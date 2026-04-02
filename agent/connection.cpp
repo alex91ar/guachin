@@ -1,6 +1,10 @@
 #include "global.hpp"
+#define PROFILE
+#ifdef PROFILE
+#include <iostream>
 
 using namespace std;
+#endif
 
 void cleanup(WebSocketClient& client) {
     if (client.websocket) {
@@ -102,13 +106,23 @@ bool connectWebSocket(
 }
 
 bool sendBinary(HINTERNET websocket, const char* data, size_t size) {
+    #ifdef PROFILE_1
+    LARGE_INTEGER freq, start, end;
+
+    QueryPerformanceFrequency(&freq);
+    QueryPerformanceCounter(&start);
+    #endif
     DWORD result = WinHttpWebSocketSend(
         websocket,
         WINHTTP_WEB_SOCKET_BINARY_MESSAGE_BUFFER_TYPE,
         size == 0 ? nullptr : (void*)data,
         static_cast<DWORD>(size)
     );
-
+    #ifdef PROFILE_1
+    QueryPerformanceCounter(&end);
+    double time = (double)(end.QuadPart - start.QuadPart) / freq.QuadPart;
+    cout << "Time: " << time << " seconds (sendBinary)\n";
+    #endif
     return result == NO_ERROR;
 }
 
@@ -118,43 +132,30 @@ bool receiveBinary(
     size_t outputCapacity,
     size_t& receivedSize
 ) {
-    receivedSize = 0;
+    WINHTTP_WEB_SOCKET_BUFFER_TYPE bufferType;
+    #ifdef PROFILE
+    LARGE_INTEGER freq, start, end;
 
-    char buffer[4096];
+    QueryPerformanceFrequency(&freq);
+    QueryPerformanceCounter(&start);
+    #endif
+    DWORD result = WinHttpWebSocketReceive(
+        websocket,
+        output,
+        outputCapacity,
+        (DWORD*)&receivedSize,
+        &bufferType
+    );
+    if (result != NO_ERROR) return false;
 
-    while (true) {
-        DWORD bytesRead = 0;
-        WINHTTP_WEB_SOCKET_BUFFER_TYPE bufferType;
+    if (bufferType == WINHTTP_WEB_SOCKET_CLOSE_BUFFER_TYPE) return false;
 
-        DWORD result = WinHttpWebSocketReceive(
-            websocket,
-            buffer,
-            sizeof(buffer),
-            &bytesRead,
-            &bufferType
-        );
-
-        if (result != NO_ERROR) return false;
-
-        if (bufferType == WINHTTP_WEB_SOCKET_CLOSE_BUFFER_TYPE) return false;
-
-        if (bufferType != WINHTTP_WEB_SOCKET_BINARY_MESSAGE_BUFFER_TYPE &&
-            bufferType != WINHTTP_WEB_SOCKET_BINARY_FRAGMENT_BUFFER_TYPE) {
-            return false;
-        }
-
-        // Prevent overflow
-        if (receivedSize + bytesRead > outputCapacity) {
-            return false;
-        }
-
-        memcpy(output + receivedSize, buffer, bytesRead);
-        receivedSize += bytesRead;
-
-        if (bufferType == WINHTTP_WEB_SOCKET_BINARY_MESSAGE_BUFFER_TYPE) {
-            break;
-        }
-    }
+    #ifdef PROFILE
+    QueryPerformanceCounter(&end);
+    double time = (double)(end.QuadPart - start.QuadPart) / freq.QuadPart;
+    cout << "Time: " << time << " seconds (receiveBinary)\n";
+    #endif
 
     return true;
 }
+
