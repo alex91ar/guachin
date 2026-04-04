@@ -63,7 +63,8 @@ def build_unicode_string(base_address, object_text):
     return unicode_str_data, next_ptr
 
 
-def build_object_attributes(base_address, object_name):
+
+def build_object_attributes(base_address, object_name, attributes =0):
     """
     Build an x64 OBJECT_ATTRIBUTES followed by the UNICODE_STRING blob it points to.
 
@@ -97,7 +98,7 @@ def build_object_attributes(base_address, object_name):
     blob[16:24] = (unicode_base).to_bytes(8, "little")
 
     # Attributes = 0
-    blob[24:28] = (0).to_bytes(4, "little")
+    blob[24:28] = (0).to_bytes(attributes, "little")
 
     # SecurityDescriptor = NULL
     blob[32:40] = (0).to_bytes(8, "little")
@@ -195,8 +196,6 @@ def build_ps_attribute_list(ptr, image_path_ptr, image_path_len, handle_list_ptr
 def push_rtl(address, params, debug=False):
     bytecode = bytearray()
 
-    if debug:
-        bytecode.extend(b'\xCC')  # int3
 
     extra_count = max(0, len(params) - 4)
 
@@ -254,7 +253,8 @@ def push_rtl(address, params, debug=False):
     # mov rax, address
     bytecode.extend(b'\x48\xB8')
     bytecode.extend(struct.pack('<Q', address))
-
+    if debug:
+        bytecode.extend(b'\xCC')  # int3
     # call rax
     bytecode.extend(b'\xFF\xD0')
 

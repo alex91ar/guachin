@@ -13,7 +13,7 @@ def NtCreateFile(agent_id, name, desired_access):
     syscall = Syscall.sys(agent.id, "NtCreateFile")
     scratchpad = agent.scratchpad
     filehandle_data, object_attributes_ptr = build_ptr(scratchpad, b"\x00\x00\x00\x00\x00\x00\x00\x00")
-    object_attributes_data, status_block_ptr = build_object_attributes(object_attributes_ptr, unicode_str_ptr)
+    object_attributes_data, status_block_ptr = build_object_attributes(object_attributes_ptr, name, 0)
     status_block_data,  next_ptr = build_ptr(status_block_ptr,b"\x00\x00\x00\x00\x00\x00\x00\x00")
     params = [scratchpad, # &FileHandle
               desired_access, # FILE_ALL_ACCCESS

@@ -48,11 +48,6 @@ def register_blueprints_from_package(app, package, base_blueprint: Blueprint, be
                 )
 
             base_blueprint.register_blueprint(sub_bp)
-            logger.info(
-                "Registered blueprint '%s.%s' under '%s'",
-                module_full_name, getattr(sub_bp, "name", "<unnamed>"),
-                base_blueprint.name
-            )
         else:
             logger.info("Module '%s' has no 'bp'; skipped", module_full_name)
 
@@ -67,7 +62,6 @@ def register_blueprints_from_package(app, package, base_blueprint: Blueprint, be
     for rule in app.url_map.iter_rules():
         if rule.rule.startswith(base_blueprint.url_prefix):
             methods = ",".join(sorted(rule.methods))
-            logger.info("→ %-10s %s", methods, rule.rule)
 
 
 

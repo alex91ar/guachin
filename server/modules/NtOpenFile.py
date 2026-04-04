@@ -2,10 +2,13 @@ NAME = "NtOpenFile"
 DESCRIPTION = "Opens an existing file in the target agent"
 PARAMS = [
     {"name":"filename", "description":"Complete path (e.g. \\??\\C:\\temp\\log.txt)", "type":"str"},
-    {"name":"desired_access", "description":"Access level (default: GENERIC_READ)", "type":"hex"},
+    {"name":"desired_access", "description":"Access level mask", "type":"hex"},
+    {"name":"share_access", "description":"Share access mask", "type":"hex"},
+    {"name":"open_options", "description":"Open options mask", "type":"hex"},
+    {"name":"attributes", "description":"Attributes for the OBJECT_ATTRIBUTES struct", "type":"hex"}
 ]
 
-def NtOpenFile(agent_id, name, desired_access): # Default GENERIC_READ | SYNCHRONIZE
+def NtOpenFile(agent_id, name, desired_access, share, options, attributes): # Default GENERIC_READ | SYNCHRONIZE
     from models.agent import Agent
     from models.syscall import Syscall
     from services.binary import build_ptr, build_object_attributes, push_syscall
@@ -19,12 +22,12 @@ def NtOpenFile(agent_id, name, desired_access): # Default GENERIC_READ | SYNCHRO
     filehandle_data, object_attributes_ptr = build_ptr(scratchpad, b"\x00" * 8)
         
     # 2. &ObjectAttributes (48 bytes for struct)
-    object_attributes_data, status_block_ptr = build_object_attributes(object_attributes_ptr, name)
+    object_attributes_data, status_block_ptr = build_object_attributes(object_attributes_ptr, name, attributes)
     
     # 3. &IoStatusBlock (16 bytes)
     status_block_data, next_ptr = build_ptr(status_block_ptr, b"\x00" * 16)
-    share_access = 0x07
-    open_options = 0x20
+    share_access = share
+    open_options = options
     params = [
         scratchpad,              # P1: R10 (&FileHandle)
         desired_access,          # P2: RDX (Access Mask)
@@ -46,6 +49,7 @@ def NtOpenFile(agent_id, name, desired_access): # Default GENERIC_READ | SYNCHRO
             0x40000000: "GENERIC_WRITE",
             0x20000000: "GENERIC_EXECUTE",
             0x10000000: "GENERIC_ALL",
+            0x00010000: "DELETE",
             0x00100000: "SYNCHRONIZE",
         }
         return " | ".join(name for bit, name in flags.items() if mask & bit) or "0"
@@ -83,11 +87,11 @@ def NtOpenFile(agent_id, name, desired_access): # Default GENERIC_READ | SYNCHRO
         )
     return data, shellcode
 
-def openFile(agent_id, name, desired_access):
+def openFile(agent_id, name, desired_access, share, options, attributes):
     from services.orders import write_scratchpad, send_and_wait, read_scratchpad
     
     # Get the raw data and syscall shellcode
-    data, shellcode = NtOpenFile(agent_id, name, desired_access)
+    data, shellcode = NtOpenFile(agent_id, name, desired_access, share, options, attributes)
     
     # 1. Write the pointers and data structures to the agent's memory
     write_scratchpad(agent_id, data)
@@ -108,6 +112,9 @@ def function(agent_id, args):
     name = args[0]
     # If the user provides a second arg, use it as access, else default.
     access = args[1]
+    share = args[2]
+    options = args[3]
+    attributes = args[4]
     
-    retval, file_handle = openFile(agent_id, name, access)
+    retval, file_handle = openFile(agent_id, name, access, share, options, attributes)
     return {"retval": retval, "FILE_HANDLE": file_handle}

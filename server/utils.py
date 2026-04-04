@@ -46,15 +46,16 @@ def _sanitize_recursive(obj):
 
 LENGTH_KEY = 16
 
-def profile_func(func, *args, **kwargs):
+def profile(func, *args, **kwargs):
+    import inspect
     start = time.perf_counter()
 
     result = func(*args, **kwargs)
 
     end = time.perf_counter()
     elapsed_ms = (end - start) * 1000
-    if elapsed_ms > 50:
-        print(f"{func.__name__} took {elapsed_ms:.3f} ms")
+    caller = inspect.stack()[1]
+    print(f"{caller.function}.{func.__name__} took {elapsed_ms:.3f} ms")
 
     return result
 

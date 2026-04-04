@@ -1,1 +1,1 @@
-void random_uuid(wchar_t* out);
+void random_uuid(char* out) ;

@@ -1,0 +1,28 @@
+CMakeFiles/zlib.dir/uncompr.c.obj: \
+ /Users/alex/projects/guachin/agent/zlib-1.3.1/uncompr.c \
+ /Users/alex/projects/guachin/agent/zlib-1.3.1/zlib.h \
+ /Users/alex/projects/guachin/agent/zlib-1.3.1/build-win64/zconf.h \
+ /opt/homebrew/Cellar/mingw-w64/14.0.0/toolchain-x86_64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/stddef.h \
+ /opt/homebrew/Cellar/mingw-w64/14.0.0/toolchain-x86_64/x86_64-w64-mingw32/include/stddef.h \
+ /opt/homebrew/Cellar/mingw-w64/14.0.0/toolchain-x86_64/x86_64-w64-mingw32/include/crtdefs.h \
+ /opt/homebrew/Cellar/mingw-w64/14.0.0/toolchain-x86_64/x86_64-w64-mingw32/include/corecrt.h \
+ /opt/homebrew/Cellar/mingw-w64/14.0.0/toolchain-x86_64/x86_64-w64-mingw32/include/_mingw.h \
+ /opt/homebrew/Cellar/mingw-w64/14.0.0/toolchain-x86_64/x86_64-w64-mingw32/include/_mingw_mac.h \
+ /opt/homebrew/Cellar/mingw-w64/14.0.0/toolchain-x86_64/x86_64-w64-mingw32/include/_mingw_secapi.h \
+ /opt/homebrew/Cellar/mingw-w64/14.0.0/toolchain-x86_64/x86_64-w64-mingw32/include/vadefs.h \
+ /opt/homebrew/Cellar/mingw-w64/14.0.0/toolchain-x86_64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/limits.h \
+ /opt/homebrew/Cellar/mingw-w64/14.0.0/toolchain-x86_64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/syslimits.h \
+ /opt/homebrew/Cellar/mingw-w64/14.0.0/toolchain-x86_64/x86_64-w64-mingw32/include/limits.h \
+ /opt/homebrew/Cellar/mingw-w64/14.0.0/toolchain-x86_64/x86_64-w64-mingw32/include/sys/types.h \
+ /opt/homebrew/Cellar/mingw-w64/14.0.0/toolchain-x86_64/x86_64-w64-mingw32/include/_mingw_off_t.h \
+ /opt/homebrew/Cellar/mingw-w64/14.0.0/toolchain-x86_64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/stdarg.h \
+ /opt/homebrew/Cellar/mingw-w64/14.0.0/toolchain-x86_64/x86_64-w64-mingw32/include/stdarg.h \
+ /opt/homebrew/Cellar/mingw-w64/14.0.0/toolchain-x86_64/x86_64-w64-mingw32/include/_mingw_stdarg.h \
+ /opt/homebrew/Cellar/mingw-w64/14.0.0/toolchain-x86_64/x86_64-w64-mingw32/include/unistd.h \
+ /opt/homebrew/Cellar/mingw-w64/14.0.0/toolchain-x86_64/x86_64-w64-mingw32/include/io.h \
+ /opt/homebrew/Cellar/mingw-w64/14.0.0/toolchain-x86_64/x86_64-w64-mingw32/include/string.h \
+ /opt/homebrew/Cellar/mingw-w64/14.0.0/toolchain-x86_64/x86_64-w64-mingw32/include/sec_api/string_s.h \
+ /opt/homebrew/Cellar/mingw-w64/14.0.0/toolchain-x86_64/x86_64-w64-mingw32/include/process.h \
+ /opt/homebrew/Cellar/mingw-w64/14.0.0/toolchain-x86_64/x86_64-w64-mingw32/include/corecrt_startup.h \
+ /opt/homebrew/Cellar/mingw-w64/14.0.0/toolchain-x86_64/x86_64-w64-mingw32/include/getopt.h \
+ /opt/homebrew/Cellar/mingw-w64/14.0.0/toolchain-x86_64/x86_64-w64-mingw32/include/pthread_unistd.h

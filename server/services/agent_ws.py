@@ -47,18 +47,18 @@ def _shell_ws_agent(ws, agent, identity):
             return f"Function {command} not found, use \"help\" to get all available functions."
         else:
             return handler(*args)
-    from utils import profile_func
+    from utils import profile
     def poll_incoming_responses():
         nonlocal last_seen_id
 
         with app.app_context():
             while not stop_event.is_set():
                 try:
-                    response_obj = profile_func(Response.by_agent, agent.id, last_seen_id)
+                    response_obj = Response.by_agent(agent.id, last_seen_id)
                     if response_obj is None:
                         continue
                     
-                    profile_func(ws.send, response_obj.content)
+                    profile(ws.send, response_obj.content)
                     last_seen_id = response_obj.id
 
                 except Exception as e:
@@ -76,7 +76,7 @@ def _shell_ws_agent(ws, agent, identity):
 
         while not stop_event.is_set():
             try:
-                message = profile_func(ws.receive)
+                message = profile(ws.receive)
             except Exception as e:
                 logger.info(f"Websocket receive failed or closed for agent {agent.id}: {e}")
                 break

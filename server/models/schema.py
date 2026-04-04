@@ -122,7 +122,6 @@ def load_modules_from_directory(directory="./modules"):
             )
             db.session.add(record)
 
-        logger.info(f"Loaded module {name}")
 
     db.session.commit()
 

@@ -36,3 +36,6 @@ flask-admin
 webauthn
 fido2>=1.1.0
 pywinpty; platform_system == "Windows"
+starlette 
+uvicorn[standard]
+fastapi

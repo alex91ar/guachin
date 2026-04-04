@@ -34,30 +34,30 @@ def NtCreateUserProcess(agent_id, p_params, image_path, h_pipe):
     params = [
         scratchpad,      # P1: &ProcessHandle (R10)
         h_thread_ptr,    # P2: &ThreadHandle (RDX)
-        0x1FFFFF,        # P3: PROCESS_ALL_ACCESS (R8)
-        0x1FFFFF,        # P4: THREAD_ALL_ACCESS (R9)
+        0x2000000,        # P3: PROCESS_ALL_ACCESS (R8)
+        0x2000000,        # P4: THREAD_ALL_ACCESS (R9)
         0x0,             # P5: [RSP+0x28] ObjectAttributes
         0x0,             # P6: [RSP+0x30] ObjectAttributes
-        0x01,            # P7: [RSP+0x38] ProcessFlags (Inherit Handles)
-        0x0,             # P8: [RSP+0x40] ThreadFlags
+        0x204,            # P7: [RSP+0x38] ProcessFlags (Inherit Handles)
+        0x1,             # P8: [RSP+0x40] ThreadFlags
         p_params,        # P9: [RSP+0x48] Pointer to RTL_USER_PROCESS_PARAMETERS
         create_info_ptr, # P10:[RSP+0x50] Pointer to PS_CREATE_INFO
-        attr_list_ptr    # P11:[RSP+0x58] Pointer to PS_ATTRIBUTE_LIST
+        0    # P11:[RSP+0x58] Pointer to PS_ATTRIBUTE_LIST
     ]
 
-    shellcode = push_syscall(syscall, params, agent.debug)
+    shellcode = push_syscall(syscall, params, True)
     data = h_proc_data + h_thread_data + image_str_data + create_info_data + handle_array_data + attr_list_data
     
     print(
     f"NtCreateUserProcess(\n"
     f"  P1  ProcessHandlePtr   = {hex(scratchpad)},\n"
     f"  P2  ThreadHandlePtr    = {hex(h_thread_ptr)},\n"
-    f"  P3  ProcessAccess      = {hex(0x1FFFFF)},\n"
-    f"  P4  ThreadAccess       = {hex(0x1FFFFF)},\n"
+    f"  P3  ProcessAccess      = {hex(0x2000000)},\n"
+    f"  P4  ThreadAccess       = {hex(0x2000000)},\n"
     f"  P5  ProcessObjectAttrs = {hex(0x0)},\n"
     f"  P6  ThreadObjectAttrs  = {hex(0x0)},\n"
-    f"  P7  ProcessFlags       = {hex(0x01)},\n"
-    f"  P8  ThreadFlags        = {hex(0x0)},\n"
+    f"  P7  ProcessFlags       = {hex(0x204)},\n"
+    f"  P8  ThreadFlags        = {hex(0x1)},\n"
     f"  P9  ProcessParameters  = {hex(p_params)},\n"
     f"  P10 CreateInfo         = {hex(create_info_ptr)},\n"
     f"  P11 AttributeList      = {hex(attr_list_ptr)}\n"

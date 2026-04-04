@@ -25,7 +25,9 @@
   }
 })();
 </script>
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.6/ace.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.6/mode-python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.6/theme-github_dark.min.js"></script>
 <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/xterm.css') }}">
 <script src="{{ url_for('static', filename='js/xterm.min.js') }}"></script>
@@ -34,6 +36,7 @@
 <script src="{{ url_for('static', filename='js/session.js') }}"></script>
 <script src="{{ url_for('static', filename='js/actions.js') }}"></script>
 <script src="{{ url_for('static', filename='js/passkeys.js') }}"></script>
+<script src="{{ url_for('static', filename='js/modules.js') }}"></script>
 <script src="{{ url_for('static', filename='js/passkey_register.js') }}"></script>
 
 <div class="admin-container fade-in">
@@ -48,6 +51,7 @@
 <nav class="tabs">
   <button class="tab active" data-tab="users" onclick="activateTab('users')">👥 Users</button>
   <button class="tab" data-tab="passkeys" onclick="activateTab('passkeys')">🔑 Passkeys</button>
+  <button class="tab" data-tab="modules" onclick="activateTab('modules')">🧠 Modules</button>
   <button class="tab" data-tab="roles" onclick="activateTab('roles')">🧩 Roles</button>
   <button class="tab" data-tab="actions" onclick="activateTab('actions')">⚙️ Actions</button>
   <button class="tab" data-tab="system" onclick="activateTab('system')">💻 System</button>
@@ -69,6 +73,36 @@
     activateTab(hash || "users");
   });
 </script>
+
+<!-- MODULES -->
+<section id="tab-modules" class="tab-panel">
+  <div class="panel-header">
+    <h2>Modules</h2>
+    <div class="panel-actions">
+      <button class="btn subtle" onclick="refreshModules()">⟳ Refresh</button>
+      <button class="btn primary" id="add-module-btn">+ Add Module</button>
+    </div>
+  </div>
+
+  <p class="meta">
+    Manage dynamic modules, their parameters, and dependencies.
+  </p>
+
+  <div class="table-wrap">
+    <table class="nice-table" id="modules-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Description</th>
+          <th class="right">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="modules-tbody"></tbody>
+    </table>
+  </div>
+
+  <p id="modules-empty" class="meta hidden">No modules found.</p>
+</section>
 
 <section class="tab-content hidden" id="tab-filemanager">
 <div id="filemanager" >

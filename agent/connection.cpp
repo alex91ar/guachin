@@ -1,161 +1,157 @@
 #include "global.hpp"
+#include <curl/curl.h>
+#include <string.h>
 #define PROFILE
-#ifdef PROFILE
-#include <iostream>
-
-using namespace std;
+#ifdef _WIN32
+#include <windows.h>
 #endif
 
 void cleanup(WebSocketClient& client) {
-    if (client.websocket) {
-        WinHttpCloseHandle(client.websocket);
-        client.websocket = nullptr;
+    if (client.curl) {
+        curl_easy_cleanup(client.curl);
+        client.curl = nullptr;
     }
-    if (client.request) {
-        WinHttpCloseHandle(client.request);
-        client.request = nullptr;
-    }
-    if (client.connect) {
-        WinHttpCloseHandle(client.connect);
-        client.connect = nullptr;
-    }
-    if (client.session) {
-        WinHttpCloseHandle(client.session);
-        client.session = nullptr;
-    }
+    client.connected = false;
 }
 
 bool connectWebSocket(
     WebSocketClient& client,
-    const wchar_t* host,
-    INTERNET_PORT port,
-    const wchar_t* path,
-    bool useHttps
+    const char* url
 ) {
-    client.session = WinHttpOpen(
-        L"WinHTTP WebSocket Client/1.0",
-        WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
-        WINHTTP_NO_PROXY_NAME,
-        WINHTTP_NO_PROXY_BYPASS,
-        0
-    );
+    client.curl = nullptr;
+    client.connected = false;
 
-    if (!client.session) return false;
+    if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK) {
+        return false;
+    }
 
-    client.connect = WinHttpConnect(client.session, host, port, 0);
-    if (!client.connect) return false;
+    client.curl = curl_easy_init();
+    if (!client.curl) {
+        return false;
+    }
 
-    client.request = WinHttpOpenRequest(
-        client.connect,
-        L"GET",
-        path,
-        nullptr,
-        WINHTTP_NO_REFERER,
-        WINHTTP_DEFAULT_ACCEPT_TYPES,
-        useHttps ? WINHTTP_FLAG_SECURE : 0
-    );
+    curl_easy_setopt(client.curl, CURLOPT_URL, url);
+    curl_easy_setopt(client.curl, CURLOPT_CONNECT_ONLY, 2L);
 
-    if (!client.request) return false;
+    CURLcode rc = curl_easy_perform(client.curl);
+    if (rc != CURLE_OK) {
+        cleanup(client);
+        return false;
+    }
 
-    if (useHttps) {
-        DWORD securityFlags =
-            SECURITY_FLAG_IGNORE_UNKNOWN_CA |
-            SECURITY_FLAG_IGNORE_CERT_WRONG_USAGE |
-            SECURITY_FLAG_IGNORE_CERT_CN_INVALID |
-            SECURITY_FLAG_IGNORE_CERT_DATE_INVALID;
+    client.connected = true;
+    return true;
+}
 
-        if (!WinHttpSetOption(
-                client.request,
-                WINHTTP_OPTION_SECURITY_FLAGS,
-                &securityFlags,
-                sizeof(securityFlags))) {
+bool sendBinary(WebSocketClient& client, const char* data, size_t size) {
+    if (!client.curl || !client.connected) {
+        return false;
+    }
+
+#ifdef PROFILE
+    LARGE_INTEGER freq, start, end;
+    QueryPerformanceFrequency(&freq);
+    QueryPerformanceCounter(&start);
+#endif
+
+    size_t sent = 0;
+    while (sent < size) {
+        size_t nwritten = 0;
+        CURLcode rc = curl_ws_send(
+            client.curl,
+            data + sent,
+            size - sent,
+            &nwritten,
+            0,
+            CURLWS_BINARY
+        );
+
+        if (rc == CURLE_AGAIN) {
+            continue;
+        }
+        if (rc != CURLE_OK) {
             return false;
         }
+
+        sent += nwritten;
     }
 
-    if (!WinHttpSetOption(
-            client.request,
-            WINHTTP_OPTION_UPGRADE_TO_WEB_SOCKET,
-            nullptr,
-            0)) {
-        return false;
-    }
-
-    if (!WinHttpSendRequest(
-            client.request,
-            WINHTTP_NO_ADDITIONAL_HEADERS,
-            0,
-            WINHTTP_NO_REQUEST_DATA,
-            0,
-            0,
-            0)) {
-        return false;
-    }
-
-    if (!WinHttpReceiveResponse(client.request, nullptr)) {
-        return false;
-    }
-
-    client.websocket = WinHttpWebSocketCompleteUpgrade(client.request, 0);
-    if (!client.websocket) return false;
-
-    WinHttpCloseHandle(client.request);
-    client.request = nullptr;
+    #ifdef PROFILE
+        QueryPerformanceCounter(&end);
+        double time = (double)(end.QuadPart - start.QuadPart) / freq.QuadPart;
+        cout << "sendBinary Time: " << time << " seconds (Write)\n";
+    #endif
 
     return true;
 }
 
-bool sendBinary(HINTERNET websocket, const char* data, size_t size) {
-    #ifdef PROFILE_1
-    LARGE_INTEGER freq, start, end;
-
-    QueryPerformanceFrequency(&freq);
-    QueryPerformanceCounter(&start);
-    #endif
-    DWORD result = WinHttpWebSocketSend(
-        websocket,
-        WINHTTP_WEB_SOCKET_BINARY_MESSAGE_BUFFER_TYPE,
-        size == 0 ? nullptr : (void*)data,
-        static_cast<DWORD>(size)
-    );
-    #ifdef PROFILE_1
-    QueryPerformanceCounter(&end);
-    double time = (double)(end.QuadPart - start.QuadPart) / freq.QuadPart;
-    cout << "Time: " << time << " seconds (sendBinary)\n";
-    #endif
-    return result == NO_ERROR;
-}
-
 bool receiveBinary(
-    HINTERNET websocket,
+    WebSocketClient& client,
     char* output,
     size_t outputCapacity,
     size_t& receivedSize
 ) {
-    WINHTTP_WEB_SOCKET_BUFFER_TYPE bufferType;
-    #ifdef PROFILE
-    LARGE_INTEGER freq, start, end;
+    receivedSize = 0;
 
+    if (!client.curl || !client.connected) {
+        return false;
+    }
+
+#ifdef PROFILE
+    LARGE_INTEGER freq, start, end;
     QueryPerformanceFrequency(&freq);
     QueryPerformanceCounter(&start);
-    #endif
-    DWORD result = WinHttpWebSocketReceive(
-        websocket,
-        output,
-        outputCapacity,
-        (DWORD*)&receivedSize,
-        &bufferType
-    );
-    if (result != NO_ERROR) return false;
+#endif
 
-    if (bufferType == WINHTTP_WEB_SOCKET_CLOSE_BUFFER_TYPE) return false;
+    while (1) {
+        size_t nread = 0;
+        const struct curl_ws_frame* meta = nullptr;
+
+        CURLcode rc = curl_ws_recv(
+            client.curl,
+            output + receivedSize,
+            outputCapacity - receivedSize,
+            &nread,
+            &meta
+        );
+
+        if (rc == CURLE_AGAIN) {
+            continue;
+        }
+        if (rc != CURLE_OK) {
+            return false;
+        }
+
+        receivedSize += nread;
+
+        if (!meta) {
+            return false;
+        }
+
+        if (meta->flags & CURLWS_CLOSE) {
+            return false;
+        }
+
+        if (!(meta->flags & CURLWS_BINARY) && !(meta->flags & CURLWS_TEXT)) {
+            if (meta->bytesleft == 0) {
+                continue;
+            }
+        }
+
+        if (meta->bytesleft == 0) {
+            break;
+        }
+
+        if (receivedSize >= outputCapacity) {
+            return false;
+        }
+    }
 
     #ifdef PROFILE
-    QueryPerformanceCounter(&end);
-    double time = (double)(end.QuadPart - start.QuadPart) / freq.QuadPart;
-    cout << "Time: " << time << " seconds (receiveBinary)\n";
+        QueryPerformanceCounter(&end);
+        double time = (double)(end.QuadPart - start.QuadPart) / freq.QuadPart;
+        cout << "receiveBinary Time: " << time << " seconds (Write)\n";
     #endif
 
     return true;
 }
-

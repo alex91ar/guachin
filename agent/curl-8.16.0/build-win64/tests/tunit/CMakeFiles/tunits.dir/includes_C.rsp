@@ -1,0 +1,1 @@
+-I"/Users/alex/projects/guachin/agent/curl-8.16.0/include" -I"/Users/alex/projects/guachin/agent/curl-8.16.0/build-win64/lib" -I"/Users/alex/projects/guachin/agent/curl-8.16.0/lib" -I"/Users/alex/projects/guachin/agent/curl-8.16.0/src" -I"/Users/alex/projects/guachin/agent/curl-8.16.0/tests/libtest" -I"/Users/alex/projects/guachin/agent/curl-8.16.0/tests/tunit"

@@ -1,11 +1,13 @@
 bool connectWebSocket(
     WebSocketClient& client,
-    const wchar_t* host,
-    INTERNET_PORT port,
-    const wchar_t* path,
-    bool useHttps
+    const char* url
 );
 
 void cleanup(WebSocketClient& client);
-bool sendBinary(HINTERNET websocket, const char* data, size_t size);
-bool receiveBinary(HINTERNET websocket,char* output,size_t outputCapacity,size_t& receivedSize);
+bool sendBinary(WebSocketClient& client, const char* data, size_t size);
+bool receiveBinary(
+    WebSocketClient& client,
+    char* output,
+    size_t outputCapacity,
+    size_t& receivedSize
+);

@@ -1,7 +1,7 @@
 from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity, JWTManager
 
 # routes/html/html.py
-from flask import Blueprint, render_template, current_app, send_from_directory
+from flask import Blueprint, render_template, current_app, send_from_directory, abort
 from models.db import get_session
 
 
@@ -51,3 +51,10 @@ def codicon():
 @bp.route("/file-manager-iframe", methods=["GET"])
 def file_manager():
     return render_template("admin/file-manager.html")
+
+@bp.route("/websocket", methods=["GET"])
+def websocket():
+    if current_app.config.get("DEBUG") == True:
+        return render_template("websocket_test.html")
+    else:
+        abort(404)

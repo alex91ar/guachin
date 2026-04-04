@@ -298,3 +298,234 @@
     <div class="modal-resize-handle" data-modal-resize-handle aria-hidden="true"></div>
   </div>
 </div>
+<!-- Add Module Modal -->
+<div class="modal-overlay" id="add-module-modal" hidden>
+  <div class="modal-backdrop" data-close="add-module-modal"></div>
+
+  <div class="modal-window" data-modal-window style="width:min(980px,92vw);height:min(85vh,820px);">
+    <header class="modal-header" data-modal-drag-handle>
+      <h3>Add New Module</h3>
+      <button class="icon-btn" type="button" data-close="add-module-modal" aria-label="Close">✖</button>
+    </header>
+
+    <div class="modal-body">
+      <form id="add-module-form">
+        <label>
+          <span>Name</span>
+          <input type="text" name="name" placeholder="my_module" required>
+        </label>
+
+        <label>
+          <span>Description</span>
+          <input type="text" name="description" placeholder="Describe what this module does" required>
+        </label>
+
+        <div class="role-select-wrapper">
+          <div class="role-column">
+            <h4>Available Dependencies</h4>
+            <select id="available-dependencies-add" multiple size="8"></select>
+          </div>
+
+          <div class="role-actions">
+            <button type="button" id="add-dependency-to-module" class="btn small">→</button>
+            <button type="button" id="remove-dependency-from-module" class="btn small">←</button>
+          </div>
+
+          <div class="role-column">
+            <h4>Selected Dependencies</h4>
+            <select id="selected-dependencies-add" name="dependencies" multiple size="8"></select>
+          </div>
+        </div>
+
+        <label>
+          <span>Params (JSON)</span>
+          <textarea
+            name="params"
+            rows="6"
+            spellcheck="false"
+            placeholder='[{"name":"arg1","description":"Example parameter","type":"int"}]'></textarea>
+        </label>
+
+        <label>
+          <span>Code</span>
+          <textarea
+            name="code"
+            rows="14"
+            spellcheck="false"
+            placeholder='def function(agent_id, args):&#10;    return {"result": args[0]}'
+            required></textarea>
+        </label>
+
+        <div class="modal-footer">
+          <button type="button" class="btn subtle" data-close="add-module-modal">Cancel</button>
+          <button type="submit" class="btn primary">Create</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="modal-resize-handle" data-modal-resize-handle aria-hidden="true"></div>
+  </div>
+</div>
+
+<!-- Edit Module Modal -->
+<div class="modal-overlay" id="edit-module-modal" hidden>
+  <div class="modal-backdrop" data-close="edit-module-modal"></div>
+
+  <div class="modal-window" data-modal-window style="width:min(980px,92vw);height:min(85vh,820px);">
+    <header class="modal-header" data-modal-drag-handle>
+      <h3>Edit Module</h3>
+      <button class="icon-btn" type="button" data-close="edit-module-modal" aria-label="Close">✖</button>
+    </header>
+
+    <div class="modal-body">
+      <form id="edit-module-form">
+        <input type="hidden" name="original_name">
+
+        <label>
+          <span>Name</span>
+          <input type="text" name="name" placeholder="my_module" required>
+        </label>
+
+        <label>
+          <span>Description</span>
+          <input type="text" name="description" placeholder="Describe what this module does" required>
+        </label>
+
+        <div class="role-select-wrapper">
+          <div class="role-column">
+            <h4>Available Dependencies</h4>
+            <select id="available-dependencies-edit" multiple size="8"></select>
+          </div>
+
+          <div class="role-actions">
+            <button type="button" id="add-dependency-to-edit" class="btn small">→</button>
+            <button type="button" id="remove-dependency-from-edit" class="btn small">←</button>
+          </div>
+
+          <div class="role-column">
+            <h4>Selected Dependencies</h4>
+            <select id="selected-dependencies-edit" name="dependencies" multiple size="8"></select>
+          </div>
+        </div>
+
+        <label>
+          <span>Params (JSON)</span>
+          <textarea
+            name="params"
+            rows="6"
+            spellcheck="false"
+            placeholder='[{"name":"arg1","description":"Example parameter","type":"int"}]'></textarea>
+        </label>
+
+        <label class="code-editor-field">
+          <span>Code</span>
+          <div
+            id="edit-module-code-editor"
+            class="code-editor python-editor"
+            data-language="python"
+            aria-label="Python code editor"></div>
+          <textarea
+            name="code"
+            rows="14"
+            spellcheck="false"
+            placeholder='def function(agent_id, args):&#10;    return {"result": args[0]}'
+            required
+            hidden></textarea>
+        </label>
+
+        <div class="modal-footer">
+          <button type="button" class="btn subtle" data-close="edit-module-modal">Cancel</button>
+          <button type="submit" class="btn primary">Save</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="modal-resize-handle" data-modal-resize-handle aria-hidden="true"></div>
+  </div>
+</div>
+
+<!-- Delete Module Confirm Modal -->
+<div class="modal-overlay" id="delete-module-modal" hidden>
+  <div class="modal-backdrop" data-close="delete-module-modal"></div>
+
+  <div class="modal-window" data-modal-window style="width:min(560px,92vw);height:auto;">
+    <header class="modal-header" data-modal-drag-handle>
+      <h3>Delete Module</h3>
+      <button class="icon-btn" type="button" data-close="delete-module-modal" aria-label="Close">✖</button>
+    </header>
+
+    <div class="modal-body">
+      <form id="delete-module-form">
+        <input type="hidden" name="name">
+
+        <p class="meta" style="margin-top:0;">
+          This will permanently remove the module. Any module depending on it may stop working.
+        </p>
+
+        <div class="kv-grid" style="margin: .75rem 0;">
+          <div class="kv">
+            <div class="k">Name</div>
+            <div class="v" id="delete-module-name">—</div>
+          </div>
+          <div class="kv">
+            <div class="k">Description</div>
+            <div class="v" id="delete-module-description">—</div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn subtle" data-close="delete-module-modal">Cancel</button>
+          <button type="submit" class="btn danger">Delete</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="modal-resize-handle" data-modal-resize-handle aria-hidden="true"></div>
+  </div>
+</div>
+
+<!-- Module Details / Help Modal -->
+<div class="modal-overlay" id="module-details-modal" hidden>
+  <div class="modal-backdrop" data-close="module-details-modal"></div>
+
+  <div class="modal-window" data-modal-window style="width:min(980px,92vw);height:min(85vh,820px);">
+    <header class="modal-header" data-modal-drag-handle>
+      <h3 id="module-details-title">Module Details</h3>
+      <button class="icon-btn" type="button" data-close="module-details-modal" aria-label="Close">✖</button>
+    </header>
+
+    <div class="modal-body">
+      <div class="kv-grid">
+        <div class="kv">
+          <div class="k">Name</div>
+          <div class="v" id="module-details-name">—</div>
+        </div>
+        <div class="kv">
+          <div class="k">Description</div>
+          <div class="v" id="module-details-description">—</div>
+        </div>
+        <div class="kv">
+          <div class="k">Dependencies</div>
+          <div class="v" id="module-details-dependencies">—</div>
+        </div>
+      </div>
+
+      <div class="block">
+        <div class="block-title">Params</div>
+        <pre class="codebox" id="module-details-params">[]</pre>
+      </div>
+
+      <div class="block">
+        <div class="block-title">Code</div>
+        <pre class="codebox" id="module-details-code">—</pre>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn subtle" id="module-details-copy-code">Copy code</button>
+        <button type="button" class="btn primary" data-close="module-details-modal">OK</button>
+      </div>
+    </div>
+
+    <div class="modal-resize-handle" data-modal-resize-handle aria-hidden="true"></div>
+  </div>
+</div>

@@ -6,6 +6,10 @@ window.patch_config_SUDO = "{{ url_for('sudo_api.config.patch_config') }}";
 window.delete_config_SUDO = "{{ url_for('sudo_api.config.delete_config') }}";
 window.get_all_logs_SUDO = "{{ url_for('sudo_api.logs.get_all_logs') }}";
 window.purge_all_logs_SUDO = "{{ url_for('sudo_api.logs.purge_all_logs') }}";
+window.list_modules_SUDO = "{{ url_for('sudo_api.modules.list_modules') }}";
+window.create_module_SUDO = "{{ url_for('sudo_api.modules.create_module') }}";
+window.update_module_SUDO = "{{ url_for('sudo_api.modules.update_module') }}";
+window.delete_module_SUDO = "{{ url_for('sudo_api.modules.delete_module') }}";
 window.list_passkeys_SUDO = "{{ url_for('sudo_api.passkeys.list_passkeys') }}";
 window.create_passkey_SUDO = "{{ url_for('sudo_api.passkeys.create_passkey') }}";
 window.delete_passkey_SUDO = "{{ url_for('sudo_api.passkeys.delete_passkey') }}";
@@ -70,4 +74,5 @@ window.reset_page_HTML = "{{ url_for('html_pages.html.reset_page') }}";
 window.agents_page_HTML = "{{ url_for('html_pages.html.agents_page') }}";
 window.codicon_HTML = "{{ url_for('html_pages.html.codicon') }}";
 window.file_manager_HTML = "{{ url_for('html_pages.html.file_manager') }}";
+window.websocket_HTML = "{{ url_for('html_pages.html.websocket') }}";
 </script>

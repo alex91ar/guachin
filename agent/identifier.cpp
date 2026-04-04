@@ -3,8 +3,8 @@
 size_t enumerateExportsAndSyscalls(const char* dllName, char* outBuffer, size_t outCapacity);
 
 
-void random_uuid(wchar_t* out) {
-    srand(time(NULL));
+void random_uuid(char* out) {
+    srand((unsigned int)time(NULL));
 
     unsigned char bytes[16];
 
@@ -16,7 +16,7 @@ void random_uuid(wchar_t* out) {
     bytes[6] = (bytes[6] & 0x0F) | 0x40;
     bytes[8] = (bytes[8] & 0x3F) | 0x80;
 
-    const wchar_t hex[] = L"0123456789abcdef";
+    const char hex[] = "0123456789abcdef";
 
     size_t pos = 0;
 
@@ -25,11 +25,11 @@ void random_uuid(wchar_t* out) {
         out[pos++] = hex[bytes[i] & 0xF];
 
         if (i == 3 || i == 5 || i == 7 || i == 9) {
-            out[pos++] = L'-';
+            out[pos++] = '-';
         }
     }
 
-    out[pos] = L'\0'; // null terminate
+    out[pos] = '\0'; // null terminate
 }
 
 size_t createHandshake(char* resp, size_t respMax) {

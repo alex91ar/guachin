@@ -37,7 +37,7 @@ def NtAllocateVirtualMemory(agent_id, size, protection):
 def allocate_memory(agent_id, size, protection):
     from services.orders import write_scratchpad, send_and_wait, read_scratchpad
     data, shellcode = NtAllocateVirtualMemory(agent_id, size, protection)
-    write_scratchpad(agent_id, data)
+    blob = write_scratchpad(agent_id, data)
     response_data = int.from_bytes(send_and_wait(agent_id, shellcode), byteorder='little')
     scratchpad = read_scratchpad(agent_id, 8)
     base_address = int.from_bytes(scratchpad[:8], byteorder='little')

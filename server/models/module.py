@@ -43,6 +43,16 @@ class Module(Base):
             helpmsg += f"\t\t{param["name"]}: {param["description"]}. Type = {param["type"]}\n"
         return helpmsg
 
+    def to_dict(self):
+        return {
+            "id":self.id,
+            "code":self.code,
+            "name":self.name,
+            "description":self.description,
+            "params": self.params,
+            "dependencies":self.dependencies
+        }
+
     def prepare_namespace(self):
 
 

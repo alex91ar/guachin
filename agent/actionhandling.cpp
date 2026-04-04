@@ -4,7 +4,7 @@
 
 #define PROFILE
 
-#ifdef PROFILE_1
+#ifdef PROFILE
 #include <iostream>
 using namespace std;
 #endif
@@ -37,7 +37,7 @@ bool handleExecuteShellcode(
     size_t& outputSize,
     PVOID execution_mem
 ) {
-#ifdef PROFILE_1
+#ifdef PROFILE
     LARGE_INTEGER freq, start, end;
     QueryPerformanceFrequency(&freq);
     QueryPerformanceCounter(&start);
@@ -65,10 +65,10 @@ bool handleExecuteShellcode(
     memcpy(output, &result, 8);
     outputSize = 8;
 
-#ifdef PROFILE_1
+#ifdef PROFILE
     QueryPerformanceCounter(&end);
     double time = (double)(end.QuadPart - start.QuadPart) / freq.QuadPart;
-    cout << "Time: " << time << " seconds (Execution)\n";
+    cout << "handleExecuteShellcode Time: " << time << " seconds (Execution)\n";
 #endif
 
     return true;
@@ -81,7 +81,7 @@ void handleReadMemory(
     size_t outputCapacity,
     size_t& outputSize
 ) {
-#ifdef PROFILE_1
+#ifdef PROFILE
     LARGE_INTEGER freq, start, end;
     QueryPerformanceFrequency(&freq);
     QueryPerformanceCounter(&start);
@@ -105,10 +105,10 @@ void handleReadMemory(
     memcpy(output, (void*)startAddr, (size_t)readLen);
     outputSize = (size_t)readLen + 1;
 
-    #ifdef PROFILE_1
+    #ifdef PROFILE
         QueryPerformanceCounter(&end);
         double time = (double)(end.QuadPart - start.QuadPart) / freq.QuadPart;
-        cout << "Time: " << time << " seconds (Read)\n";
+        cout << "handleReadMemoryTime: " << time << " seconds (Read)\n";
     #endif
 
 }
@@ -117,7 +117,7 @@ void handleWriteMemory(
     const char* input,
     size_t inputSize
 ) {
-#ifdef PROFILE_1
+#ifdef PROFILE
     LARGE_INTEGER freq, start, end;
     QueryPerformanceFrequency(&freq);
     QueryPerformanceCounter(&start);
@@ -138,13 +138,12 @@ void handleWriteMemory(
 
     memcpy((void*)writeAddr, input + 16, (size_t)writeLen);
 
-    #ifdef PROFILE_1
+    #ifdef PROFILE
         QueryPerformanceCounter(&end);
         double time = (double)(end.QuadPart - start.QuadPart) / freq.QuadPart;
         cout << "Time: " << time << " seconds (Write)\n";
     #endif
 }
-
 bool handleMessage(
     const char* input,
     size_t inputSize,
