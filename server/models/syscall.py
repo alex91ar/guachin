@@ -1,77 +1,115 @@
-from models.basemodel import Base, db
-from sqlalchemy.exc import OperationalError
+# models/syscall.py
+from __future__ import annotations
+
+import struct
+from typing import Optional
+
+from sqlalchemy import BigInteger, ForeignKey, Integer, String, UniqueConstraint, select
+from sqlalchemy.orm import Mapped, Session, mapped_column
+
+from models.basemodel import Base
+from models.db import get_session
 
 
 class Syscall(Base):
     __tablename__ = "syscalls"
     __table_args__ = (
-        db.UniqueConstraint("agent_id", "name", name="uq_syscalls_agent_name"),
+        UniqueConstraint("agent_id", "name", name="uq_syscalls_agent_name"),
     )
-    id = db.Column(db.Integer, primary_key=True)
-    agent_id = db.Column(db.String(255), db.ForeignKey("agents.id", ondelete="CASCADE"), nullable=False, index=True)
-    name = db.Column(db.String(255))
-    syscall = db.Column(db.BigInteger)
-    def __init__(self, agent_id, name, syscall):
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    agent_id: Mapped[str] = mapped_column(
+        String(255),
+        ForeignKey("agents.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    name: Mapped[Optional[str]] = mapped_column(String(255))
+    syscall: Mapped[Optional[int]] = mapped_column(BigInteger)
+
+    def __init__(self, agent_id: str, name: str, syscall: int):
         self.agent_id = agent_id
         self.name = name
         self.syscall = syscall
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return {
             "id": self.id,
             "agent_id": self.agent_id,
             "name": self.name,
-            "syscall":self.syscall
+            "syscall": self.syscall,
         }
-    
 
     @classmethod
-    def save_syscalls_bytes(cls, agent_id, data: bytes, db_session):
-        i = 0
-        import struct
+    def save_syscalls_bytes(cls, agent_id: str, data: bytes, session=None) -> None:
+        print("Saving syscalls...")
+        owns_session = session is None
+        session = session or get_session()
 
         if not data:
             raise ValueError("Input string is empty")
 
-        try:
-            objs = []
-            seen = set()
+        i = 0
 
-            # 🔑 Fetch existing syscall names from DB
+        try:
             existing = set(
-                name for (name,) in db_session.query(Syscall.name)
-                .filter(Syscall.agent_id == agent_id)
-                .all()
+                session.execute(
+                    select(cls.name).where(cls.agent_id == agent_id)
+                ).scalars().all()
             )
 
-            while i < len(data):
-                name_len = data[i]
-                name = data[i+1 : i+1+name_len].decode('ascii')
-                value = struct.unpack('<Q', data[i+1+name_len : i+1+name_len+8])[0]
-                i += (1 + name_len + 8)
+            seen: set[str] = set()
+            rows: list[dict] = []
 
+            data_len = len(data)
+            while i < data_len:
+                name_len = data[i]
+                start = i + 1
+                end = start + name_len
+                value_end = end + 8
+
+                if value_end > data_len:
+                    raise ValueError("Malformed syscall blob")
+
+                name = data[start:end].decode("ascii")
+                value = struct.unpack("<Q", data[end:value_end])[0]
+                i = value_end
 
                 if name in seen or name in existing:
                     continue
 
                 seen.add(name)
-                objs.append(Syscall(agent_id, name, value))
+                rows.append({
+                    "agent_id": agent_id,
+                    "name": name,
+                    "syscall": value,
+                })
 
-            if objs:
-                db_session.add_all(objs)
-                db_session.commit()
+            if not rows:
+                print("No new syscalls to save.")
+                return
+
+            session.bulk_insert_mappings(cls, rows)
+            session.commit()
+            print(f"Successfully loaded {len(rows)} syscalls.")
 
         except Exception:
-            db_session.rollback()
+            print("Error saving syscalls")
+            session.rollback()
             raise
-       
+        finally:
+            if owns_session:
+                session.close()
 
     @classmethod
-    def sys(cls, agent_id, name):
-        row = cls.query.filter(
+    def sys(cls, agent_id: str, name: str) -> int:
+        session = get_session()
+        stmt = select(cls).where(
             cls.agent_id == agent_id,
             cls.name == name,
-        ).first()
+        ).limit(1)
+
+        row = session.scalar(stmt)
 
         if row is None:
             raise LookupError(f"Syscall not found for agent_id={agent_id}, name={name}")

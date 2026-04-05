@@ -5,23 +5,23 @@ import json
 import logging
 import os
 import platform
+import signal
 import socket
 import threading
 import time
-from typing import Tuple, Optional
-from flask_jwt_extended import create_access_token,create_refresh_token, jwt_required, get_jwt_identity, get_jwt
 from datetime import timedelta
+from typing import Optional, Tuple
+
 import psutil
-from routes.anon.auth import get_raw_token
-from flask import Blueprint, jsonify, current_app, request, make_response, redirect, url_for
+from flask import Blueprint, current_app, jsonify, make_response, redirect, request, url_for
+from flask_jwt_extended import create_access_token, decode_token
+from routes.anon.auth import get_token_manually
+from flask_jwt_extended.exceptions import JWTExtendedException
 from flask_sock import Sock
 from flask_wtf.csrf import validate_csrf
-from flask_jwt_extended import decode_token
-from flask_jwt_extended.exceptions import JWTExtendedException
-import signal
-from utils import gen_key
-from app import sudo_bp
 from simple_websocket.errors import ConnectionClosed
+
+from utils import gen_key
 
 bp = Blueprint("system", __name__, url_prefix="/system")
 sock = Sock()
@@ -29,18 +29,15 @@ boot_time = psutil.boot_time()
 logger = logging.getLogger(__name__)
 
 _active_shells_lock = threading.Lock()
-_active_shells = {}  # key -> {"os":"nt|posix", "pid": int, "pgrp": int|None
+_active_shells: dict[str, dict[str, object]] = {}
+
+
 @bp.record_once
 def init_sock(state):
     sock.init_app(state.app)
 
 
-# ---------------------------
-# Auth helpers
-# ---------------------------
-
-def verify_tokens(msg: str) -> Tuple[bool, Optional[str]]:
-    """Verify JWT + CSRF tokens from WS handshake message."""
+def verify_tokens(msg: str, path) -> Tuple[bool, Optional[str], Optional[str]]:
     try:
         data = json.loads(msg)
     except Exception:
@@ -69,17 +66,18 @@ def verify_tokens(msg: str) -> Tuple[bool, Optional[str]]:
     except Exception:
         return False, "invalid_csrf_token", None
 
-    path = request.url_rule.rule
     method = request.method
     key = gen_key(path, method)
     if key not in (claims.get("perms") or []):
+        print(f"Permission not granted {path}, method = {method}, key = {gen_key(path,method)}")
         return False, "permission_not_granted", None
-    identity = claims.get("sub")  # flask-jwt-extended stores identity in "sub"
+
+    identity = claims.get("sub")
     logger.critical("Shell authenticated.")
     return True, None, identity
 
+
 def _terminate_previous_shell(identity: str):
-    """Kill previously spawned shell for this identity (if any)."""
     with _active_shells_lock:
         prev = _active_shells.pop(identity, None)
 
@@ -88,9 +86,8 @@ def _terminate_previous_shell(identity: str):
 
     try:
         if os.name == "nt":
-            # On Windows, kill the process tree safely.
-            # Requires pid
             import subprocess
+
             subprocess.run(
                 ["taskkill", "/PID", str(prev["pid"]), "/T", "/F"],
                 stdout=subprocess.DEVNULL,
@@ -98,24 +95,21 @@ def _terminate_previous_shell(identity: str):
                 check=False,
             )
         else:
-            # On Unix, kill the whole process group (best practice for PTYs).
             pgrp = prev.get("pgrp")
             if pgrp:
-                os.killpg(pgrp, signal.SIGTERM)
+                os.killpg(int(pgrp), signal.SIGTERM)
             else:
-                os.kill(prev["pid"], signal.SIGTERM)
+                os.kill(int(prev["pid"]), signal.SIGTERM)
     except Exception:
         pass
 
 
 def _shell_ws_windows_pty(ws, identity):
-    print("Starting windows shell...")
-    import threading
-    from winpty import PtyProcess
-    import time
     import shutil
 
-    # Prefer PowerShell, fallback to cmd
+    from winpty import PtyProcess
+
+    logger.info("Starting windows shell...")
     shell = "powershell.exe" if shutil.which("powershell") else "cmd.exe"
 
     pty = PtyProcess.spawn(
@@ -123,13 +117,13 @@ def _shell_ws_windows_pty(ws, identity):
         cwd=os.getcwd(),
         env=os.environ.copy(),
     )
-    pid = pty.pid  # ✅ available in pywinpty
+    pid = pty.pid
 
     with _active_shells_lock:
         _active_shells[identity] = {"os": "nt", "pid": pid, "pgrp": None}
+
     cmd_buffer = ""
 
-    # ---- PTY -> WS ----
     def pty_to_ws():
         try:
             while pty.isalive():
@@ -147,14 +141,12 @@ def _shell_ws_windows_pty(ws, identity):
 
     threading.Thread(target=pty_to_ws, daemon=True).start()
 
-    # ---- WS -> PTY ----
     try:
         while True:
             incoming = ws.receive()
             if incoming is None:
                 break
 
-            # Resize protocol: "__resize__:cols:rows"
             if isinstance(incoming, str) and incoming.startswith("__resize__"):
                 try:
                     _, cols, rows = incoming.split(":", 2)
@@ -170,7 +162,6 @@ def _shell_ws_windows_pty(ws, identity):
                     if clean:
                         logger.critical("Shell command: %s", clean)
                     cmd_buffer = ""
-
                 pty.write(incoming)
     finally:
         with _active_shells_lock:
@@ -183,19 +174,15 @@ def _shell_ws_windows_pty(ws, identity):
         except Exception:
             pass
 
+
 def _shell_ws_unix_pty(ws, identity):
-    print("Starting unix shell...")
-    import pty
     import fcntl
-    import termios
-    import struct
+    import pty
     import select
-    import signal
-    import threading
-    import os
+    import struct
+    import termios
 
-    from simple_websocket.errors import ConnectionClosed
-
+    logger.info("Starting unix shell...")
     shell = "/bin/bash" if os.path.exists("/bin/bash") else "/bin/sh"
     cmd_buffer = ""
 
@@ -214,14 +201,12 @@ def _shell_ws_unix_pty(ws, identity):
 
     stop_event = threading.Event()
 
-    # ---- PTY -> WS thread ----
     def pty_to_ws():
         try:
             while not stop_event.is_set():
                 try:
                     r, _, _ = select.select([fd], [], [], 0.05)
                 except OSError as e:
-                    # fd closed (EBADF) during shutdown => normal
                     if getattr(e, "errno", None) == 9:
                         break
                     raise
@@ -238,8 +223,7 @@ def _shell_ws_unix_pty(ws, identity):
                         except Exception:
                             break
                     except OSError as e:
-                        # fd closed / child exited => normal
-                        if getattr(e, "errno", None) in (5, 9):  # EIO, EBADF
+                        if getattr(e, "errno", None) in (5, 9):
                             break
                         break
         except Exception as e:
@@ -254,7 +238,6 @@ def _shell_ws_unix_pty(ws, identity):
     t = threading.Thread(target=pty_to_ws, daemon=True)
     t.start()
 
-    # ---- WS -> PTY main loop ----
     try:
         while not stop_event.is_set():
             try:
@@ -300,13 +283,11 @@ def _shell_ws_unix_pty(ws, identity):
             if cur and cur.get("pid") == pid:
                 _active_shells.pop(identity, None)
 
-        # Try to stop child first
         try:
             os.kill(pid, signal.SIGHUP)
         except Exception:
             pass
 
-        # Let reader thread exit before closing fd to avoid EBADF spam
         try:
             t.join(timeout=0.5)
         except Exception:
@@ -318,10 +299,9 @@ def _shell_ws_unix_pty(ws, identity):
             pass
 
 
-@sock.route(f"{sudo_bp.url_prefix}{bp.url_prefix}/shell/ws")
+@sock.route("/api/v1/auth/sudo/system/shell/ws")
 def shell_ws(ws):
-    print("Starting shell...")
-    # ---- handshake (unchanged) ----
+    logger.info("Starting shell...")
     try:
         msg = ws.receive(timeout=5)
     except Exception:
@@ -330,54 +310,39 @@ def shell_ws(ws):
         ws.close()
         return
 
-    ok, err, identity = verify_tokens(msg or "")
+    ok, err, identity = verify_tokens(msg, request.path)
     if not ok:
-        logger.info(f"Auth Failed.: {err}")
+        logger.info("Auth failed: %s", err)
         ws.send(f"[auth] failed: {err}\n")
         ws.close()
         return
+
     _terminate_previous_shell(identity)
 
     if os.name == "nt":
         return _shell_ws_windows_pty(ws, identity)
-    else:
-        return _shell_ws_unix_pty(ws, identity)  # your existing PTY code
+    return _shell_ws_unix_pty(ws, identity)
 
-# ---------------------------
-# System info
-# ---------------------------
 
 @bp.route("/jwt-to-cookie", methods=["GET"])
 def jwt_to_cookie():
-    # Ensure the requester already has a valid JWT (e.g., from Authorization header)
-    # If you're not using headers, adjust this part accordingly.
-    identity = get_jwt_identity()
+    identity, _ = get_token_manually()
 
-    access_token = create_access_token(
-        identity=identity,
-        additional_claims={"perms": ["file_manager"]},
-        expires_delta=timedelta(minutes=30),
-    )
-
-    resp = make_response(redirect(url_for("html_pages.admin.admin") + "#system"))
-
+    resp = jsonify({"result": "ok"})
     resp.set_cookie(
         "jwt_cookie",
-        access_token,          # <-- cookie value should be the token string
-        max_age=60 * 60,       # 1 hour
+        identity,
+        max_age=60 * 60,
         httponly=True,
         samesite="Lax",
-        secure=True,  # set True in production (HTTPS)
+        secure=True,
         path="/",
     )
-
     return resp
 
 
 @bp.route("/info", methods=["GET"])
 def get_system_info():
-
-    """Return basic system metrics for the admin dashboard."""
     try:
         uptime_sec = int(time.time() - boot_time)
         uptime_hours = uptime_sec // 3600

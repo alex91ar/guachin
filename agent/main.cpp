@@ -2,7 +2,11 @@
 #include "connection.hpp"
 #include "identifier.hpp"
 
+#define DEBUG
+#ifdef DEBUG
+#include <iostream>
 using namespace std;
+#endif
 
 PVOID getMem(SIZE_T size, DWORD dwProtect);
 
@@ -149,8 +153,14 @@ int main() {
                 messageBuffer,
                 MESSAGE_BUFFER_SIZE,
                 messageSize)) {
+            #ifdef DEBUG
+            cout << "Error receiving." << endl;
+            #endif
             break;
         }
+        #ifdef DEBUG
+        cout << "Received" << messageBuffer << endl;
+        #endif
         
         if (!handleMessage(
                 messageBuffer,
@@ -159,10 +169,16 @@ int main() {
                 RESPONSE_BUFFER_SIZE,
                 responseSize,
                 mem)) {
+                    #ifdef DEBUG
+            cout << "Error handling message." << endl;
+            #endif
             break;
         }
 
         if (!sendBinary(client, responseBuffer, responseSize)) {
+            #ifdef DEBUG
+            cout << "Error sending." << endl;
+            #endif
             break;
         }
     }

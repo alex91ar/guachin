@@ -11,7 +11,7 @@
     console.log("Am I admin?");
     console.log(json.message);
     if (json.message != true) {
-      window.location.replace("/admin/elevate"); 
+      window.location.replace(window.admin_elevate_HTML); 
       return; // ⛔ stop executing anything else
     }
     console.log("User already admin...");
@@ -21,7 +21,7 @@
 
   } catch (e) {
     // fail closed
-    window.location.replace("/admin/elevate");
+    window.location.replace(window.admin_elevate_HTML);
   }
 })();
 </script>
@@ -317,49 +317,46 @@
   </section>
 
   
-
-  
   <!-- SYSTEM -->
-
-  <section id="tab-system" class="tab-panel">
-    <div class="cards">
-      <div class="card"><b>Hostname</b><div id="sys-hostname">—</div></div>
-      <div class="card"><b>Platform</b><div id="sys-platform">—</div></div>
-      <div class="card"><b>Python</b><div id="sys-python">—</div></div>
-      <div class="card"><b>Uptime</b><div id="sys-uptime">—</div></div>
-      <div class="card"><b>CPU</b><div id="sys-cpu">—</div></div>
-      <div class="card"><b>Load</b><div id="sys-load">—</div></div>
-      <div class="card"><b>Memory</b><div id="sys-mem">—</div></div>
-    </div>
-
-    <div class="terminal-wrap">
-    <div class="shell-view" id="agent-shell-view" hidden>
-      <div class="shell-view-header">
-        <div>
-          <h3 class="shell-view-title" id="agent-shell-title">Shell</h3>
-          <div class="shell-view-meta" id="agent-shell-meta">—</div>
-        </div>
-        <button type="button" class="btn subtle" id="end-agent-shell-btn">End session</button>
-      </div>
-
-      <div class="shell-terminal" id="agent-shell-terminal">No shell connected.</div>
-
-      <div class="shell-input-row">
-        <span class="shell-prompt">$</span>
-        <input
-          type="text"
-          class="input shell-input"
-          id="agent-shell-input"
-          placeholder="Type a command and press Enter"
-        />
-      </div>
-    </div>
-
-    <div id="agent-shell-empty" class="empty-state">
-      Select <b>Interact</b> on an agent to open its shell.
+<section id="tab-system" class="tab-panel">
+  <div class="panel-header">
+    <h2>System</h2>
+    <div class="panel-actions">
+      <button class="btn subtle" type="button" onclick="loadSystemInfo()">⟳ Refresh</button>
+      <button class="btn primary" type="button" onclick="openLiveShell()">Open Shell</button>
     </div>
   </div>
-  </section>
+
+  <div class="cards">
+    <div class="card"><b>Hostname</b><div id="sys-hostname">—</div></div>
+    <div class="card"><b>Platform</b><div id="sys-platform">—</div></div>
+    <div class="card"><b>Python</b><div id="sys-python">—</div></div>
+    <div class="card"><b>Uptime</b><div id="sys-uptime">—</div></div>
+    <div class="card"><b>CPU</b><div id="sys-cpu">—</div></div>
+    <div class="card"><b>Load</b><div id="sys-load">—</div></div>
+    <div class="card"><b>Memory</b><div id="sys-mem">—</div></div>
+  </div>
+
+  <div class="panel-header" style="margin-top: 1rem;">
+    <h3 style="margin:0;">Live Shell</h3>
+  </div>
+
+  <div class="terminal-wrap" style="margin-top: .75rem;">
+    <div
+      id="terminal"
+      style="
+        width: 100%;
+        height: 70vh;
+        min-height: 420px;
+        background: #111;
+        border: 1px solid rgba(255,255,255,.08);
+        border-radius: 12px;
+        overflow: hidden;
+        padding: .5rem;
+      "
+    ></div>
+  </div>
+</section>
 </div>
 <script src="{{ url_for('static', filename='js/configuration.js') }}"></script>
 

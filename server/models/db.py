@@ -1,25 +1,28 @@
 # models/db.py
 from __future__ import annotations
-import logging
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, scoped_session, Session
-from sqlalchemy.engine import Engine
 
-engine: Engine | None = None
-SessionLocal: scoped_session | None = None
+import logging
+from typing import Generator
+
+from sqlalchemy import create_engine
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Session, scoped_session, sessionmaker
 
 logger = logging.getLogger(__name__)
 
+engine: Engine | None = None
+SessionLocal: scoped_session[Session] | None = None
+
+
 def init_engine(database_url: str, *, echo: bool = False) -> None:
     global engine, SessionLocal
-    if engine:
+
+    if engine is not None:
         logger.warning("SQLAlchemy engine already initialized; reusing existing connection.")
         return
 
     connect_args = {}
 
-    # MySQL-specific connection tuning
-    # Works for both pymysql and mysqlconnector drivers.
     if database_url.startswith("mysql"):
         connect_args.update({
             "charset": "utf8mb4",
@@ -31,33 +34,53 @@ def init_engine(database_url: str, *, echo: bool = False) -> None:
     engine = create_engine(
         database_url,
         echo=echo,
-        future=True,
         pool_pre_ping=True,
-        pool_size=20,          # default ~5
-        max_overflow=40,       # extra connections beyond pool_size
-        pool_timeout=30,       # seconds to wait before giving up
-        pool_recycle=1800,     # recycle connections after N seconds
+        pool_size=20,
+        max_overflow=40,
+        pool_timeout=30,
+        pool_recycle=1800,
         pool_reset_on_return="rollback",
         connect_args=connect_args,
     )
 
     SessionLocal = scoped_session(
-        sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
+        sessionmaker(
+            bind=engine,
+            autoflush=False,
+            autocommit=False,
+            expire_on_commit=False,
+            class_=Session,
+        )
     )
-    logger.info("✅ SQLAlchemy engine initialized.")
+
 
 def init_db(drop_all: bool = False) -> None:
     from models.basemodel import Base
-    if not engine:
+
+    if engine is None:
         raise RuntimeError("Engine not initialized. Call init_engine() first.")
 
     if drop_all:
-        Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
-    logger.info("✅ Database tables initialized.")
+        Base.metadata.drop_all(bind=engine)
+
+    Base.metadata.create_all(bind=engine)
+
 
 def get_session() -> Session:
-    """Return the scoped session proxy for this thread/request."""
     if SessionLocal is None:
         raise RuntimeError("SessionLocal not initialized. Call init_engine() first.")
-    return SessionLocal  # NOTE: return proxy, not SessionLocal()
+    return SessionLocal()
+
+
+def remove_session() -> None:
+    if SessionLocal is None:
+        return
+    SessionLocal.remove()
+
+
+def get_db() -> Generator[Session, None, None]:
+    db = get_session()
+    try:
+        yield db
+    finally:
+        remove_session()

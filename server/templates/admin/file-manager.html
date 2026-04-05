@@ -1,11 +1,62 @@
+{% include "urls.html" %}
 <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
-<link rel="stylesheet" href="{{ url_for('static', filename='css/file-manager.css') }}">
-<script>
-    const src = "{{ url_for('sudo_api.system.jwt_to_cookie') }}";
-    fetch(src,{credentials: "same-origin"});
-</script>
-<body class="{% if request.args.get('embed') %}embedded{% endif %}">
+<head>
 
-<iframe src="/admin/fileadmin?embed=1" class="filemanager-frame" style="width:100%; height:80vh; border:none;"></iframe>
+</head>
+<body>
+<script>
+(async () => {
+    const got_cookie = localStorage.getItem("got_cookie");
+
+    if (!got_cookie) {
+        const src = "{{ url_for('sudo_api.system.jwt_to_cookie') }}";
+
+        const res = await fetch(src, {
+            method: "GET",
+            credentials: "include",
+            headers: {
+                "Authorization": "Bearer " + localStorage.getItem("access_jwt"),
+                "X-CSRF-Token": localStorage.getItem("csrf-token"),
+            }
+        });
+
+        if (!res.ok) {
+            alert("Auth failed");
+            return;
+        }
+
+        localStorage.setItem("got_cookie", "1");
+        window.location.href = window.file_manager_HTML;
+    }
+})();
+document.addEventListener("DOMContentLoaded", () => {
+  const iframe = document.querySelector("iframe");
+
+  iframe.onload = () => {
+    const doc = iframe.contentDocument || iframe.contentWindow.document;
+
+    const style = doc.createElement("style");
+    style.innerHTML = `
+      body {
+        background: #111 !important;
+        color: #eee !important;
+      }
+
+      pre, pre * {
+        color: #eee !important;
+        background: #111 !important;
+      }
+    `;
+
+    doc.head.appendChild(style);
+  };
+});
+</script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/file-manager.css') }}">
+<iframe
+  src="/admin/files"
+  style="width:100%; height:80vh; border:none;"
+  loading="lazy">
+</iframe>
 
 </body>

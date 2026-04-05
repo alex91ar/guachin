@@ -66,7 +66,6 @@ def ensure_min_entropy_keys(config: MutableMapping, dev: bool = False) -> List[s
     # Will give 5% margin to avoid endless computation for keys.
     max_theoretical_entropy = float(6 * min_size_key)
     if float(min_entropy_bits) > float(max_theoretical_entropy) * 0.95:
-        print(f"Max theoretical entropy = {max_theoretical_entropy}. MIN_ENTROPY = {min_entropy_bits}")
         raise ValueError("MIN_ENTROPY exceeds maximum theoretical value. Increase key size or reduce minimum entropy.")
 
     for name, value in items:
@@ -78,8 +77,6 @@ def ensure_min_entropy_keys(config: MutableMapping, dev: bool = False) -> List[s
         if renew_anyways:
             old_entropy = 0
         if old_entropy < float(min_entropy_bits):
-            print(f"Not enough entropy for key {name}: {old_entropy:.2f} (min {min_entropy_bits})")
-            print("Generating a new one...")
             new_entropy = old_entropy
             while new_entropy < float(min_entropy_bits):
                 old_val = value
@@ -88,20 +85,8 @@ def ensure_min_entropy_keys(config: MutableMapping, dev: bool = False) -> List[s
             config[name] = new_val
             updated.append(name)
 
-            print(f"[ROTATED] {name}: entropy {old_entropy:.2f} → {new_entropy:.2f} bits (min {min_entropy_bits})")
-            if dev:
-                print(f"    OLD: {old_val}")
-                print(f"    NEW: {new_val}")
         else:
             new_entropy = old_entropy
-            print(f"[OK] {name}: entropy {new_entropy:.2f} bits (meets requirement)")
-            if dev:
-                print(f"    VALUE: {value}")
-
-    if not updated:
-        print("✅ All keys meet the minimum entropy requirement.")
-    else:
-        print(f"🔐 Rotated {len(updated)} key(s): {', '.join(updated)}")
 
     return updated
 
@@ -144,7 +129,7 @@ class Config:
     SECRET_KEY = "undefined"
 
     _seed = int.from_bytes(blake3.blake3(SECRET_KEY.encode()).digest(length=8), "big")
-    UPLOAD_ROOT = "./"
+    UPLOAD_ROOT = "./modules"
     ENTROPY_THRESHOLD = 5
     KEYS_LENGTH = 48
     JWT_ALGORITHM = "HS256"

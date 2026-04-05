@@ -764,7 +764,6 @@ function activateTab(tabName) {
       refreshConfig();
       break;
     case "filemanager":
-      getFileManager();
       break;
   }
 }

@@ -1,58 +1,58 @@
 from flask_admin import Admin
 from flask_admin.contrib.fileadmin import FileAdmin
-from flask import redirect, url_for, request, abort
-from flask_jwt_extended import get_jwt
-from routes.anon.auth import get_raw_token
-from utils import gen_key
+from flask_admin.theme import Bootstrap4Theme
+from flask import abort, request
 from flask_jwt_extended import decode_token
 from flask_jwt_extended.exceptions import JWTExtendedException
-from flask_admin.theme import Bootstrap4Theme
-import json
+from utils import gen_key
 
-FILE_MANAGER_KEY = gen_key("/admin/fileadmin", "GET")
+FILE_MANAGER_KEY = gen_key("/admin/files/", "GET")
 
-def is_jwt_valid(encoded_jwt: str) -> bool:
-    if not encoded_jwt:
-        return False
-    try:
-        _claims = decode_token(encoded_jwt)  # validates sig + exp, etc.
-        return _claims
-    except JWTExtendedException:
-        return False
-    except Exception:
-        # anything unexpected (bad formatting, etc.)
-        return False
 
-# example: plug in your own auth logic
 def is_current_user_admin() -> bool:
-    auth_cookie = request.cookies.get("jwt_cookie", None)
-    claims = is_jwt_valid(auth_cookie)
-    if claims == False:
+    from routes.anon.auth import get_token_claims_manually
+    from models.user_session import UserSession
+    auth_cookie = request.cookies.get("jwt_cookie")
+    claims, _ = get_token_claims_manually(auth_cookie)
+    if not claims:
         return False
-    if "file_manager" not in claims.get("perms",None):
+    id = claims.get("id", None)
+    session = UserSession.by_id(id)
+    print(session)
+    if session is not None and session.is_valid():
+        perms = claims.get("perms") or []
+        return FILE_MANAGER_KEY in perms
+    else:
         return False
-    return True
+
 
 class AdminOnlyFileAdmin(FileAdmin):
+    extra_css = ["/static/css/flask_admin_dark.css"]
     def is_accessible(self):
-        return is_current_user_admin()
+        ret = is_current_user_admin()
+        if not ret:
+            abort(403)
+        return ret
 
     def inaccessible_callback(self, name, **kwargs):
-        # either redirect to login or just 403
         return abort(403)
 
+
 def init_admin(app):
-    admin = Admin(app, name="Admin", theme=Bootstrap4Theme())
+    
+    uploads_root = app.config["UPLOAD_ROOT"]
 
-    # IMPORTANT: pick a safe directory; do NOT point at your project root
-    uploads_root = app.config["UPLOAD_ROOT"]  # e.g. /var/app/uploads
+    admin = Admin(
+        app,
+        name="File Admin",
+        theme=Bootstrap4Theme()
+    )
 
-    admin.add_view(AdminOnlyFileAdmin(
-        uploads_root,
-        name="File Manager",
-        endpoint="fileadmin",
-        
-        # optional: if you also serve files publicly from a URL prefix
-        # base_url="/static/uploads/"
-    ))
+    admin.add_view(
+        AdminOnlyFileAdmin(
+            uploads_root,
+            name="File Manager",
+            endpoint="files",
+        )
+    )
     return admin

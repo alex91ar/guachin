@@ -97,7 +97,6 @@ def generate_urls(app):
     with open("templates/urls.html", "w", encoding="utf-8") as f:
         f.write("\n".join(script_lines))
 
-    print("✅ templates/urls.html generated.")
 
 def gen_key(path, method):
     key = method.encode()

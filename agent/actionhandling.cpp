@@ -3,7 +3,7 @@
 #include <cstring>
 
 #define PROFILE
-
+#define DEBUG
 #ifdef PROFILE
 #include <iostream>
 using namespace std;
@@ -170,6 +170,9 @@ bool handleMessage(
                 output[0] = 0;
                 outputSize = 1;
             }
+            #ifdef DEBUG
+            cout << "Handshake: " << output+1 << endl;
+            #endif
             break;
 
         case 0x01:
@@ -191,7 +194,13 @@ bool handleMessage(
             break;
 
         default:
+        {
+            #ifdef DEBUG
+            cout << "Unrecognized command: " << (hex) << (unsigned int) type << endl;
+            #endif
             return false;
+        }
+            
     }
     return true;
 }

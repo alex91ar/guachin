@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 import os
 import subprocess
 import sys
@@ -9,36 +11,11 @@ import shutil
 import signal
 import socket
 from pathlib import Path
-import shlex
-from typing import Sequence, Union
+from typing import Optional
 import textwrap
 
 cleaned_db = False
-flask_proc = None
-uvicorn_proc = None
-
-
-def file_contains_line(path: Path | str, line: str) -> bool:
-    """
-    Returns True if the file contains the given line (exact match, ignoring
-    leading/trailing whitespace). Returns False if file doesn't exist.
-    """
-    p = Path(path)
-    if not p.exists() or not p.is_file():
-        return False
-
-    target = line.strip()
-
-    try:
-        with p.open("r", encoding="utf-8", errors="ignore") as f:
-            for l in f:
-                if l.strip() == target:
-                    return True
-    except Exception:
-        return False
-
-    return False
-
+gunicorn_proc = None
 
 BASE_DIR = Path(__file__).parent.resolve()
 VENV_DIR = BASE_DIR / ".venv"
@@ -60,87 +37,64 @@ DATABASE_URL = os.environ.get(
 CLEAN_DB_ON_EXIT = os.environ.get("CLEAN_DB_ON_EXIT", "1")
 KILL_DB_ON_EXIT = os.environ.get("KILL_DB_ON_EXIT", "1")
 
-VEN_CREATED_THIS_RUN = False
-
 NGINX_CONT_NAME = os.environ.get("NGINX_CONT_NAME", "guachin-nginx")
 MYSQL_CONT_NAME = os.environ.get("MYSQL_CONT_NAME", "guachin-mysql")
 
-
-def run_elevated(cmd: Union[str, Sequence[str]], cwd: str | None = None, env: dict | None = None) -> int:
-    """
-    Run a command with elevation (UAC on Windows, sudo on Unix).
-    Returns the process exit code.
-    """
-    if isinstance(cmd, str):
-        cmd_list = shlex.split(cmd, posix=(os.name != "nt"))
-    else:
-        cmd_list = list(cmd)
-
-    if os.name == "nt":
-        exe = cmd_list[0]
-        args = cmd_list[1:]
-
-        def ps_quote(s: str) -> str:
-            return "'" + s.replace("'", "''") + "'"
-
-        ps_args = " ".join(ps_quote(a) for a in args)
-        ps_cwd = ps_quote(cwd) if cwd else "$PWD"
-
-        ps = [
-            "powershell",
-            "-NoProfile",
-            "-ExecutionPolicy", "Bypass",
-            "-Command",
-            f"Start-Process -FilePath {ps_quote(exe)} -ArgumentList {ps_quote(ps_args)} -Verb RunAs -WorkingDirectory {ps_cwd}; exit 0"
-        ]
-        return subprocess.run(ps, cwd=cwd, env=env).returncode
-    else:
-        sudo_cmd = ["sudo", "-k"] + cmd_list
-        return subprocess.run(sudo_cmd, cwd=cwd, env=env).returncode
+DOMAIN = os.environ.get("DOMAIN", "guachin.local")
+TLS_PORT = int(os.environ.get("TLS_PORT", "443"))
 
 
 def sh(cmd, env=None, check=True, cwd=None, capture_output=False, text=True):
-    print("➤", " ".join(map(str, cmd)))
     return subprocess.run(
-        cmd, check=check, env=env, cwd=cwd, capture_output=capture_output, text=text
+        cmd,
+        check=check,
+        env=env,
+        cwd=cwd,
+        capture_output=capture_output,
+        text=text,
     )
 
 
 def is_inet_up():
-    TARGET = "8.8.8.8"
-    PORT = 53
-    TIMEOUT = 5
-
     try:
-        with socket.create_connection((TARGET, PORT), timeout=TIMEOUT):
+        with socket.create_connection(("8.8.8.8", 53), timeout=5):
             return True
     except OSError:
         return False
 
 
-def which(cmd: str) -> bool:
-    return shutil.which(cmd) is not None
-
-
 def create_virtualenv():
-    global VEN_CREATED_THIS_RUN
     if not VENV_DIR.exists():
         print("📦 Creating virtual environment...")
         venv.EnvBuilder(with_pip=True).create(VENV_DIR)
-        VEN_CREATED_THIS_RUN = True
     else:
         print("✅ Virtual environment already exists.")
 
 
+def get_venv_python():
+    if sys.prefix != sys.base_prefix:
+        return sys.executable
+
+    venv_path = VENV_DIR / ("Scripts" if os.name == "nt" else "bin") / ("python.exe" if os.name == "nt" else "python")
+    if venv_path.exists():
+        return str(venv_path)
+
+    raise RuntimeError("Could not find virtualenv Python.")
+
+
+def get_venv_pip():
+    return str(VENV_DIR / ("Scripts" if os.name == "nt" else "bin") / ("pip.exe" if os.name == "nt" else "pip"))
+
+
 def pip_install_requirements():
     if not is_inet_up():
-        print("No internet, trying to skip pip install...")
+        print("ℹ️ No internet detected, skipping pip install.")
         return
-    print("📚 Installing dependencies...")
-    pip_exe = VENV_DIR / ("Scripts" if os.name == "nt" else "bin") / ("pip.exe" if os.name == "nt" else "pip")
+
     req = BASE_DIR / "requirements.txt"
     if req.exists():
-        sh([str(pip_exe), "install", "-r", str(req)])
+        print("📚 Installing dependencies...")
+        sh([get_venv_pip(), "install", "-r", str(req)])
     else:
         print("ℹ️ requirements.txt not found, skipping.")
 
@@ -149,10 +103,8 @@ def check_docker_installed():
     try:
         sh(["docker", "version"], check=True, capture_output=True)
         print("🐳 Docker detected.")
-        return True
     except Exception:
-        print("❌ Docker not found. Set NO_DOCKER=1 to use an external MySQL or install Docker:")
-        print("   https://docs.docker.com/get-docker/")
+        print("❌ Docker not found.")
         sys.exit(1)
 
 
@@ -173,14 +125,11 @@ def get_container_id_by_name_exact(name: str) -> str | None:
 
 
 def start_mysql_local():
-    os.environ["SQLALCHEMY_DATABASE_URI"] = (
-        f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@127.0.0.1:{MYSQL_PORT}/{MYSQL_DB}"
-    )
-    os.environ["DATABASE_URL"] = os.environ["SQLALCHEMY_DATABASE_URI"]
+    os.environ["DATABASE_URL"] = DATABASE_URL
 
     if os.environ.get("NO_DOCKER"):
-        print("⏭️  NO_DOCKER set; assuming external MySQL is running.")
-        print(f"SQLALCHEMY_DATABASE_URI={os.environ['SQLALCHEMY_DATABASE_URI']}")
+        print("⏭️ NO_DOCKER set; assuming external MySQL is running.")
+        print(f"DATABASE_URL={os.environ['DATABASE_URL']}")
         return None
 
     check_docker_installed()
@@ -190,7 +139,6 @@ def start_mysql_local():
     if MYSQL_CONT_NAME in existing:
         sh(["docker", "start", MYSQL_CONT_NAME], check=False)
         print("✅ MySQL container available.")
-        print(f"SQLALCHEMY_DATABASE_URI={os.environ['SQLALCHEMY_DATABASE_URI']}")
         return MYSQL_CONT_NAME
 
     print(f"🚀 Starting MySQL on port {MYSQL_PORT} (container: {MYSQL_CONT_NAME})...")
@@ -204,9 +152,9 @@ def start_mysql_local():
         "-p", f"{MYSQL_PORT}:3306",
         "-v", f"{MYSQL_DIR}:/var/lib/mysql",
         "mysql:8.0",
-        "--default-authentication-plugin=caching_sha2_password"
+        "--default-authentication-plugin=caching_sha2_password",
     ])
-    print(f"SQLALCHEMY_DATABASE_URI={os.environ['SQLALCHEMY_DATABASE_URI']}")
+
     return MYSQL_CONT_NAME
 
 
@@ -233,6 +181,7 @@ def wait_for_mysql(container_name: str | None, timeout: int = 60):
                 print("✅ MySQL is ready.")
                 return
             time.sleep(1)
+
         print(res.stdout or res.stderr)
         raise TimeoutError("MySQL did not become ready in time.")
     else:
@@ -241,58 +190,58 @@ def wait_for_mysql(container_name: str | None, timeout: int = 60):
                 print("✅ MySQL is reachable on TCP.")
                 return
             time.sleep(1)
-        raise TimeoutError("MySQL (external) not reachable on TCP within timeout.")
 
-
-def wait_for_tcp_service(host: str, port: int, timeout: int = 30, name: str = "service"):
-    print(f"⏳ Waiting for {name} on {host}:{port} ...")
-    start = time.time()
-    while time.time() - start < timeout:
-        if _tcp_connect(host, port, timeout=1.0):
-            print(f"✅ {name} is reachable on {host}:{port}")
-            return
-        time.sleep(0.5)
-    raise TimeoutError(f"{name} did not become reachable on {host}:{port} within {timeout}s")
+        raise TimeoutError("MySQL not reachable within timeout.")
 
 
 def run_migrations() -> bool:
     alembic_ini = BASE_DIR / "alembic.ini"
     if not alembic_ini.exists():
-        print("ℹ️ Alembic not configured (alembic.ini missing); skipping migrations.")
+        print("ℹ️ Alembic not configured; skipping migrations.")
         return False
 
-    pip_exe = VENV_DIR / ("Scripts" if os.name == "nt" else "bin") / ("pip.exe" if os.name == "nt" else "pip")
-    sh([str(pip_exe), "install", "alembic"], check=False)
+    sh([get_venv_pip(), "install", "alembic"], check=False)
 
-    alembic_exe = VENV_DIR / ("Scripts" if os.name == "nt" else "bin") / ("alembic.exe" if os.name == "nt" else "alembic")
+    alembic_exe = str(VENV_DIR / ("Scripts" if os.name == "nt" else "bin") / ("alembic.exe" if os.name == "nt" else "alembic"))
     env = os.environ.copy()
     env["DATABASE_URL"] = DATABASE_URL
-    print("📜 Running Alembic migrations...")
-    sh([str(alembic_exe), "upgrade", "head"], env=env, check=False)
-    print("✅ Migrations completed (or no changes).")
+
+    sh([alembic_exe, "upgrade", "head"], env=env, check=True)
     return True
 
 
 def init_mysql_db(container_name: str | None = None, retries: int = 5, initial_delay: float = 2.0):
-    print("🗄️  Ensuring MySQL tables exist via SQLAlchemy metadata (with retry)...")
-    python_exe = VENV_DIR / ("Scripts" if os.name == "nt" else "bin") / ("python.exe" if os.name == "nt" else "python")
+    print("🗄️ Ensuring DB tables exist via SQLAlchemy metadata...")
+    python_exe = get_venv_python()
+
     code = (
         "import os; "
         "from models.db import init_engine, init_db; "
-        "from models import user_session, user, passkey, role, action, log, agent, module, request, response; "
+        "import models.user_session; "
+        "import models.user; "
+        "import models.passkey; "
+        "import models.role; "
+        "import models.action; "
+        "import models.log; "
+        "import models.agent; "
+        "import models.module; "
+        "import models.request; "
+        "import models.response; "
+        "import models.syscall; "
         "url = os.environ.get('DATABASE_URL'); "
         "print('Initializing DB...'); "
         "init_engine(url); "
         "init_db(drop_all=False); "
         "print('✅ Database tables ensured.')"
     )
+
     env = os.environ.copy()
     env["DATABASE_URL"] = DATABASE_URL
     delay = initial_delay
 
     for attempt in range(1, retries + 1):
         try:
-            sh([str(python_exe), "-c", code], env=env, check=True)
+            sh([python_exe, "-c", code], env=env, check=True)
             print(f"✅ init_mysql_db succeeded on attempt {attempt}.")
             return
         except subprocess.CalledProcessError:
@@ -301,106 +250,82 @@ def init_mysql_db(container_name: str | None = None, retries: int = 5, initial_d
                 wait_for_mysql(container_name, timeout=15)
             except Exception as ready_err:
                 print(f"ℹ️ Readiness recheck before retry: {ready_err}")
+
             if attempt < retries:
                 print(f"⏳ Retrying in {delay:.1f}s...")
                 time.sleep(delay)
                 delay *= 1.5
             else:
-                print("❌ Exhausted retries for init_mysql_db.")
                 raise
 
 
-def reset_external_db_schema():
-    print(f"🧨 Resetting external MySQL DB (DROP DATABASE {MYSQL_DB} ...)...")
-
-    python_exe = (
-        VENV_DIR
-        / ("Scripts" if os.name == "nt" else "bin")
-        / ("python.exe" if os.name == "nt" else "python")
-    )
+def bootstrap_app_data():
+    print("🔧 Bootstrapping app data once...")
+    python_exe = get_venv_python()
 
     code = textwrap.dedent("""
         import os
-        from sqlalchemy import create_engine, text
+        from app import create_app
+        from models.db import init_engine
+        from models.schema import populate_actions_from_routes, load_modules_from_directory
 
-        url = os.environ["DATABASE_URL"]
-        server_url = url.rsplit("/", 1)[0]
-        db = os.environ.get("MYSQL_DB", "guachin-NG")
+        url = os.environ.get("DATABASE_URL")
+        if not url:
+            raise RuntimeError("DATABASE_URL is not set")
 
-        engine = create_engine(server_url, future=True, echo=True, pool_recycle=30, pool_pre_ping=True)
+        init_engine(url)
+        app = create_app()
 
-        with engine.connect() as c:
-            c = c.execution_options(isolation_level="AUTOCOMMIT")
-            c.execute(text(f"DROP DATABASE IF EXISTS `{db}`"))
-            c.execute(text(f"CREATE DATABASE `{db}`"))
+        with app.app_context():
+            populate_actions_from_routes(app)
+            load_modules_from_directory()
 
-        print("✅ External DB reset.")
+        print("✅ Bootstrap complete.")
     """)
 
     env = os.environ.copy()
     env["DATABASE_URL"] = DATABASE_URL
-    env["MYSQL_DB"] = MYSQL_DB
+    sh([python_exe, "-c", code], env=env, check=True)
 
+
+def terminate_process(proc: subprocess.Popen | None, name: str):
+    if not proc or proc.poll() is not None:
+        return
+
+    print(f"🛑 Stopping {name} (pid={proc.pid})...")
     try:
-        sh([str(python_exe), "-c", code], env=env, check=True)
-    except Exception as e:
-        print(f"⚠️ Failed to reset external MySQL DB: {e}")
+        proc.kill()
+        proc.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        print(f"⚠️ {name} did not stop gracefully, killing...")
+        proc.kill()
+        proc.wait(timeout=5)
 
 
-def clean_database(container_name: str | None):
-    global cleaned_db
-    if cleaned_db:
-        return
-    cleaned_db = True
+def start_flask_app_gunicorn():
+    global gunicorn_proc
 
-    if CLEAN_DB_ON_EXIT == "1":
-        reset_external_db_schema()
-        print("🧯 CLEAN_DB_ON_EXIT=1 — cleaned.")
-    if KILL_DB_ON_EXIT != "1":
-        print("🧯 KILL_DB_ON_EXIT=0 — keeping database.")
-
-    if container_name:
-        print("🧹 Cleaning Dockerized MySQL data...")
-        subprocess.run(["docker", "stop", container_name], check=False)
-        subprocess.run(["docker", "rm", container_name], check=False)
-        try:
-            if MYSQL_DIR.exists():
-                shutil.rmtree(MYSQL_DIR, ignore_errors=True)
-                print(f"✅ Removed {MYSQL_DIR}")
-        except Exception as e:
-            print(f"⚠️ Failed to remove {MYSQL_DIR}: {e}")
-    else:
-        print("🧹 Cleaning external MySQL (NO_DOCKER=1) ...")
-        reset_external_db_schema()
+    print("🚀 Starting Flask app with Gunicorn...")
+    gunicorn_cmd = [
+        get_venv_python(),
+        "-m",
+        "gunicorn",
+        "--bind", f"127.0.0.1:{APP_PORT}",
+        "--workers", "2",
+        "--threads", "4",
+        "--reload",
+        "--access-logfile", "-",
+        "--error-logfile", "-",
+        "app:create_app()",
+    ]
 
 
-def clean_all_docker_containers_keep_exact(keep_names: list[str]):
-    if os.environ.get("NO_DOCKER"):
-        print("⏭️ NO_DOCKER set; skipping global Docker container cleanup.")
-        return
-
-    try:
-        check_docker_installed()
-    except SystemExit:
-        return
-
-    keep_ids = set()
-    for name in keep_names:
-        cid = get_container_id_by_name_exact(name)
-        if cid:
-            keep_ids.add(cid)
-
-    result = subprocess.run(["docker", "ps", "-aq"], capture_output=True, text=True, check=False)
-    ids = [cid.strip() for cid in result.stdout.splitlines() if cid.strip()]
-    ids = [cid for cid in ids if cid not in keep_ids]
-
-    if not ids:
-        print("ℹ️ No Docker containers to remove (after keep list).")
-        return
-
-    print(f"🧹 Removing {len(ids)} Docker container(s) (keeping exact: {keep_names})...")
-    sh(["docker", "rm", "-f", *ids], check=False)
-    print("✅ Docker cleanup done.")
+    gunicorn_proc = subprocess.Popen(
+        gunicorn_cmd,
+        stdout=None,
+        stderr=None,
+    )
+    return gunicorn_proc
 
 
 def get_local_non_loopback_ip() -> str:
@@ -422,30 +347,47 @@ def get_local_non_loopback_ip() -> str:
     except Exception:
         pass
 
-    return "192.168.1.10"
+    return "127.0.0.1"
 
 
 def hosts_file_path() -> Path:
     if os.name == "nt":
-        return Path(os.environ.get("SystemRoot", r"C:\\Windows")) / "System32" / "drivers" / "etc" / "hosts"
+        return Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32" / "drivers" / "etc" / "hosts"
     return Path("/etc/hosts")
 
 
+def file_contains_line(path: Path | str, line: str) -> bool:
+    p = Path(path)
+    if not p.exists() or not p.is_file():
+        return False
+
+    target = line.strip()
+    try:
+        with p.open("r", encoding="utf-8", errors="ignore") as f:
+            for existing_line in f:
+                if existing_line.strip() == target:
+                    return True
+    except Exception:
+        return False
+
+    return False
+
+
 def add_hosts_entry(domain: str, ip: str):
-    print(f"Adding host entry {domain} as {ip}.")
-    hosts_path = "C:\\Windows\\System32\\drivers\\etc\\hosts" if os.name == "nt" else "/etc/hosts"
     line = f"{ip}\t{domain}"
+    hosts_path = hosts_file_path()
+
     if file_contains_line(hosts_path, line):
-        print("Host entry already entered.")
+        print(f"✅ Hosts entry already exists: {line}")
         return
-    if os.name == "nt":
-        print("Returned = " + str(run_elevated(["cmd", "/c", f'echo {line}>> "{hosts_path}"'])))
-    else:
-        print("Returned = " + str(run_elevated(["sh", "-c", f'printf "\\n{line}\\n" | tee -a "{hosts_path}" >/dev/null'])))
+
+    print(f"🧭 Add this line to {hosts_path} if needed:")
+    print(line)
 
 
 def generate_self_signed_cert_via_docker(cert_dir: Path, domain: str):
     check_docker_installed()
+
     cert_dir.mkdir(parents=True, exist_ok=True)
     crt = cert_dir / "cert.pem"
     key = cert_dir / "key.pem"
@@ -476,8 +418,7 @@ def generate_self_signed_cert_via_docker(cert_dir: Path, domain: str):
         encoding="utf-8",
     )
 
-    print(f"🔐 Generating self-signed TLS cert for {domain} (via Docker) ...")
-
+    print(f"🔐 Generating self-signed TLS cert for {domain} ...")
     sh([
         "docker", "run", "--rm",
         "-v", f"{cert_dir}:/cert",
@@ -488,25 +429,10 @@ def generate_self_signed_cert_via_docker(cert_dir: Path, domain: str):
         "-keyout /cert/key.pem -out /cert/cert.pem -config /cert/openssl.cnf"
     ], check=True)
 
-    if not crt.exists() or not key.exists():
-        print("❌ Failed to generate cert/key in:", cert_dir)
-        return None, None
-
-    print(f"✅ Generated: {crt} and {key}")
     return crt, key
 
 
-def write_nginx_default_conf(
-    conf_dir: Path,
-    domain: str,
-    tls_port: int,
-    upstream_port: int,
-):
-    """
-    Writes /etc/nginx/conf.d/default.conf equivalent to a host directory.
-
-    - normal HTTP routes -> Flask app on upstream_port
-    """
+def write_nginx_default_conf(conf_dir: Path, domain: str, tls_port: int, upstream_port: int):
     conf_dir.mkdir(parents=True, exist_ok=True)
     conf = conf_dir / "default.conf"
 
@@ -519,15 +445,12 @@ server {{
     location /api/v1/anon/agent/ws/ {{
         proxy_pass http://host.docker.internal:{upstream_port};
         proxy_http_version 1.1;
-
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
-
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-Proto http;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-
         proxy_read_timeout 3600;
         proxy_send_timeout 3600;
         proxy_buffering off;
@@ -537,13 +460,13 @@ server {{
         return 301 https://$host:{tls_port}$request_uri;
     }}
 }}
+
 server {{
     listen {tls_port} ssl;
     server_name {domain};
 
     ssl_certificate     /etc/nginx/certs/cert.pem;
     ssl_certificate_key /etc/nginx/certs/key.pem;
-
     ssl_session_cache shared:SSL:10m;
 
     location / {{
@@ -551,22 +474,18 @@ server {{
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto https;
-
         proxy_pass http://host.docker.internal:{upstream_port};
     }}
 
     location /api/v1/auth/agent/ws/ {{
         proxy_pass http://host.docker.internal:{upstream_port};
         proxy_http_version 1.1;
-
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
-
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-
         proxy_read_timeout 3600;
         proxy_send_timeout 3600;
         proxy_buffering off;
@@ -575,15 +494,12 @@ server {{
     location /api/v1/auth/sudo/system/shell/ws {{
         proxy_pass http://host.docker.internal:{upstream_port};
         proxy_http_version 1.1;
-
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
-
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-
         proxy_read_timeout 3600;
         proxy_send_timeout 3600;
         proxy_buffering off;
@@ -605,7 +521,7 @@ def docker_run_nginx(domain: str, tls_port: int, cert_dir: Path, conf_dir: Path)
     cmd = [
         "docker", "run", "-d",
         "--name", NGINX_CONT_NAME,
-        "-p", f"80:80",
+        "-p", "80:80",
         "-p", f"{tls_port}:{tls_port}",
         "-v", f"{cert_dir}:/etc/nginx/certs:ro",
         "-v", f"{conf_dir}:/etc/nginx/conf.d:ro",
@@ -620,7 +536,7 @@ def docker_run_nginx(domain: str, tls_port: int, cert_dir: Path, conf_dir: Path)
     return True
 
 
-def start_nginx_dev_docker(domain: str, upstream_port: int = 5555, websocket_upstream_port: int = 80):
+def start_nginx_dev_docker(domain: str, upstream_port: int = 5555):
     local_ip = get_local_non_loopback_ip()
     print(f"🧭 Local IP chosen for hosts entry: {local_ip}")
 
@@ -635,30 +551,25 @@ def start_nginx_dev_docker(domain: str, upstream_port: int = 5555, websocket_ups
         print("⚠️ TLS cert not available; skipping nginx docker start.")
         return None
 
-    for tls_port in (443, 8443):
-        write_nginx_default_conf(
-            conf_dir=conf_dir,
-            domain=domain,
-            tls_port=tls_port,
-            upstream_port=upstream_port
-        )
-        try:
-            print(
-                f"🌐 Starting nginx (Docker) https://{domain}:{tls_port} "
-                f"-> Flask http://host.docker.internal:{upstream_port}, "
-                f"WS http://host.docker.internal:{websocket_upstream_port}"
-            )
-            docker_run_nginx(domain, tls_port, cert_dir, conf_dir)
-            time.sleep(0.5)
-            if get_container_id_by_name_exact(NGINX_CONT_NAME):
-                print(f"✅ nginx container running. Open: https://{domain}:{tls_port}")
-                os.environ["WEBAUTHN_ORIGIN"] = f"https://{domain}:{tls_port}"
-                return {"domain": domain, "tls_port": tls_port, "ip": local_ip}
-        except Exception as e:
-            print(f"⚠️ Failed to start nginx on port {tls_port}: {e}")
-            subprocess.run(["docker", "rm", "-f", NGINX_CONT_NAME], check=False)
+    write_nginx_default_conf(
+        conf_dir=conf_dir,
+        domain=domain,
+        tls_port=TLS_PORT,
+        upstream_port=upstream_port,
+    )
 
-    print("❌ Could not start nginx on 443 or 8443.")
+    print(
+        f"🌐 Starting nginx (Docker) https://{domain}:{TLS_PORT} "
+        f"-> Flask http://host.docker.internal:{upstream_port}"
+    )
+    docker_run_nginx(domain, TLS_PORT, cert_dir, conf_dir)
+    time.sleep(0.5)
+
+    if get_container_id_by_name_exact(NGINX_CONT_NAME):
+        os.environ["WEBAUTHN_ORIGIN"] = f"https://{domain}:{TLS_PORT}"
+        return {"domain": domain, "tls_port": TLS_PORT, "ip": local_ip}
+
+    print("❌ Failed to start nginx.")
     return None
 
 
@@ -669,45 +580,32 @@ def stop_nginx_dev_docker():
         subprocess.run(["docker", "rm", "-f", NGINX_CONT_NAME], check=False)
 
 
-def terminate_process(proc: subprocess.Popen | None, name: str):
-    if not proc:
+def clean_database(container_name: str | None):
+    global cleaned_db
+    if cleaned_db:
         return
-    if proc.poll() is not None:
+    cleaned_db = True
+
+    if KILL_DB_ON_EXIT != "1":
+        print("🧯 KILL_DB_ON_EXIT=0 — keeping database/container.")
         return
 
-    print(f"🛑 Stopping {name} (pid={proc.pid})...")
-    try:
-        proc.terminate()
-        proc.wait(timeout=10)
-    except subprocess.TimeoutExpired:
-        print(f"⚠️ {name} did not stop gracefully, killing...")
-        proc.kill()
-        proc.wait(timeout=5)
-    except Exception as e:
-        print(f"⚠️ Failed to stop {name}: {e}")
+    stop_nginx_dev_docker()
 
-
-
-def start_flask_app():
-    global flask_proc
-    print(f"🌐 Starting Flask app in debug mode on port {APP_PORT}...")
-    python_exe = VENV_DIR / ("Scripts" if os.name == "nt" else "bin") / ("python.exe" if os.name == "nt" else "python")
-    env = os.environ.copy()
-    env.update({
-        "FLASK_ENV": "development",
-        "DATABASE_URL": DATABASE_URL,
-        "INIT_DB_ON_START": "0",
-        "PORT": str(APP_PORT),
-        "WEBAUTHN_RP_ID": env.get("WEBAUTHN_RP_ID", env.get("DOMAIN", "guachin.local")),
-    })
-
-    flask_proc = subprocess.Popen([str(python_exe), "app.py"], env=env, cwd=str(BASE_DIR))
-    wait_for_tcp_service("127.0.0.1", APP_PORT, timeout=30, name="flask")
-    return flask_proc
+    if container_name:
+        print("🧹 Cleaning Dockerized MySQL data...")
+        subprocess.run(["docker", "stop", container_name], check=False)
+        subprocess.run(["docker", "rm", container_name], check=False)
+        try:
+            if MYSQL_DIR.exists():
+                shutil.rmtree(MYSQL_DIR, ignore_errors=True)
+                print(f"✅ Removed {MYSQL_DIR}")
+        except Exception as e:
+            print(f"⚠️ Failed to remove {MYSQL_DIR}: {e}")
 
 
 def run_dev():
-    print("=== 🚀 Starting Development (MySQL + Alembic/InitDB + Flask + Uvicorn + nginx Docker TLS for WebAuthn) ===")
+    print("=== 🚀 Dev bootstrap ===")
     create_virtualenv()
     pip_install_requirements()
 
@@ -718,42 +616,32 @@ def run_dev():
     if not migrations_attempted:
         init_mysql_db(container_name=container_name)
 
-    start_flask_app()
+    bootstrap_app_data()
 
-    rp_id = os.environ.get("WEBAUTHN_RP_ID") or os.environ.get("DOMAIN") or "guachin.local"
-    proxy_info = start_nginx_dev_docker(
-        domain=rp_id,
-        upstream_port=APP_PORT
-    )
+    gunicorn_proc = start_flask_app_gunicorn()
+    proxy_info = start_nginx_dev_docker(domain=DOMAIN, upstream_port=APP_PORT)
 
     def shutdown():
         print("\n🛑 Shutting down...")
         stop_nginx_dev_docker()
-        terminate_process(flask_proc, "flask")
-        terminate_process(uvicorn_proc, "uvicorn")
-        clean_database(container_name)
-        clean_all_docker_containers_keep_exact([MYSQL_CONT_NAME])
+        terminate_process(gunicorn_proc, "gunicorn")
+        if CLEAN_DB_ON_EXIT == "1":
+            clean_database(container_name)
         print("✅ Clean exit.")
-
         if proxy_info:
-            d = proxy_info["domain"]
-            p = proxy_info["tls_port"]
-            print(f"ℹ️ Dev WebAuthn origin was: https://{d}:{p}")
+            print(f"ℹ️ Dev origin: https://{proxy_info['domain']}:{proxy_info['tls_port']}")
 
-    def handle_sigint(signum, frame):
+    def handle_signal(signum, frame):
         shutdown()
         sys.exit(0)
 
-    signal.signal(signal.SIGINT, handle_sigint)
-    signal.signal(signal.SIGTERM, handle_sigint)
+    signal.signal(signal.SIGINT, handle_signal)
+    signal.signal(signal.SIGTERM, handle_signal)
 
     try:
         while True:
-            if flask_proc and flask_proc.poll() is not None:
-                print(f"⚠️ Flask exited with code {flask_proc.returncode}")
-                break
-            if uvicorn_proc and uvicorn_proc.poll() is not None:
-                print(f"⚠️ Uvicorn exited with code {uvicorn_proc.returncode}")
+            if gunicorn_proc and gunicorn_proc.poll() is not None:
+                print(f"⚠️ Gunicorn exited with code {gunicorn_proc.returncode}")
                 break
             time.sleep(1)
     finally:
@@ -764,19 +652,18 @@ def run_prod():
     print("=== 🚀 Production bootstrap ===")
     create_virtualenv()
     pip_install_requirements()
-    try:
-        ran = run_migrations()
-        if not ran:
-            print("⚠️ Alembic not configured in prod. Please set up migrations.")
-            sys.exit(1)
-    except Exception as e:
-        print(f"⚠️ Migration failed: {e}")
-        sys.exit(1)
-    print("✅ Production setup complete. Start your WSGI/ASGI servers with DATABASE_URL configured.")
+
+    ran = run_migrations()
+    if not ran:
+        init_mysql_db(container_name=None)
+
+    bootstrap_app_data()
+
+    print("✅ Production setup complete.")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Deploy the guachin application.")
+    parser = argparse.ArgumentParser(description="Deploy the app.")
     parser.add_argument("env", choices=["dev", "prod"], help="Environment to run.")
     args = parser.parse_args()
 

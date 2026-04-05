@@ -1,0 +1,129 @@
+html, body {
+  background: #0f1115 !important;
+  color: #e6e6e6 !important;
+}
+
+.navbar,
+.navbar-default,
+.container,
+.container-fluid,
+.card,
+.panel,
+.table-responsive,
+.content,
+.well {
+  background: #151922 !important;
+  color: #e6e6e6 !important;
+  border-color: #2a3140 !important;
+}
+
+a {
+  color: #8ab4ff !important;
+}
+
+a:hover {
+  color: #a8c7ff !important;
+}
+
+.table,
+.table-striped,
+.table-bordered {
+  background: #151922 !important;
+  color: #e6e6e6 !important;
+  border-color: #2a3140 !important;
+}
+
+.table > thead > tr > th,
+.table > tbody > tr > td {
+  border-color: #2a3140 !important;
+}
+
+.table-striped > tbody > tr:nth-of-type(odd) {
+  background: #11151d !important;
+}
+
+input,
+select,
+textarea {
+  background: #0f1115 !important;
+  color: #e6e6e6 !important;
+  border: 1px solid #2a3140 !important;
+}
+
+.btn,
+.btn-default {
+  background: #1d2430 !important;
+  color: #e6e6e6 !important;
+  border-color: #2a3140 !important;
+}
+
+.btn:hover {
+  background: #263042 !important;
+}
+
+.breadcrumb,
+.pagination > li > a,
+.pagination > li > span {
+  background: #151922 !important;
+  color: #e6e6e6 !important;
+  border-color: #2a3140 !important;
+}
+
+.dropdown-menu {
+  background: #151922 !important;
+  border-color: #2a3140 !important;
+}
+
+.dropdown-menu > li > a {
+  color: #e6e6e6 !important;
+}
+
+.dropdown-menu > li > a:hover {
+  background: #263042 !important;
+}
+/* CodeMirror editor (file content) */
+.CodeMirror {
+  background: #111 !important;
+  color: #eee !important;
+}
+
+/* Cursor */
+.CodeMirror-cursor {
+  border-left: 1px solid #eee !important;
+}
+
+/* Line numbers */
+.CodeMirror-gutters {
+  background: #181818 !important;
+  border-right: 1px solid #333 !important;
+}
+
+.CodeMirror-linenumber {
+  color: #888 !important;
+}
+
+/* Selection */
+.CodeMirror-selected {
+  background: #333 !important;
+}
+
+/* Active line */
+.CodeMirror-activeline-background {
+  background: #1f1f1f !important;
+}
+
+/* Syntax highlighting fixes */
+.cm-keyword { color: #ff79c6 !important; }
+.cm-string  { color: #f1fa8c !important; }
+.cm-comment { color: #6272a4 !important; }
+.cm-number  { color: #bd93f9 !important; }
+.cm-variable { color: #f8f8f2 !important; }
+.cm-def { color: #50fa7b !important; }
+.cm-operator { color: #ff79c6 !important; }
+.cm-meta { color: #8be9fd !important; }
+
+body .CodeMirror,
+body textarea {
+  background: red !important;
+  color: lime !important;
+}

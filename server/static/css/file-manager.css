@@ -1,11 +1,45 @@
-/* file-manager.css */
-body.embedded {
-  margin: 0;
-  background: transparent; /* or your admin background */
-  font: inherit;
+/* Main editor area */
+body .CodeMirror,
+body .CodeMirror-scroll,
+body .CodeMirror-lines,
+body .CodeMirror pre,
+body .CodeMirror-line,
+body .CodeMirror-line span {
+  background: #111 !important;
+  color: #eee !important;
+  -webkit-text-fill-color: #eee !important;
 }
 
-/* optionally scope your file manager container */
-.file-manager-root {
-  padding: 16px;
+/* Gutters / line numbers */
+body .CodeMirror-gutters {
+  background: #181818 !important;
+  border-right: 1px solid #333 !important;
+}
+
+body .CodeMirror-linenumber {
+  color: #888 !important;
+}
+
+/* Cursor */
+body .CodeMirror-cursor {
+  border-left: 1px solid #eee !important;
+}
+
+/* Selection */
+body .CodeMirror-selected {
+  background: #333 !important;
+}
+
+body .CodeMirror,
+body textarea {
+  background: red !important;
+  color: lime !important;
+}
+body pre,
+body pre *,
+body pre code,
+body pre code * {
+  color: #eee !important;
+  background: #111 !important;
+  -webkit-text-fill-color: #eee !important;
 }

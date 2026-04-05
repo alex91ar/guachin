@@ -2,7 +2,6 @@ NAME = "NtCreateProcessEx"
 DESCRIPTION = "Create a process object from a section handle using Native API"
 PARAMS = [
     {"name":"section_handle", "description":"Handle to the image section", "type":"hex"},
-    {"name":"parent_process", "description":"Handle to parent process (usually -1 for current)", "type":"hex"}
 ]
 
 def NtCreateProcessEx(agent_id, section_handle, parent_handle=0xFFFFFFFFFFFFFFFF):
@@ -25,20 +24,20 @@ def NtCreateProcessEx(agent_id, section_handle, parent_handle=0xFFFFFFFFFFFFFFFF
     params = [
         scratchpad,          # &ProcessHandle
         0x001F0FFF,          # DesiredAccess (PROCESS_ALL_ACCESS)
-        obj_attr_ptr,        # ObjectAttributes (NULL)
-        parent_handle,       # ParentProcess
+        0,        # ObjectAttributes (NULL)
+        0xFFFFFFFF,          # ParentProcess
         0x00000001,          # Flags (PROCESS_CREATE_FLAGS_INHERIT_HANDLES)
         section_handle,      # SectionHandle
         0,                   # DebugPort (NULL)
         0,                   # ExceptionPort (NULL)
         0                    # InJob (False)
     ]
-    
+    print(f"[*] NtCreateProcessEx(ProcessHandle={hex(scratchpad)}, Access=0x1F0FFF, Inherit=1, Section={hex(section_handle)})")
     shellcode = push_syscall(syscall, params, agent.debug)
     # We only need to write the placeholder for the process handle
     return process_handle_data, shellcode
 
-def createNativeProcess(agent_id, section_handle):
+def function(agent_id, section_handle):
     from services.orders import write_scratchpad, send_and_wait, read_scratchpad
     
     data, shellcode = NtCreateProcessEx(agent_id, section_handle)
@@ -52,4 +51,4 @@ def createNativeProcess(agent_id, section_handle):
     scratch_data = read_scratchpad(agent_id, 8)
     process_handle = int.from_bytes(scratch_data[:8], 'little')
     
-    return ntstatus, process_handle
+    return {"retval": ntstatus, "process_handle": process_handle}

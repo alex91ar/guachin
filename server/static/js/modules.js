@@ -33,6 +33,7 @@ function initEditModuleCodeEditor() {
     textarea.value = editModuleCodeEditor.getValue();
   });
 }
+
 function notifyModules(message, type = "info") {
   if (typeof showAlert === "function") return showAlert(message, type);
   if (typeof showToast === "function") return showToast(message, type === "danger" ? "error" : type);
@@ -122,6 +123,10 @@ function closeModal(id) {
   document.body.style.overflow = "";
 }
 
+function getModuleId(module) {
+  return module?.id ?? "";
+}
+
 // ---------- API ----------
 
 async function apiGetAllModules() {
@@ -177,7 +182,7 @@ async function apiUpdateModule(payload) {
   return data;
 }
 
-async function apiDeleteModule(name) {
+async function apiDeleteModule(id) {
   const res = await fetch(window.delete_module_SUDO, {
     method: "POST",
     credentials: "include",
@@ -185,7 +190,7 @@ async function apiDeleteModule(name) {
       "Content-Type": "application/json",
       Accept: "application/json",
     },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ id }),
   });
 
   const data = await res.json();
@@ -222,8 +227,8 @@ function renderModules(rows) {
   rows.forEach((module) => {
     const tr = document.createElement("tr");
 
-    const nameTd = document.createElement("td");
-    nameTd.textContent = safeModuleText(module.name);
+    const idTd = document.createElement("td");
+    idTd.textContent = safeModuleText(module.id);
 
     const descriptionTd = document.createElement("td");
     descriptionTd.textContent = truncateModuleText(module.description, 100);
@@ -256,7 +261,7 @@ function renderModules(rows) {
       openDeleteModuleModal(module);
     });
 
-    tr.appendChild(nameTd);
+    tr.appendChild(idTd);
     tr.appendChild(descriptionTd);
     tr.appendChild(actionsTd);
     tbody.appendChild(tr);
@@ -271,7 +276,7 @@ function filterModules(query) {
 
   return _allModules.filter((module) => {
     const haystack = [
-      module.name,
+      module.id,
       module.description,
       module.code,
       ...(module.dependencies || []),
@@ -300,10 +305,10 @@ async function refreshModules() {
 
 // ---------- DEPENDENCY PICKERS ----------
 
-function getAllDependencyCandidates(excludeName = null) {
+function getAllDependencyCandidates(excludeId = null) {
   return (_allModules || [])
-    .map((m) => m.name)
-    .filter((name) => name && name !== excludeName);
+    .map((m) => m.id)
+    .filter((id) => id && id !== excludeId);
 }
 
 function setupDependencyPicker(availableId, selectedId, addBtnId, removeBtnId) {
@@ -316,9 +321,9 @@ function setupDependencyPicker(availableId, selectedId, addBtnId, removeBtnId) {
   removeBtn?.addEventListener("click", () => moveSelectedOptions(selected, available));
 }
 
-function populateDependencyPicker(availableId, selectedId, selectedValues, excludeName = null) {
+function populateDependencyPicker(availableId, selectedId, selectedValues, excludeId = null) {
   const selected = uniqueSortedStrings(selectedValues || []);
-  const available = getAllDependencyCandidates(excludeName).filter((name) => !selected.includes(name));
+  const available = getAllDependencyCandidates(excludeId).filter((id) => !selected.includes(id));
 
   fillSelect(document.getElementById(availableId), available);
   fillSelect(document.getElementById(selectedId), selected);
@@ -335,17 +340,19 @@ function refreshAllDependencyPickers() {
 
   if (editModalOpen) {
     const form = document.getElementById("edit-module-form");
-    const currentName = form?.elements?.name?.value || null;
+    const currentId = form?.elements?.id?.value || null;
     const selected = getSelectedOptionsValues(document.getElementById("selected-dependencies-edit"));
-    populateDependencyPicker("available-dependencies-edit", "selected-dependencies-edit", selected, currentName);
+    populateDependencyPicker("available-dependencies-edit", "selected-dependencies-edit", selected, currentId);
   }
 }
 
 // ---------- MODALS ----------
 
 function openModuleDetailsModal(module) {
-  document.getElementById("module-details-title").textContent = module.name || "Module Details";
-  document.getElementById("module-details-name").textContent = module.name || "—";
+  const moduleId = getModuleId(module);
+
+  document.getElementById("module-details-title").textContent = moduleId || "Module Details";
+  document.getElementById("module-details-name").textContent = moduleId || "—";
   document.getElementById("module-details-description").textContent = module.description || "—";
   document.getElementById("module-details-dependencies").textContent =
     Array.isArray(module.dependencies) && module.dependencies.length
@@ -369,8 +376,12 @@ function openEditModuleModal(module) {
   const form = document.getElementById("edit-module-form");
   if (!form) return;
 
-  form.elements.original_name.value = module.name || "";
-  form.elements.name.value = module.name || "";
+  const moduleId = getModuleId(module);
+
+  if (form.elements.original_id) {
+    form.elements.original_id.value = moduleId;
+  }
+  form.elements.id.value = moduleId;
   form.elements.description.value = module.description || "";
   form.elements.params.value = JSON.stringify(module.params || [], null, 2);
 
@@ -381,7 +392,7 @@ function openEditModuleModal(module) {
     "available-dependencies-edit",
     "selected-dependencies-edit",
     module.dependencies || [],
-    module.name || null
+    moduleId || null
   );
 
   openModal("edit-module-modal");
@@ -401,8 +412,10 @@ function openDeleteModuleModal(module) {
   const form = document.getElementById("delete-module-form");
   if (!form) return;
 
-  form.elements.name.value = module.name || "";
-  document.getElementById("delete-module-name").textContent = module.name || "—";
+  const moduleId = getModuleId(module);
+
+  form.elements.id.value = moduleId;
+  document.getElementById("delete-module-name").textContent = moduleId || "—";
   document.getElementById("delete-module-description").textContent = module.description || "—";
 
   openModal("delete-module-modal");
@@ -416,7 +429,7 @@ async function handleAddModuleSubmit(e) {
 
   try {
     const payload = {
-      name: form.elements.name.value.trim(),
+      id: form.elements.id.value.trim(),
       description: form.elements.description.value.trim(),
       params: parseJSONInput(form.elements.params.value, []),
       dependencies: getSelectedOptionsValues(document.getElementById("selected-dependencies-add")),
@@ -438,18 +451,20 @@ async function handleEditModuleSubmit(e) {
   const form = e.target;
 
   try {
-    const originalName = form.elements.original_name.value.trim();
-    const newName = form.elements.name.value.trim();
+    const originalId = form.elements.original_id?.value.trim() || "";
+    const newId = form.elements.id.value.trim();
 
-    if (originalName && originalName !== newName) {
+    if (originalId && originalId !== newId) {
       notifyModules("Renaming modules is not supported by the current PATCH route.", "danger");
       return;
     }
+
     if (editModuleCodeEditor) {
-    form.elements.code.value = editModuleCodeEditor.getValue();
+      form.elements.code.value = editModuleCodeEditor.getValue();
     }
+
     const payload = {
-      name: newName,
+      id: newId,
       description: form.elements.description.value.trim(),
       params: parseJSONInput(form.elements.params.value, []),
       dependencies: getSelectedOptionsValues(document.getElementById("selected-dependencies-edit")),
@@ -471,8 +486,8 @@ async function handleDeleteModuleSubmit(e) {
   const form = e.target;
 
   try {
-    const name = form.elements.name.value.trim();
-    await apiDeleteModule(name);
+    const id = form.elements.id.value.trim();
+    await apiDeleteModule(id);
     notifyModules("Module deleted successfully.", "success");
     closeModal("delete-module-modal");
     await refreshModules();

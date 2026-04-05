@@ -1,31 +1,32 @@
 import importlib
-import pkgutil
 import logging
+import pkgutil
 import re
-import json
-from flask import Blueprint, request, g, jsonify, url_for, redirect
-from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity, JWTManager
+
+from flask import Blueprint, g, jsonify, request, url_for, redirect, current_app
+from flask_jwt_extended import JWTManager, get_jwt, jwt_required
 from flask_wtf.csrf import generate_csrf
+from sqlalchemy.orm import Session
 from werkzeug.exceptions import BadRequest
-from utils import gen_key
-from models.user_session import UserSession
-from models.user import User
+from datetime import datetime, timezone
+from models.db import get_session
 from models.log import Log
-from routes.anon.auth import get_raw_token
+from models.user import User
+from models.user_session import UserSession
+from utils import gen_key
 
 logger = logging.getLogger(__name__)
 
 jwt = JWTManager()
 
 
-def register_blueprints_from_package(app, package, base_blueprint: Blueprint, before_request_fns=[]):
+def register_blueprints_from_package(app, package, base_blueprint: Blueprint, before_request_fns=None):
+    if before_request_fns is None:
+        before_request_fns = []
+
     package_name = package.__name__
     package_path = package.__path__
 
-    logger.info(
-        "Registering blueprints from package '%s' under base blueprint '%s'",
-        package_name, base_blueprint.name
-    )
 
     for _, module_name, is_pkg in pkgutil.iter_modules(package_path):
         if is_pkg:
@@ -40,41 +41,25 @@ def register_blueprints_from_package(app, package, base_blueprint: Blueprint, be
 
             for before_request_fn in before_request_fns:
                 sub_bp.before_request(before_request_fn)
-                sub_bp.after_request(log_if_necessary)
-                logger.info(
-                    "Attached before_request '%s' to '%s.%s'",
-                    getattr(before_request_fn, "__name__", str(before_request_fn)),
-                    module_full_name, getattr(sub_bp, "name", "<unnamed>")
-                )
 
+            sub_bp.after_request(log_if_necessary)
             base_blueprint.register_blueprint(sub_bp)
-        else:
-            logger.info("Module '%s' has no 'bp'; skipped", module_full_name)
 
     app.register_blueprint(base_blueprint)
 
-    logger.info(
-        "Mounted base blueprint '%s' at prefix '%s'",
-        base_blueprint.name, base_blueprint.url_prefix
-    )
 
-    logger.info("Enumerating routes for base blueprint '%s'", base_blueprint.name)
     for rule in app.url_map.iter_rules():
         if rule.rule.startswith(base_blueprint.url_prefix):
             methods = ",".join(sorted(rule.methods))
-
+            logger.debug("Mounted route %s [%s]", rule.rule, methods)
 
 
 def is_valid_url_chars(url: str) -> bool:
-    """
-    Validates that a Flask URL rule contains only safe URL characters
-    and valid Flask-style parameters (e.g. <int:id>, <string:name>, <uuid:uid>, <id>).
-    """
     pattern = r"""
         ^(
-            [A-Za-z0-9\-._~:/?#\[\]@!$&'()*+,;=%]              # normal chars
-            |                                                 # or
-            <[A-Za-z_][A-Za-z0-9_]*(?::[A-Za-z_][A-Za-z0-9_]*)?>  # <name> or <converter:name>
+            [A-Za-z0-9\-._~:/?#\[\]@!$&'()*+,;=%]
+            |
+            <[A-Za-z_][A-Za-z0-9_]*(?::[A-Za-z_][A-Za-z0-9_]*)?>
         )*$"""
     return re.fullmatch(pattern, url, re.VERBOSE) is not None
 
@@ -82,54 +67,70 @@ def is_valid_url_chars(url: str) -> bool:
 @jwt_required()
 def sudo_validator():
     claims = get_jwt()
-    user_obj = User.by_id(claims.get("sub",None))
+    user_obj = User.by_id(claims.get("sub", None))
+    if user_obj is None:
+        return jsonify({
+            "result": "error",
+            "message": "user_not_found",
+        }), 404
+
     if not claims.get("sudo", False):
         sudo_required = user_obj.twofa_enabled
+        token_obj = UserSession.by_id(claims.get("id", None))
+
         if not sudo_required:
-            UserSession.by_id(claims.get("id", None)).elevate()
-            return redirect(url_for('html_pages.admin.admin_elevate'))
-        else:
-            return jsonify({
-                "result": "error",
-                "message": "sudo_required",
-                "hint": "Sudo privileges required. Re-authenticate with your sudo token or request elevated access."
-            }), 401
+            if token_obj is not None:
+                token_obj.elevate()
+            return redirect(url_for("html_pages.admin.admin_elevate"))
+
+        return jsonify({
+            "result": "error",
+            "message": "sudo_required",
+            "hint": "Sudo privileges required. Re-authenticate with your sudo token or request elevated access.",
+        }), 401
 
 
 def log_if_necessary(response):
     try:
         user = get_jwt().get("sub", None)
-    except:
+    except Exception:
         user = None
+
     if response.status_code >= 400 and response.status_code != 401:
-        new_log = Log(path=request.path, method=request.method, response=response.get_data(as_text=True), response_code=response.status_code, user_id=user)
-        new_log.save()
+        new_log = Log(
+            path=request.path,
+            method=request.method,
+            response=response.get_data(as_text=True),
+            response_code=response.status_code,
+            user_id=user,
+        )
+
+
     return response
 
+
 def request_validator():
-    allowed = {'OPTIONS', 'GET', 'POST', 'PUT', 'PATCH', 'DELETE'}
+    allowed = {"OPTIONS", "GET", "POST", "PUT", "PATCH", "DELETE"}
     method = request.method.upper()
     path = request.url_rule.rule if request.url_rule else "<unknown>"
     logger.debug("request_validator: method=%s path=%s", method, path)
 
-    # 1️⃣ Enforce allowed HTTP methods
     if method not in allowed:
         logger.debug("request_validator: disallowed_method method=%s", method)
         return jsonify({
             "result": "error",
             "message": "invalid_method",
-            "hint": f"Method '{method}' is not allowed. Use one of {sorted(allowed)}."
+            "hint": f"Method '{method}' is not allowed. Use one of {sorted(allowed)}.",
         }), 405
 
-    # 2️⃣ Enforce JSON for write operations
-    if method in {'POST', 'PUT', 'PATCH'}:
-        content_type = request.headers.get('Content-Type', '')
+    if method in {"POST", "PUT", "PATCH"}:
+        content_type = request.headers.get("Content-Type", "")
         logger.debug("request_validator: content_type=%s", content_type)
-        if content_type != 'application/json':
+        if content_type != "application/json":
             return jsonify({
                 "result": "error",
                 "message": "invalid_content_type",
-                "hint": "Only 'application/json' content type is allowed for POST, PUT, and PATCH requests."
+                "hint": "Only 'application/json' content type is allowed for POST, PUT, and PATCH requests.",
             }), 415
         try:
             request.get_json(force=True)
@@ -139,11 +140,10 @@ def request_validator():
             return jsonify({
                 "result": "error",
                 "message": "invalid_json",
-                "hint": "Malformed JSON body. Check your syntax and try again."
+                "hint": "Malformed JSON body. Check your syntax and try again.",
             }), 400
 
-    # 3️⃣ OPTIONS must not have query or body
-    if method == 'OPTIONS':
+    if method == "OPTIONS":
         has_args = bool(request.args)
         has_body = bool(request.get_data())
         logger.debug("request_validator: options has_args=%s has_body=%s", has_args, has_body)
@@ -151,49 +151,48 @@ def request_validator():
             return jsonify({
                 "result": "error",
                 "message": "invalid_options_request",
-                "hint": "OPTIONS requests must not contain query parameters or a request body."
+                "hint": "OPTIONS requests must not contain query parameters or a request body.",
             }), 400
 
-    # 4️⃣ GET should not have query parameters (if this is intended)
-    if method == 'GET' and request.args:
+    if method == "GET" and request.args:
         logger.debug("request_validator: get_with_query params_count=%d", len(request.args))
         return jsonify({
             "result": "error",
             "message": "invalid_query_params",
-            "hint": "GET requests must not contain query parameters for this endpoint."
+            "hint": "GET requests must not contain query parameters for this endpoint.",
         }), 400
 
-    # 5️⃣ URL validation
     if not is_valid_url_chars(path):
         logger.debug("request_validator: invalid_url_chars path=%s", path)
         return jsonify({
             "result": "error",
             "message": "invalid_url",
-            "hint": "URL contains invalid or unsafe characters. Verify your route definition."
+            "hint": "URL contains invalid or unsafe characters. Verify your route definition.",
         }), 400
 
     g.csrf_token = generate_csrf()
     logger.debug("request_validator: csrf_token_issued")
-    return None  # valid request
-
-@jwt.expired_token_loader
-def expired_token_callback(jwt_header, jwt_payload):
-    return jsonify({
-        "result": "error",
-        "message": "access_token_expired"
-    }), 401
+    return None
 
 @jwt_required()
 def check_expired():
     claims = get_jwt()
-    token_obj = UserSession.by_id(claims.get("id", None))
-    if not token_obj or not token_obj.is_valid():
+    now = int(datetime.now(timezone.utc).timestamp())
+    vu = int(claims["exp"])
+    if now > vu:
         return jsonify({
             "result": "error",
             "message": "access_token_expired",
-            "hint": "The access token provided has expired. Request a new access token by using your refresh token and the endpoint " + url_for('anon_api.login.refresh') + "."
+            "hint": "The access token provided has expired. Request a new access token by using your refresh token and the endpoint " + url_for("anon_api.login.refresh") + ".",
         }), 401
-
+    this_session = UserSession.by_id(claims.get("id"))
+    if this_session is not None:
+        if not this_session.is_valid():
+            return jsonify({
+            "result": "error",
+            "message": "access_token_expired",
+            "hint": "The access token provided has expired. Request a new access token by using your refresh token and the endpoint " + url_for("anon_api.login.refresh") + ".",
+        }), 401
 
 
 @jwt_required()
@@ -202,14 +201,11 @@ def enforce_rbac():
     method = request.method
     key = gen_key(path, method)
     action_keys = get_jwt().get("perms", [])
-    #logger.info(
-    #    "enforce_rbac: user=%s path=%s method=%s generated_key=%s user_perms_count=%d",
-    #    get_jwt().get("sub"), path, method, key, len(action_keys)
-    #)
+
     if key not in action_keys:
-        logger.info("enforce_rbac: permission_denied key_missing_in_claims")
+        print(f"Permission not granted path = {path}")
         return jsonify({
             "result": "error",
             "message": "permission_not_granted",
-            "hint": "The permission for the requested action has not been granted. Request the role with the permission to an administrator."
+            "hint": "The permission for the requested action has not been granted. Request the role with the permission to an administrator.",
         }), 401

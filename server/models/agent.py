@@ -1,46 +1,44 @@
-from datetime import datetime
-from models.basemodel import Base, db
+# models/agent.py
+from __future__ import annotations
 
+from datetime import datetime, timezone
+from typing import Optional
+
+from sqlalchemy import String, BigInteger, Boolean, DateTime, ForeignKey, select, delete
+from sqlalchemy.orm import Mapped, mapped_column, Session
+
+from models.basemodel import Base
 
 class Agent(Base):
     __tablename__ = "agents"
 
-    id = db.Column(db.String(255), primary_key=True)
-    ip = db.Column(db.String(255), nullable=True)
-    os = db.Column(db.BigInteger, nullable=True)
-    online = db.Column(db.Boolean, nullable=False, default=True, index=True)
-    last_seen = db.Column(db.DateTime(timezone=True), nullable=True)
-    user_id = db.Column(db.String(255), db.ForeignKey("users.id"), nullable=True)
-    scratchpad = db.Column(db.BigInteger, nullable=True)
-    debug = db.Column(db.Boolean, nullable=False, default=False)
+    id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    ip: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    os: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    last_seen: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    user_id: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        ForeignKey("users.id"),
+        nullable=True,
+    )
+    scratchpad: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    debug: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
-    def to_dict(self):
+    def __init__(self, id: str, user_id: Optional[str]):
+        self.id = id
+        self.last_seen = datetime.now(timezone.utc)
+        self.user_id = user_id
+
+    def to_dict(self) -> dict:
         return {
             "id": self.id,
             "ip": self.ip,
-            "os": self.os, 
+            "os": self.os,
             "last_seen": self.last_seen.isoformat() if self.last_seen else None,
             "user_id": self.user_id,
+            "scratchpad": self.scratchpad,
+            "debug": self.debug,
         }
 
-    def __init__(self, id, user_id):
-        self.id = id
-        self.last_seen = datetime.now()
-        self.user_id = user_id
-
-    @classmethod
-    def to_offline(cls, agent_id):
-        db.session.query(cls).filter_by(id=agent_id).update({
-            "online": False,
-            "last_seen": datetime.utcnow()
-        })
-        db.session.commit()
-
-    @classmethod
-    def by_user_name(cls, user_name: str):
-        return cls.query.filter_by(user_id=user_name)
-
-    @classmethod
-    def cleanup_agents(cls):
-        cls.query.filter_by(online=False).delete(synchronize_session=False)
-        db.session.commit()
+ 
+    

@@ -1,9 +1,9 @@
-from flask import Blueprint, render_template
+from flask import Blueprint, render_template, send_from_directory, current_app
 from models.user import User
 from models.role import Role
 from models.action import Action
 
-bp = Blueprint("admin", __name__, url_prefix="/admin")
+bp = Blueprint("admin_html", "__name__", url_prefix="/admin_html")
 
 
 @bp.route("/elevate")

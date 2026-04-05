@@ -1,68 +1,65 @@
+# models/log.py
 from __future__ import annotations
 
-from typing import Optional, List, Iterable
+from typing import Optional
 import logging
-
-from sqlalchemy import (
-    String, Text, Table, Column, ForeignKey, select, and_
-)
-
-from models.basemodel import Base, db
-from utils import sanitize, gen_key
 import uuid
+from datetime import datetime, timezone
+
+from sqlalchemy import String, Text, Integer, DateTime, ForeignKey, select
+from sqlalchemy.orm import Mapped, mapped_column, Session
+
+from models.basemodel import Base
+from models.db import get_session
 
 logger = logging.getLogger(__name__)
 
+
 class Log(Base):
     """
-    Permission-like action.
-    - Primary key: id (normalized, lowercase)
-    - Many-to-many with Role via role_actions
+    Request/response log entry.
     """
     __tablename__ = "logs"
 
     # ---- Columns ----
-    id = db.Column(db.String(16), primary_key=True)
-    path = db.Column(db.String(255), nullable=False)
-    method = db.Column(db.String(15), nullable=False)
-    response = db.Column(db.Text, default="", nullable=False)
-    response_code = db.Column(db.Integer, default="", nullable=False)
-    log_time = db.Column(db.DateTime(timezone=True), nullable=True)
-    user_id = db.Column(
-        db.String(255),
-        db.ForeignKey("users.id", ondelete="CASCADE"),
+    id: Mapped[str] = mapped_column(String(16), primary_key=True)
+    path: Mapped[str] = mapped_column(String(255), nullable=False)
+    method: Mapped[str] = mapped_column(String(15), nullable=False)
+    response: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    response_code: Mapped[int] = mapped_column(Integer, nullable=False)
+    log_time: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    user_id: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        ForeignKey("users.id", ondelete="CASCADE"),
         nullable=True,
         index=True,
     )
+
     # ---- Init ----
-    def __init__(self, path:str, method:str, response:str, response_code:int, user_id:str):
+    def __init__(
+        self,
+        path: str,
+        method: str,
+        response: str,
+        response_code: int,
+        user_id: Optional[str],
+    ):
+        self.id = uuid.uuid4().hex[:16]
         self.path = path
         self.method = method
-        self.id = uuid.uuid4().hex[:16]
-        self.user_id = user_id
         self.response = response
         self.response_code = response_code
+        self.user_id = user_id
+        self.log_time = datetime.now(timezone.utc)
 
     # ---- Serialization ----
     def to_dict(self) -> dict:
-        data = {
+        return {
             "id": self.id,
             "user": self.user_id,
             "method": self.method,
             "path": self.path,
             "response": self.response,
-            "response_code": self.response_code
+            "response_code": self.response_code,
+            "log_time": self.log_time.isoformat() if self.log_time else None,
         }
-        return data
-
-    @classmethod
-    def all(self):
-        return super().all()
-
-    @classmethod
-    def all_by_user(self, user) -> dict:
-        resp = super().all()
-        for i in range(len(resp) - 1, -1, -1):
-            if user is not None and resp[i].user_id != user:
-                resp[i].delete()
-        return resp
