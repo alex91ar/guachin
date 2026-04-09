@@ -55,6 +55,41 @@ def sh(cmd, env=None, check=True, cwd=None, capture_output=False, text=True):
     )
 
 
+def kill_all_gunicorn_instances():
+    print("🧹 Killing all gunicorn instances...")
+
+    if os.name == "nt":
+        subprocess.run(
+            ["taskkill", "/F", "/IM", "gunicorn.exe", "/T"],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        subprocess.run(
+            ["taskkill", "/F", "/IM", "python.exe", "/T"],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        return
+
+    candidates = [
+        ["pkill", "-9", "-f", r"gunicorn"],
+        ["pkill", "-9", "-f", r"python.*-m gunicorn"],
+        ["pkill", "-9", "-f", str(BASE_DIR / ".venv" / "bin" / "gunicorn")],
+    ]
+
+    for cmd in candidates:
+        subprocess.run(
+            cmd,
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+    time.sleep(0.5)
+
+
 def is_inet_up():
     try:
         with socket.create_connection(("8.8.8.8", 53), timeout=5):
@@ -311,14 +346,13 @@ def start_flask_app_gunicorn():
         "-m",
         "gunicorn",
         "--bind", f"127.0.0.1:{APP_PORT}",
-        "--workers", "2",
+        "--workers", "1",
         "--threads", "4",
         "--reload",
-        "--access-logfile", "-",
+        "--access-logfile", "/dev/null",
         "--error-logfile", "-",
         "app:create_app()",
     ]
-
 
     gunicorn_proc = subprocess.Popen(
         gunicorn_cmd,
@@ -352,7 +386,7 @@ def get_local_non_loopback_ip() -> str:
 
 def hosts_file_path() -> Path:
     if os.name == "nt":
-        return Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32" / "drivers" / "etc" / "hosts"
+        return Path(os.environ.get("SystemRoot", r"C:\\Windows")) / "System32" / "drivers" / "etc" / "hosts"
     return Path("/etc/hosts")
 
 
@@ -606,6 +640,7 @@ def clean_database(container_name: str | None):
 
 def run_dev():
     print("=== 🚀 Dev bootstrap ===")
+    kill_all_gunicorn_instances()
     create_virtualenv()
     pip_install_requirements()
 
@@ -625,6 +660,7 @@ def run_dev():
         print("\n🛑 Shutting down...")
         stop_nginx_dev_docker()
         terminate_process(gunicorn_proc, "gunicorn")
+        kill_all_gunicorn_instances()
         if CLEAN_DB_ON_EXIT == "1":
             clean_database(container_name)
         print("✅ Clean exit.")
@@ -650,6 +686,7 @@ def run_dev():
 
 def run_prod():
     print("=== 🚀 Production bootstrap ===")
+    kill_all_gunicorn_instances()
     create_virtualenv()
     pip_install_requirements()
 

@@ -18,6 +18,29 @@ function escapeCommand(value) {
         .replaceAll("\t", "\\t");
 }
 
+async function reloadModules() {
+  try {
+    const res = await fetch(window.reload_modules_API, {
+      method: "GET",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || data.result !== "success") {
+      throw new Error(data.message || "Failed");
+    }
+
+    alert("Modules reloaded successfully.");
+  } catch (err) {
+    console.error(err);
+    alert("Failed to reload modules: " + err.message);
+  }
+}
+
 function loadShellHistory() {
     try {
         const raw = localStorage.getItem(SHELL_HISTORY_KEY);

@@ -4,7 +4,7 @@ PARAMS = [
     {"name":"file_handle", "description":"Handle of an open file", "type":"bytes"},
     {"name":"data_buffer", "description":"Address to memory with buffer", "type":"hex"},
     {"name":"buffer_len", "description":"Length to write", "type":"hex"},
-    {"name":"byte_offset", "description":"Offset to write the file into", "type":"hex"},
+    {"name":"byte_offset", "description":"Offset to write the file into", "type":"hex", "optional":True, "default":"0"},
 ]
 
 def NtWriteFile(agent_id, handle, offset, buffer_ptr, length):
@@ -40,7 +40,7 @@ def NtWriteFile(agent_id, handle, offset, buffer_ptr, length):
     print(printval)
     return data, shellcode
 
-def writeFile(agent_id, handle, offset, buffer, length):
+def writeFile(agent_id, handle, buffer, length, offset):
     from services.orders import write_scratchpad, send_and_wait, read_scratchpad
     data, shellcode = NtWriteFile(agent_id, handle, offset, buffer, length)
     write_scratchpad(agent_id, data)
@@ -51,5 +51,11 @@ def writeFile(agent_id, handle, offset, buffer, length):
     return response_data, io_status_block
 
 def function(agent_id, args):
-    retval, io_status_block = writeFile(agent_id, args[0], args[1], args[2], args[3])
+    print(f"NtWriteFile {hex(args[0])},{hex(args[1])}, {hex(args[2])}, {hex(args[3])}")
+    file_handle = args[0]
+    data_buffer = args[1]
+    buffer_len = args[2]
+    byte_offset = args[3]
+
+    retval, io_status_block = writeFile(agent_id, file_handle, data_buffer, buffer_len, byte_offset)
     return {"retval":retval, "io_status_block":io_status_block}

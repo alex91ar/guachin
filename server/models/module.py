@@ -8,6 +8,8 @@ from sqlalchemy import Integer, String, Text, JSON, select
 from sqlalchemy.orm import Mapped, mapped_column, Session
 
 from models.basemodel import Base
+from models.agent import Agent
+import traceback
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +29,9 @@ def try_cast_dynamic(value: Any, type_name: str):
         return None
 
     try:
+        print(f"Processing value {value} expected type {type_name} type {type(value)}")
+        if type(value) == int:
+            return value
         if type_name == "hex":
             return int(value, base=16)
         if type_name == "bytes":
@@ -80,60 +85,62 @@ class Module(Base):
                 logger.error("Missing dependency %s", dependency)
                 raise ValueError(f"Missing dependency {dependency}")
 
-            dep_namespace = dep_module.prepare_namespace()
-
-            temp_namespace = dict(dep_namespace)
-            exec(dep_module.code, temp_namespace)
-
-            func = temp_namespace.get("function")
-            if func is None:
-                logger.error("Dependency %s did not define 'function'", dependency)
-                raise ValueError(f"Dependency {dependency} did not define 'function'")
-
-            namespace |= dep_namespace
-            namespace[dependency] = func
+            namespace[dependency] = dep_module.exec
 
         return namespace
 
     def exec(self, agent_id, args: list[Any]) -> str:
-        print(f"About to execute {self.id}")
-        expected_params = self.params or []
+        try:
+            print(f"About to execute {self.id}")
+            expected_params = self.params or []
 
-        if len(args) != len(expected_params):
-            return self.get_module_help()
 
-        casted_args = []
-        for i in range(len(args)):
-            casted_arg = try_cast_dynamic(args[i], expected_params[i]["type"])
-            if casted_arg is None:
-                logger.error("Invalid argument %r. Param spec: %r", args[i], expected_params[i])
+            casted_args = []
+            for i in range(len(expected_params)):
+                if expected_params[i].get("optional", False):
+                    print(f"Setting optional argument {expected_params[i]}")
+                    arg = expected_params[i].get("default")
+                    casted_arg = try_cast_dynamic(arg, expected_params[i]["type"])
+                    casted_args.append(casted_arg)
+                else:
+                    if i < len(args):
+                        casted_arg = try_cast_dynamic(args[i], expected_params[i]["type"])
+                        casted_args.append(casted_arg)
+                    else:
+                        return self.get_module_help()
+            print(casted_args)
+            if len(casted_args) != len(expected_params):
                 return self.get_module_help()
-            casted_args.append(casted_arg)
 
-        namespace = self.prepare_namespace()
-        exec(self.code, namespace)
+            namespace = self.prepare_namespace()
+            exec(self.code, namespace)
 
-        func = namespace.get("function")
-        if func is None:
-            raise ValueError(f"Module {self.id} did not define 'function'")
+            func = namespace.get("function")
+            if func is None:
+                raise ValueError(f"Module {self.id} did not define 'function'")
 
-        retvals = func(agent_id, casted_args)
+            retvals = func(agent_id, casted_args)
+            agent_obj = Agent.by_id(agent_id)
+            if agent_obj.last_executed == self.id:
+                retmsg = ""
+                for i, (name, value) in enumerate(retvals.items()):
+                    retmsg += f"{name} = "
+                    if isinstance(value, int):
+                        retmsg += hex(value)
+                    elif isinstance(value, str):
+                        retmsg += value
+                    elif isinstance(value, bytes):
+                        retmsg += value.hex()
+                    else:
+                        retmsg += "Unrecognized type"
 
-        retmsg = ""
-        for i, (name, value) in enumerate(retvals.items()):
-            retmsg += f"{name} = "
-            if isinstance(value, int):
-                retmsg += hex(value)
-            elif isinstance(value, str):
-                retmsg += value
-            elif isinstance(value, bytes):
-                retmsg += value.hex()
+                    if i != len(retvals) - 1:
+                        retmsg += ", "
             else:
-                retmsg += "Unrecognized type"
-
-            if i != len(retvals) - 1:
-                retmsg += ", "
-
+                retmsg = retvals
+        except Exception as e:
+            tb = traceback.format_exc()
+            return tb
         return retmsg
 
     @classmethod

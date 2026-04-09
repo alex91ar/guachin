@@ -5,7 +5,7 @@ import struct
 import threading
 import time
 import traceback
-
+ATTEMPTS = 100
 from flask import Blueprint, current_app
 from sqlalchemy import select
 
@@ -50,13 +50,14 @@ def parse_handshake(msg: bytes, agent_id: str) -> None:
 
 
 def handle_msg_type(agent_id):
+    attempts = ATTEMPTS
     while True:
-        if agent_id in agent_responses.keys() and agent_responses[agent_id]:
+        attempts = attempts -1
+        if agent_id in agent_responses.keys() and agent_responses[agent_id] or attempts ==0:
             msg = agent_responses[agent_id]
             del agent_responses[agent_id]
             break
         time.sleep(0.1)
-        print("Waiting for agent response...")
 
     msg_type = msg[0]
     payload = msg[1:]
@@ -101,13 +102,13 @@ def server_agent_ws(ws, agent_id):
             while not stop_event.is_set():
                 try:
                     while True:
+                        time.sleep(0.1)
                         if agent_id in requests.keys() and requests[agent_id]:
                             msg = requests[agent_id]
-                            print(f"Sending message to agent: {msg}")
                             break
                         if stop_event.is_set():
-                            return
-                        time.sleep(0.1)
+                            print("Stop_event is set")
+                            break
                     ws.send(bytes(msg))
                     del requests[agent_id]
                     
@@ -141,7 +142,7 @@ def server_agent_ws(ws, agent_id):
 
         try:
             print(f"Setting {agent_id} as offline")
-            Agent.delete()
+            agent.delete()
         except Exception:
             logger.exception("Failed updating agent %s offline state", agent_id)
 

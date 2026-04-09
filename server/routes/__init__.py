@@ -186,13 +186,12 @@ def check_expired():
             "hint": "The access token provided has expired. Request a new access token by using your refresh token and the endpoint " + url_for("anon_api.login.refresh") + ".",
         }), 401
     this_session = UserSession.by_id(claims.get("id"))
-    if this_session is not None:
-        if not this_session.is_valid():
-            return jsonify({
-            "result": "error",
-            "message": "access_token_expired",
-            "hint": "The access token provided has expired. Request a new access token by using your refresh token and the endpoint " + url_for("anon_api.login.refresh") + ".",
-        }), 401
+    if this_session is None or not this_session.is_valid():
+        return jsonify({
+        "result": "error",
+        "message": "access_token_expired",
+        "hint": "The access token provided has expired. Request a new access token by using your refresh token and the endpoint " + url_for("anon_api.login.refresh") + ".",
+    }), 401
 
 
 @jwt_required()

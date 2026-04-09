@@ -2,12 +2,13 @@ NAME = "NtCreateProcessEx"
 DESCRIPTION = "Create a process object from a section handle using Native API"
 PARAMS = [
     {"name":"section_handle", "description":"Handle to the image section", "type":"hex"},
+    {"name":"flags", "description":"Flags", "type":"hex"},
 ]
 
-def NtCreateProcessEx(agent_id, section_handle, parent_handle=0xFFFFFFFFFFFFFFFF):
+def NtCreateProcessEx(agent_id, section_handle, flags):
     from models.agent import Agent
     from models.syscall import Syscall
-    from services.binary import build_ptr, build_object_attributes, push_syscall
+    from services.binary import build_ptr, push_syscall
     
     agent = Agent.by_id(agent_id)
     syscall = Syscall.sys(agent.id, "NtCreateProcessEx")
@@ -16,31 +17,29 @@ def NtCreateProcessEx(agent_id, section_handle, parent_handle=0xFFFFFFFFFFFFFFFF
     # 1. Prepare buffer for the new Process Handle
     process_handle_data, obj_attr_ptr = build_ptr(scratchpad, b"\x00"*8)
     
-    # 2. Object Attributes (NULL for default)
-    # We use build_ptr to represent a NULL pointer for ObjectAttributes if we don't need a name
-    obj_attr_data = b"" 
-    obj_attr_ptr = 0 # NULL
     
     params = [
         scratchpad,          # &ProcessHandle
         0x001F0FFF,          # DesiredAccess (PROCESS_ALL_ACCESS)
         0,        # ObjectAttributes (NULL)
-        0xFFFFFFFF,          # ParentProcess
-        0x00000001,          # Flags (PROCESS_CREATE_FLAGS_INHERIT_HANDLES)
+        0xFFFFFFFFFFFFFFFF,          # ParentProcess
+        flags,          # Flags (PROCESS_CREATE_FLAGS_INHERIT_HANDLES)
         section_handle,      # SectionHandle
         0,                   # DebugPort (NULL)
         0,                   # ExceptionPort (NULL)
         0                    # InJob (False)
     ]
-    print(f"[*] NtCreateProcessEx(ProcessHandle={hex(scratchpad)}, Access=0x1F0FFF, Inherit=1, Section={hex(section_handle)})")
+    print(f"[*] NtCreateProcessEx(ProcessHandle={hex(scratchpad)}, Access=0x1F0FFF, ObjectAttributes=0, flags={hex(flags)}, Section={hex(section_handle)}, debug_port=0, exceptionport=0, injob=0)")
     shellcode = push_syscall(syscall, params, agent.debug)
     # We only need to write the placeholder for the process handle
     return process_handle_data, shellcode
 
-def function(agent_id, section_handle):
+def function(agent_id, args):
     from services.orders import write_scratchpad, send_and_wait, read_scratchpad
-    
-    data, shellcode = NtCreateProcessEx(agent_id, section_handle)
+    section_handle = args[0]
+    flags = args[1]
+    print(f"Preparing NtCreateProcessEx {section_handle}")
+    data, shellcode = NtCreateProcessEx(agent_id, section_handle, flags)
     write_scratchpad(agent_id, data)
     
     # Execute NtCreateProcessEx

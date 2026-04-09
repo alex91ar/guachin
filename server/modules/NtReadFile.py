@@ -4,6 +4,7 @@ PARAMS = [
     {"name":"file_handle", "description":"Handle to the file or pipe", "type":"int"},
     {"name":"buffer_ptr", "description":"Memory address to write the data into", "type":"hex"},
     {"name":"buffer_length", "description":"Number of bytes to read", "type":"hex"},
+    {"name":"byte_offset", "description":"Offset to read from", "type":"hex", "optional":True, "default":"0"},
 ]
 
 def NtReadFile(agent_id, h_file, offset, buffer_ptr, length):
@@ -64,7 +65,7 @@ def NtReadFile(agent_id, h_file, offset, buffer_ptr, length):
     )
     return data, shellcode
 
-def readFile(agent_id, h_file, offset,  buffer_ptr, length):
+def readFile(agent_id, h_file, buffer_ptr, length, offset):
     from services.orders import write_scratchpad, send_and_wait, read_scratchpad
     
     # 1. Generate and write the syscall logic
@@ -83,6 +84,6 @@ def readFile(agent_id, h_file, offset,  buffer_ptr, length):
     return response_retval, bytes_read
 
 def function(agent_id, args):
-    # args: [file_handle, offset, buffer_ptr, buffer_length]
+    # args: [file_handle, buffer_ptr, buffer_length, byte_offset]
     retval, bytes_read = readFile(agent_id, args[0], args[1], args[2], args[3])
     return {"retval": retval, "BYTES_READ": bytes_read}

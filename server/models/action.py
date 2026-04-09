@@ -55,15 +55,16 @@ class Action(Base):
         self.id = gen_key(path, method)
 
     # ---- Serialization ----
-    def to_dict(self, *, include_roles: bool = True) -> dict:
+    def to_dict(self, include_roles: bool = False) -> dict:
         data = {
             "id": self.id,
-            "description": self.description,
-            "method": self.method,
             "path": self.path,
+            "method": self.method,
         }
-        if include_roles:
-            data["roles"] = [role.id for role in self.roles]
+
+        if include_roles and self.is_loaded("roles"):
+            data["roles"] = [r.id for r in self.roles]
+
         return data
 
     # ---- Queries ----

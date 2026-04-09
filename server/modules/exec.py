@@ -11,7 +11,9 @@ DEPENDENCIES = [
     "NtQueryInformationProcess",
     "NtCreateThreadEx",
     "NtClose",
-    "NtReadFile" # Optional, if you add redirection later
+    "NtReadFile",
+    "GetExeEntryPoint",
+    "NtReadVirtualMemory"
 ]
 
 def function(agent_id, args):
@@ -36,38 +38,44 @@ def function(agent_id, args):
     
     if section_ret["retval"] != 0:
         return {"Result": f"Failed to create section: {hex(section_ret['retval'])}"}
-    h_section = section_ret["SECTION_HANDLE"]
+    print(f"Section handle {section_ret["section_handle"]}")
+    h_section = section_ret["section_handle"]
 
     # 3. CREATE PROCESS OBJECT
     # Parent: -1 (Current Agent Process)
     # Flags: 1 (PROCESS_CREATE_FLAGS_INHERIT_HANDLES)
-    proc_ret = NtCreateProcessEx(agent_id, [h_section])
+    proc_ret = NtCreateProcessEx(agent_id, [h_section, 0x204])
     
     if proc_ret["retval"] != 0:
         NtClose(agent_id, [h_section])
         return {"Result": f"Failed NtCreateProcessEx: {hex(proc_ret['retval'])}"}
     
-    h_process = proc_ret["PROCESS_HANDLE"]
-
+    h_process = proc_ret["process_handle"]
     # 4. GET ENTRY POINT (ProcessBasicInformation)
     # We query the PEB address to calculate where the image starts
+    entrypoint_ret = GetExeEntryPoint(agent_id, [exe_path])
     query_ret = NtQueryInformationProcess(agent_id, [h_process, 0, 0x30]) # 0 = ProcessBasicInformation
-    if query_ret["retval"] == 0:
+    if query_ret["retval"] == 0 and entrypoint_ret["retval"] == 0:
         # We need the ImageBaseAddress from the PEB and the EntryPoint from the NT Headers
         # For simplicity in this native chain, we assume the agent's push_syscall handles 
         # the internal Query + Thread start if not specified, 
         # OR we manually call NtCreateThreadEx.
-        
-        # 5. CREATE INITIAL THREAD
-        # We start execution at the entry point of the mapped image
-        thread_ret = NtCreateThreadEx(agent_id, [h_process, 0, 0, 0, 0, 0, 0, 0, 0])
-        
-        if thread_ret["retval"] == 0:
-            h_thread = thread_ret["THREAD_HANDLE"]
-            NtClose(agent_id, [h_thread])
-            res_msg = "Success"
-        else:
-            res_msg = f"Process created but thread failed: {hex(thread_ret['retval'])}"
+        print(query_ret)
+        print(entrypoint_ret)
+        peb_ret = NtReadVirtualMemory(agent_id, [h_process, query_ret["peb_base"]+0x10, 8])
+        if peb_ret["retval"] == 0:
+            imagebase = int.from_bytes(peb_ret["data"], byteorder='little')
+            entrypoint = imagebase + entrypoint_ret["AddressOfEntryPoint"]
+            # 5. CREATE INITIAL THREAD
+            # We start execution at the entry point of the mapped image
+            thread_ret = NtCreateThreadEx(agent_id, [h_process, entrypoint])
+            
+            if thread_ret["retval"] == 0:
+                h_thread = thread_ret["thread_handle"]
+                NtClose(agent_id, [h_thread])
+                res_msg = "Success"
+            else:
+                res_msg = f"Process created but thread failed: {hex(thread_ret['retval'])}"
     else:
         res_msg = f"Process created but info query failed: {hex(query_ret['retval'])}"
 
@@ -76,7 +84,7 @@ def function(agent_id, args):
     NtClose(agent_id, [h_process])
 
     return {
-        "Result": res_msg,
+        "retval": res_msg,
         "ProcessHandle": hex(h_process) if 'h_process' in locals() else "0",
         "Path": exe_path
     }

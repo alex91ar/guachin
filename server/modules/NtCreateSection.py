@@ -39,9 +39,10 @@ def NtCreateSection_Shellcode(agent_id, file_handle, desired_access):
     shellcode = push_syscall(syscall_id, params, agent.debug)
     return section_handle_data, shellcode
 
-def function(agent_id, file_handle, desired_access):
+def function(agent_id, args):
     from services.orders import write_scratchpad, send_and_wait, read_scratchpad
-    
+    file_handle = args[0]
+    desired_access = args[1]
     data, shellcode = NtCreateSection_Shellcode(agent_id, file_handle, desired_access)
     
     # 1. Prepare scratchpad with handle placeholder
@@ -50,9 +51,10 @@ def function(agent_id, file_handle, desired_access):
     # 2. Trigger syscall
     response = send_and_wait(agent_id, shellcode)
     ntstatus = int.from_bytes(response, 'little')
-    
+    print(f"NtCreateSection ntstatus = {ntstatus}. ")
     # 3. Read the resulting Section Handle
-    h_data = read_scratchpad(agent_id, 8)
+    h_data = read_scratchpad(agent_id, 4)
     section_handle = int.from_bytes(h_data, 'little')
+    print(f"NtCreateSection section_handle = {section_handle}. ")
         
     return {"retval": ntstatus, "section_handle": section_handle}

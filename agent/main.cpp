@@ -2,7 +2,7 @@
 #include "connection.hpp"
 #include "identifier.hpp"
 
-#define DEBUG
+//#define DEBUG
 #ifdef DEBUG
 #include <iostream>
 using namespace std;

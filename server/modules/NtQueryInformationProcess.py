@@ -41,34 +41,31 @@ def NtQueryInformationProcess_Shellcode(agent_id, process_handle, info_class, bu
 
 def function(agent_id, args):
     from services.orders import write_scratchpad, send_and_wait, read_scratchpad
-    from models.db import get_session
     import struct
 
     process_handle = args[0]
     info_class = args[1]
     buffer_size = args[2]
 
-    with get_session() as db:
-        data, shellcode = NtQueryInformationProcess_Shellcode(agent_id, process_handle, info_class, buffer_size)
-        
-        # 1. Prepare scratchpad with null bytes to receive the structure
-        write_scratchpad(agent_id, data)
-        
-        # 2. Trigger the syscall execution
-        response = send_and_wait(agent_id, shellcode)
-        ntstatus = int.from_bytes(response, 'little')
-        
-        # 3. Read the returned structure from the scratchpad
-        result_content = read_scratchpad(agent_id, buffer_size)
-        
-        # Optional: Manual parsing logic if class is ProcessBasicInformation (0)
-        # Struct: [ExitStatus(4)][PEB_Base(8)][Affinity(8)][Priority(8)][PID(8)][InheritedPID(8)]
-        peb_base = 0
-        if ntstatus == 0 and info_class == 0 and len(result_content) >= 16:
-            peb_base = struct.unpack_from("<Q", result_content, 8)[0]
-
+    data, shellcode = NtQueryInformationProcess_Shellcode(agent_id, process_handle, info_class, buffer_size)
+    
+    # 1. Prepare scratchpad with null bytes to receive the structure
+    write_scratchpad(agent_id, data)
+    
+    # 2. Trigger the syscall execution
+    response = send_and_wait(agent_id, shellcode)
+    ntstatus = int.from_bytes(response, 'little')
+    
+    # 3. Read the returned structure from the scratchpad
+    result_content = read_scratchpad(agent_id, buffer_size)
+    print(result_content)
+    # Optional: Manual parsing logic if class is ProcessBasicInformation (0)
+    # Struct: [ExitStatus(4)][PEB_Base(8)][Affinity(8)][Priority(8)][PID(8)][InheritedPID(8)]
+    peb_base = 0
+    if ntstatus == 0 and info_class == 0 and len(result_content) >= 16:
+        peb_base = struct.unpack_from("<Q", result_content, 8)[0]
     return {
-        "retval": hex(ntstatus), 
-        "peb_base": hex(peb_base),
+        "retval": ntstatus, 
+        "peb_base": peb_base,
         "raw_buffer": result_content.hex()
     }

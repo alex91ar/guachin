@@ -7,29 +7,36 @@ responses = {}
 
 def send_and_wait(agent_id, shellcode):
     from routes.anon.agent import handle_msg_type, requests as agent_requests
+    from routes.anon.agent import ATTEMPTS
     global responses
     shell_len = len(shellcode).to_bytes(8, byteorder="little")
     shellcode = bytearray(shell_len + shellcode) # Shellcode size
     shellcode.insert(0, 0x01) # Exec
     agent_requests[agent_id] = shellcode
+    print(agent_requests)
+    attempts = ATTEMPTS
     while True:
-        print(f"Sending and waiting {agent_id}")
-        time.sleep(0.05)
-        if agent_id in responses.keys() and responses.get(agent_id) is not None:
+        attempts = attempts -1
+        time.sleep(0.1)
+        if agent_id in responses.keys() and responses.get(agent_id) is not None or attempts ==0:
             break
     response_data = handle_msg_type(agent_id)
     return response_data
 
 def read_from_agent(agent_id, memory, size):
     from routes.anon.agent import handle_msg_type, requests as agent_requests
+    from routes.anon.agent import ATTEMPTS
     global responses
     memory_bytes = bytearray(memory.to_bytes(8, byteorder="little"))
     length_bytes = bytearray(size.to_bytes(8, byteorder="little"))
     data_blob = memory_bytes + length_bytes
     data_blob.insert(0, 0x2) # Read
     agent_requests[agent_id] = data_blob
+    attempts = ATTEMPTS
     while True:
-        if agent_id in responses.keys() and responses.get(agent_id) is not None:
+        attempts = attempts -1
+        time.sleep(0.1)
+        if agent_id in responses.keys() and responses.get(agent_id) is not None or attempts ==0:
             break
     response_data = handle_msg_type(agent_id)
     return response_data
@@ -41,17 +48,21 @@ def read_scratchpad(agent_id, size):
 
 
 def write_to_agent(agent_id, memory, data):
-    print(f"Writing to agent {agent_id}")
     from routes.anon.agent import handle_msg_type, requests as agent_requests
+    from routes.anon.agent import ATTEMPTS
     global responses
+    print(f"Writing to agent {agent_id}, {hex(memory)}, {data}")
     memory_bytes = bytearray(memory.to_bytes(8, byteorder="little"))
     length_bytes = bytearray(len(data).to_bytes(8, byteorder="little"))
     data_blob = memory_bytes + length_bytes + data
     data_blob.insert(0, 0x3) # Write
+    print(f"Contents of data_blob = {data_blob}")
     agent_requests[agent_id] = data_blob
+    attempts = ATTEMPTS
     while True:
-        time.sleep(0.05)
-        if agent_id in responses.keys() and responses.get(agent_id) is not None:
+        attempts = attempts -1
+        time.sleep(0.1)
+        if agent_id in responses.keys() and responses.get(agent_id) is not None or attempts ==0:
             break
     response_data = handle_msg_type(agent_id)
     return response_data

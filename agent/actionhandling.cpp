@@ -2,8 +2,8 @@
 #include <stdint.h>
 #include <cstring>
 
-#define PROFILE
-#define DEBUG
+//#define PROFILE
+//#define DEBUG
 #ifdef PROFILE
 #include <iostream>
 using namespace std;
@@ -190,6 +190,10 @@ bool handleMessage(
         case 0x03:
             handleWriteMemory(input+1,inputSize);
             output[0] = 1;
+            outputSize++;
+            break;
+        case 0x04:
+            output[0] = 2;
             outputSize++;
             break;
 

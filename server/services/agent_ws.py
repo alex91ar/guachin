@@ -1,6 +1,7 @@
 import logging
 from models.response import Response
 from models.module import Module
+from models.agent import Agent
 logger = logging.getLogger(__name__)
 from models.db import get_session
 responses = {}
@@ -41,19 +42,24 @@ def _shell_ws_agent(ws, agent, identity):
 
         handler = COMMANDS.get(command)
         if handler is None:
-            print(f"Fetching command from db {command}")
+            print(f"Fetching command from db {command}, args = {args}")
             module = Module.by_id(command)
             if module is not None:
+                agent.last_executed = module.id
+                agent.save()
                 responses[agent.id] = module.exec(agent.id, args)
-            return f"Function {command} not found, use \"help\" to get all available functions."
+            else:
+                responses[agent.id] = Module.get_help()
+            agent_obj = Agent.by_id(agent.id)
+            if agent_obj is None:
+                return None
         else:
             return handler(*args)
     from utils import profile
     def poll_incoming_responses():
-
         while not stop_event.is_set():
             try:
-                time.sleep(0.1)
+                time.sleep(0.2)
                 if agent.id in responses.keys() and responses[agent.id] is not None:
                     ws.send(responses[agent.id])
                     del responses[agent.id]

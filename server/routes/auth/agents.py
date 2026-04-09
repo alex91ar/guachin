@@ -4,6 +4,7 @@ from flask_jwt_extended import get_jwt_identity
 from models.agent import Agent
 from routes.auth.sudo.system import sock, verify_tokens
 from services.agent_ws import _shell_ws_agent
+from models.schema import load_modules_from_directory
 
 import logging
 
@@ -41,6 +42,15 @@ def agent_ws(ws, agent_id):
 
     return _shell_ws_agent(ws, agent, identity)
 
+
+
+@bp.route("/reload_modules", methods=["GET"])
+def reload_modules():
+    load_modules_from_directory()
+
+    return jsonify({
+        "result": "success",
+    }), 200
 
 @bp.route("/", methods=["GET"])
 def list_agents():

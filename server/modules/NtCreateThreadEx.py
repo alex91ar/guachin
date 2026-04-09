@@ -52,7 +52,6 @@ def NtCreateThreadEx_Shellcode(agent_id, process_handle, start_address, argument
 
 def function(agent_id, args):
     from services.orders import write_scratchpad, send_and_wait, read_scratchpad
-    from models.db import get_session
     
     process_handle = args[0]
     start_address = args[1]
@@ -73,6 +72,6 @@ def function(agent_id, args):
     thread_handle = int.from_bytes(h_data, 'little')
         
     return {
-        "retval": hex(ntstatus), 
-        "thread_handle": hex(thread_handle)
+        "retval": ntstatus, 
+        "thread_handle": thread_handle
     }

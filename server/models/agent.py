@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import String, BigInteger, Boolean, DateTime, ForeignKey, select, delete
-from sqlalchemy.orm import Mapped, mapped_column, Session
+from sqlalchemy.orm import Mapped, mapped_column, Session, selectinload
 
 from models.basemodel import Base
 
@@ -23,11 +23,23 @@ class Agent(Base):
     )
     scratchpad: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
     debug: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    last_executed: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
     def __init__(self, id: str, user_id: Optional[str]):
         self.id = id
         self.last_seen = datetime.now(timezone.utc)
         self.user_id = user_id
+
+    @classmethod
+    def all(cls, session: Session | None = None):
+        return super().all(
+            session=session,
+            stmt=select(cls).where(cls.syscalls.any()),
+            options=[
+                selectinload(cls.syscalls),
+            ],
+        )
+
 
     def to_dict(self) -> dict:
         return {

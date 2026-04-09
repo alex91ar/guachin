@@ -117,4 +117,5 @@ def function(agent_id, args):
     attributes = args[4]
     
     retval, file_handle = openFile(agent_id, name, access, share, options, attributes)
+    print(f"NtOpenFile return values internally {retval} {type(retval)}, {file_handle} {type(file_handle)}")
     return {"retval": retval, "FILE_HANDLE": file_handle}
