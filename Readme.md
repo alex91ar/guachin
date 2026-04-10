@@ -71,9 +71,7 @@ This will:
 	•	Start Gunicorn
 	•	Start nginx (TLS)
 
-⸻
-
-🔌 Agent Connection
+### 2. 🔌 Agent Connection
 
 Agents connect via WebSocket:
 
@@ -88,9 +86,8 @@ Flow:
 	3.	Server sends requests
 	4.	Agent executes and returns responses
 
-⸻
 
-🧠 Module System
+### 3. 🧠 Module System
 
 Modules are stored in DB and executed dynamically.
 
@@ -104,9 +101,8 @@ Features
 	•	Type casting (int, hex, bytes, etc.)
 	•	Execution sandbox (namespace-based)
 
-⸻
 
-🔧 Syscall Execution
+### 4. 🔧 Syscall Execution
 
 Supports native Windows syscalls like:
 	•	NtOpenFile
@@ -121,9 +117,8 @@ Execution flow:
 	3.	Send to agent
 	4.	Read result back
 
-⸻
 
-🗄️ Database
+### 5. 🗄️ Database
 
 Uses SQLAlchemy + MySQL
 
@@ -135,16 +130,15 @@ Core models:
 	•	Syscall
 	•	Module
 
-⸻
 
-🔐 Authentication
-	•	JWT (access + refresh)
-	•	2FA (TOTP via QR)
-	•	Role-based permissions
+### 6. 🔐 Authentication
 
-⸻
+JWT (access + refresh)
+2FA (TOTP via QR)
+Role-based permissions
 
-🧪 Development Tips
+
+### 7. Development Tips
 
 Reset DB
 
@@ -159,32 +153,29 @@ Clean Python cache
 find . -type d -name "__pycache__" -exec rm -r {} +
 
 
-⸻
-
-⚠️ Notes
+### 8. Notes
 	•	Configs and modules are loaded at startup → restart required after changes
 	•	Lazy loading is disabled (lazy='raise_on_sql') → always preload relationships
 	•	Agent communication is stateful → handle sessions carefully
 
-⸻
 
-🔥 Future Improvements
+### 9. Future Improvements
 	•	Better module sandboxing
 	•	Async agent handling
 	•	UI improvements
 	•	Module hot-reload
 
-⸻
+### 10. Author
 
-🧑‍💻 Author
+Alejo Popovici (Alex). Senior Cybersecurity Engineer with extensive experience in web application penetration testing, red teaming, source code review, and cloud secu‑
+rity (AWS). Skilled in developing custom tooling across multiple languages, with a strong record of identifying logic flaws and privilege escalation
+paths.
 
-Built for low-level experimentation, syscall execution, and agent orchestration.
-
----
-
-Support
+### 11. Support
 
 btc: bc1qen4gg5rckqk963zrfllg6w6h6aup060g0umh9g
 eth/usdt: 0x0866080557dfBbc0c5557d2bB57fe4102038Bd81
 monero: 88tRwC8cFEVR7bkRbdmoB1FuVCuabMdGYBGy3BoXKuiuWWcwWW9aiupNa6zT5FCJtqFbGy4q3h4okJbsMn6g7grt4tcEb4t
 Ko-fi: [https://ko-fi.com/alex91ar](https://ko-fi.com/alex91ar)
+
+---
