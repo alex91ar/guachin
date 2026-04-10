@@ -9,6 +9,8 @@ from sqlalchemy.orm import Mapped, mapped_column, Session, selectinload
 
 from models.basemodel import Base
 
+
+
 class Agent(Base):
     __tablename__ = "agents"
 
@@ -39,7 +41,6 @@ class Agent(Base):
                 selectinload(cls.syscalls),
             ],
         )
-
 
     def to_dict(self) -> dict:
         return {

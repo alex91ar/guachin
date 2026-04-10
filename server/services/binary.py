@@ -15,7 +15,6 @@ def to_unicode(object_text):
 
 
 def build_ptr(base_address, data, align=16):
-    print(f"build_ptr(base_address={hex(base_address)}, data={data.hex()}, align={align})")
     data_size = align_up(len(data), align)
     blob = bytearray(data_size)
     blob[:len(data)] = data

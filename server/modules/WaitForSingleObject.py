@@ -51,7 +51,6 @@ def doWaitForSingleObject(agent_id, handle, timeout_ms):
     # 0x00000080 = WAIT_ABANDONED
     # 0x00000102 = WAIT_TIMEOUT
     # 0xFFFFFFFF = WAIT_FAILED
-    print(f"WaitResult: {ret_val}")
     return {"WaitResult": ret_val}
 
 

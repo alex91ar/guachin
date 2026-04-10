@@ -42,7 +42,6 @@ def _shell_ws_agent(ws, agent, identity):
 
         handler = COMMANDS.get(command)
         if handler is None:
-            print(f"Fetching command from db {command}, args = {args}")
             module = Module.by_id(command)
             if module is not None:
                 agent.last_executed = module.id

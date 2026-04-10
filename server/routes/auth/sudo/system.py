@@ -69,7 +69,6 @@ def verify_tokens(msg: str, path) -> Tuple[bool, Optional[str], Optional[str]]:
     method = request.method
     key = gen_key(path, method)
     if key not in (claims.get("perms") or []):
-        print(f"Permission not granted {path}, method = {method}, key = {gen_key(path,method)}")
         return False, "permission_not_granted", None
 
     identity = claims.get("sub")

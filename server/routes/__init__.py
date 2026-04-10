@@ -202,7 +202,6 @@ def enforce_rbac():
     action_keys = get_jwt().get("perms", [])
 
     if key not in action_keys:
-        print(f"Permission not granted path = {path}")
         return jsonify({
             "result": "error",
             "message": "permission_not_granted",

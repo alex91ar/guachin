@@ -54,8 +54,12 @@ def reload_modules():
 
 @bp.route("/", methods=["GET"])
 def list_agents():
+    from routes.anon.agent import alive_agents
     user_id = get_jwt_identity()
     agents = Agent.all_by_user(user_id)
+    for agent in agents:
+        if agent.id not in alive_agents:
+            agent.delete()
 
     return jsonify({
         "result": "success",

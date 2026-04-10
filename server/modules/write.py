@@ -14,38 +14,32 @@ def function(agent_id, args):
     data_buffer = args[1]
     buffer_size = align_up(len(data_buffer), 0x1000)
     byte_offset = args[2]
-    print(f"Value of data_buffer= {data_buffer}")
     ret = NtAllocateVirtualMemory(agent_id, [buffer_size, 0x04])
     buffer_ptr = ret["allocated_memory"]
     if ret["retval"] == 0:
-        print(write_to_agent(agent_id, buffer_ptr, data_buffer))
         ret = NtCreateFile(agent_id, [file_name, 0xC0100000])
         if ret["retval"] == 0:
             file_handle = ret["FILE_HANDLE"]
             ret = NtWriteFile(agent_id, [file_handle, buffer_ptr, len(data_buffer), byte_offset])
             if ret["retval"] == 0:
+                print(f"Len data_buffer = {len(data_buffer)}")
                 ret = set_eof(agent_id, [file_handle, len(data_buffer)])
                 if ["retval"] == 0:
                     ret = NtClose(agent_id, [file_handle])
                     if ret["retval"] == 0:
                         retfree = NtFreeVirtualMemory(agent_id, [buffer_ptr, buffer_size])
-                        print(f"NtFreeVirtualMemory = {hex(retfree["retval"])}")
                         return {"retval":0}
                     else:
                         retfree = NtFreeVirtualMemory(agent_id, [buffer_ptr, buffer_size])
-                        print(f"NtFreeVirtualMemory = {hex(retfree["retval"])}")
                         return {"retval":0}
                 else:
                     retfree = NtFreeVirtualMemory(agent_id, [buffer_ptr, buffer_size])
-                    print(f"NtFreeVirtualMemory = {hex(retfree["retval"])}")
                     return {"retval":0}
             else:
                 retfree = NtFreeVirtualMemory(agent_id, [buffer_ptr, buffer_size])
-                print(f"NtFreeVirtualMemory = {hex(retfree["retval"])}")
                 return {"retval":0}
         else:
             retfree = NtFreeVirtualMemory(agent_id, [buffer_ptr, buffer_size])
-            print(f"NtFreeVirtualMemory = {hex(retfree["retval"])}")
             return {"retval":0}
     else:
         return {"retval":0}

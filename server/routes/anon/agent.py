@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 bp = Blueprint("agent", __name__, url_prefix="/agent")
 requests = {}
 responses = {}
-
+alive_agents = set()
 
 def split_three(data: bytes | bytearray):
     first = data[:8]
@@ -63,13 +63,11 @@ def handle_msg_type(agent_id):
     payload = msg[1:]
 
     if msg_type == 0x00:
-        print(f"Received handshake")
         profile(parse_handshake, payload, agent_id)
         return None
     if msg_type == 0x01:
         return payload
 
-    print(f"Unknown message type {msg_type}")
     return None
 
 
@@ -100,6 +98,7 @@ def server_agent_ws(ws, agent_id):
 
         with app.app_context():
             while not stop_event.is_set():
+                alive_agents.add(agent_id)
                 try:
                     while True:
                         time.sleep(0.1)
@@ -107,7 +106,6 @@ def server_agent_ws(ws, agent_id):
                             msg = requests[agent_id]
                             break
                         if stop_event.is_set():
-                            print("Stop_event is set")
                             break
                     ws.send(bytes(msg))
                     del requests[agent_id]
@@ -122,9 +120,7 @@ def server_agent_ws(ws, agent_id):
     try:
         while not stop_event.is_set():
             try:
-                print("About to receive")
                 message = ws.receive()
-                print(f"Received message from agent")
             except Exception:
                 traceback.print_exc()
                 logger.info("WebSocket receive failed/closed for agent %s", agent_id)
@@ -143,6 +139,7 @@ def server_agent_ws(ws, agent_id):
         try:
             print(f"Setting {agent_id} as offline")
             agent.delete()
+            alive_agents.discard(agent_id)
         except Exception:
             logger.exception("Failed updating agent %s offline state", agent_id)
 

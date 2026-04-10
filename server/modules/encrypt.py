@@ -56,7 +56,7 @@ def function(agent_id, args):
         return {"retval":"Error opening file"}
     if is_encrypted(data["data"], header):
         return {"retval":"File already encrypted"}
-    encrypted = encrypt_bytearray(data, header)
+    encrypted = encrypt_bytearray(data["data"], header)
     print(f"About to write {encrypted}")
     write_ret = write(agent_id, [file, encrypted])
     if write_ret["retval"] != 0:

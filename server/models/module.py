@@ -35,12 +35,17 @@ def try_cast_dynamic(value: Any, type_name: str):
         if type_name == "hex":
             return int(value, base=16)
         if type_name == "bytes":
-            return value.encode()
+            print("Is bytes")
+            if type(value) == bytes:
+                return value
+            else:
+                return value.encode()
         return target_type(value)
     except (ValueError, TypeError) as e:
         logger.error(
-            "Exception with value=%r, type_name=%r, exception=%s",
+            "Exception with value=%r, type=%r, type_name=%r, exception=%s",
             value,
+            type(value),
             type_name,
             e,
         )
@@ -91,24 +96,30 @@ class Module(Base):
 
     def exec(self, agent_id, args: list[Any]) -> str:
         try:
-            print(f"About to execute {self.id}")
             expected_params = self.params or []
 
 
             casted_args = []
-            for i in range(len(expected_params)):
-                if expected_params[i].get("optional", False):
-                    print(f"Setting optional argument {expected_params[i]}")
-                    arg = expected_params[i].get("default")
-                    casted_arg = try_cast_dynamic(arg, expected_params[i]["type"])
-                    casted_args.append(casted_arg)
-                else:
-                    if i < len(args):
-                        casted_arg = try_cast_dynamic(args[i], expected_params[i]["type"])
+            print(expected_params)
+            print(args)
+            for i in range(len(expected_params)-1):
+                print(expected_params[i])
+                print(len(expected_params))
+                print(f"i = {i}")
+                print(f"Length of args {len(args)}")
+                if i >= len(expected_params):
+                    if expected_params[i].get("optional", False):
+                        print(f"Setting optional parameter {expected_params[i]}")
+                        arg = expected_params[i].get("default")
+                        casted_arg = try_cast_dynamic(arg, expected_params[i]["type"])
                         casted_args.append(casted_arg)
                     else:
                         return self.get_module_help()
-            print(casted_args)
+                else:
+                    casted_arg = try_cast_dynamic(args[i], expected_params[i]["type"])
+                    casted_args.append(casted_arg)
+                    
+                    
             if len(casted_args) != len(expected_params):
                 return self.get_module_help()
 
@@ -118,7 +129,6 @@ class Module(Base):
             func = namespace.get("function")
             if func is None:
                 raise ValueError(f"Module {self.id} did not define 'function'")
-
             retvals = func(agent_id, casted_args)
             agent_obj = Agent.by_id(agent_id)
             if agent_obj.last_executed == self.id:

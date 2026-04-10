@@ -64,7 +64,6 @@ def ua_string(ua_raw: str) -> str:
     return f"{browser} on {os_name} ({device})"
 
 
-GEO_READER = geoip2.database.Reader("./GeoLite2-City.mmdb")
 
 
 def lan_or_class_label(ip: str) -> str | None:
@@ -96,24 +95,14 @@ def lan_or_class_label(ip: str) -> str | None:
     return None
 
 
-def geo_string(ip: str) -> str:
-    try:
-        r = GEO_READER.city(ip)
-        city = r.city.name
-        region = r.subdivisions.most_specific.name
-        country = r.country.name or r.country.iso_code
 
-        parts = [p for p in (city, region, country) if p]
-        return ", ".join(parts) if parts else "Unknown"
-    except Exception:
-        return "Unknown"
 
 
 def ip_label(ip: str) -> str:
     label = lan_or_class_label(ip)
     if label is not None:
         return label
-    return geo_string(ip)
+    return "Public"
 
 
 class UserSession(Base):
