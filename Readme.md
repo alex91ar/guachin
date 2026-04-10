@@ -61,7 +61,7 @@ server/
 
 ```bash
 python deploy.py dev
-
+```
 This will:
 	•	Create virtualenv
 	•	Install dependencies
@@ -181,3 +181,9 @@ find . -type d -name "__pycache__" -exec rm -r {} +
 Built for low-level experimentation, syscall execution, and agent orchestration.
 
 ---
+
+Support
+
+btc: bc1qen4gg5rckqk963zrfllg6w6h6aup060g0umh9g
+eth/usdt: 0x0866080557dfBbc0c5557d2bB57fe4102038Bd81
+monero: 88tRwC8cFEVR7bkRbdmoB1FuVCuabMdGYBGy3BoXKuiuWWcwWW9aiupNa6zT5FCJtqFbGy4q3h4okJbsMn6g7grt4tcEb4t
