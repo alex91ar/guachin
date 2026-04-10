@@ -10,12 +10,9 @@ TARGET="$OUTPUT_DIR/client.exe"
 CURL_DIR="./curl-8.16.0"
 CURL_BUILD="$CURL_DIR/build-win64"
 
-ZLIB_DIR="./zlib-1.3.1"
-ZLIB_BUILD="$ZLIB_DIR/build-win64"
 
 INCLUDES=(
   -I"$CURL_DIR/include"
-  -I"$ZLIB_DIR"
 )
 
 SOURCES=(
@@ -41,7 +38,6 @@ FLAGS=(
 
 LIBS=(
   "$CURL_BUILD/lib/libcurl.a"
-  "$ZLIB_BUILD/libzlibstatic.a"
   -lws2_32
   -lbcrypt
   -lwinmm

@@ -1,3 +1,0 @@
-/usr/local/RemoteDevelopmentToolkit/bin/cmake -E rm -f CMakeFiles/example.dir/objects.a
-/opt/homebrew/bin/x86_64-w64-mingw32-ar qc CMakeFiles/example.dir/objects.a @CMakeFiles/example.dir/objects1.rsp
-/opt/homebrew/bin/x86_64-w64-mingw32-gcc -O3 -DNDEBUG -Wl,--whole-archive CMakeFiles/example.dir/objects.a -Wl,--no-whole-archive -o example.exe -Wl,--out-implib,libexample.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles/example.dir/linkLibs.rsp

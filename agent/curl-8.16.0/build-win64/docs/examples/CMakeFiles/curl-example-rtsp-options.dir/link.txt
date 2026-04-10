@@ -1,3 +1,0 @@
-/usr/local/RemoteDevelopmentToolkit/bin/cmake -E rm -f CMakeFiles/curl-example-rtsp-options.dir/objects.a
-/opt/homebrew/bin/x86_64-w64-mingw32-ar qc CMakeFiles/curl-example-rtsp-options.dir/objects.a @CMakeFiles/curl-example-rtsp-options.dir/objects1.rsp
-/opt/homebrew/bin/x86_64-w64-mingw32-gcc -O3 -DNDEBUG -Wl,--whole-archive CMakeFiles/curl-example-rtsp-options.dir/objects.a -Wl,--no-whole-archive -o rtsp-options.exe -Wl,--out-implib,librtsp-options.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles/curl-example-rtsp-options.dir/linkLibs.rsp

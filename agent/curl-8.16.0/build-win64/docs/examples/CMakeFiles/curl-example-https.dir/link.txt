@@ -1,3 +1,0 @@
-/usr/local/RemoteDevelopmentToolkit/bin/cmake -E rm -f CMakeFiles/curl-example-https.dir/objects.a
-/opt/homebrew/bin/x86_64-w64-mingw32-ar qc CMakeFiles/curl-example-https.dir/objects.a @CMakeFiles/curl-example-https.dir/objects1.rsp
-/opt/homebrew/bin/x86_64-w64-mingw32-gcc -O3 -DNDEBUG -Wl,--whole-archive CMakeFiles/curl-example-https.dir/objects.a -Wl,--no-whole-archive -o https.exe -Wl,--out-implib,libhttps.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles/curl-example-https.dir/linkLibs.rsp

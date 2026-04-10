@@ -1,3 +1,0 @@
-/usr/local/RemoteDevelopmentToolkit/bin/cmake -E rm -f CMakeFiles/curl-example-getinmemory.dir/objects.a
-/opt/homebrew/bin/x86_64-w64-mingw32-ar qc CMakeFiles/curl-example-getinmemory.dir/objects.a @CMakeFiles/curl-example-getinmemory.dir/objects1.rsp
-/opt/homebrew/bin/x86_64-w64-mingw32-gcc -O3 -DNDEBUG -Wl,--whole-archive CMakeFiles/curl-example-getinmemory.dir/objects.a -Wl,--no-whole-archive -o getinmemory.exe -Wl,--out-implib,libgetinmemory.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles/curl-example-getinmemory.dir/linkLibs.rsp

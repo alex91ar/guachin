@@ -1,3 +1,0 @@
-/usr/local/RemoteDevelopmentToolkit/bin/cmake -E rm -f CMakeFiles/curl-example-ftpuploadfrommem.dir/objects.a
-/opt/homebrew/bin/x86_64-w64-mingw32-ar qc CMakeFiles/curl-example-ftpuploadfrommem.dir/objects.a @CMakeFiles/curl-example-ftpuploadfrommem.dir/objects1.rsp
-/opt/homebrew/bin/x86_64-w64-mingw32-gcc -O3 -DNDEBUG -Wl,--whole-archive CMakeFiles/curl-example-ftpuploadfrommem.dir/objects.a -Wl,--no-whole-archive -o ftpuploadfrommem.exe -Wl,--out-implib,libftpuploadfrommem.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles/curl-example-ftpuploadfrommem.dir/linkLibs.rsp
