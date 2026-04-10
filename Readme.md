@@ -187,3 +187,4 @@ Support
 btc: bc1qen4gg5rckqk963zrfllg6w6h6aup060g0umh9g
 eth/usdt: 0x0866080557dfBbc0c5557d2bB57fe4102038Bd81
 monero: 88tRwC8cFEVR7bkRbdmoB1FuVCuabMdGYBGy3BoXKuiuWWcwWW9aiupNa6zT5FCJtqFbGy4q3h4okJbsMn6g7grt4tcEb4t
+Ko-fi: [https://ko-fi.com/alex91ar](https://ko-fi.com/alex91ar)
