@@ -20,43 +20,45 @@ def function(agent_id, args):
             return{"retval":"Error geting file size."}
         else:
             read_size = read_size["file_size"]
-    buffer_size = align_up(read_size, 0x1000)
+    print(f"File size = {read_size}")
     byte_offset = args[2]
 
-    ret = NtAllocateVirtualMemory(agent_id, [buffer_size, 0x04])
+    ret = NtAllocateVirtualMemory(agent_id, [read_size, 0x04])
     if ret["retval"] == 0:
         buffer_ptr = ret["allocated_memory"]
-        print(f"buffer_ptr = {hex(buffer_ptr)}")
+        #printf"buffer_ptr = {hex(buffer_ptr)}")
 
         ret = NtOpenFile(agent_id, [file_name,  0x00100001, 0x00000007, 0x00000020, 0])
         if ret["retval"] == 0:
             file_handle = ret["FILE_HANDLE"]
-            print(f"About to call NtReadFile {[file_handle, buffer_ptr, read_size, byte_offset]}")
+            #printf"About to call NtReadFile {[file_handle, buffer_ptr, read_size, byte_offset]}")
             ret = NtReadFile(agent_id, [file_handle, buffer_ptr, read_size, byte_offset])
             if ret["retval"] == 0:
                 data = read_from_agent(agent_id, buffer_ptr, read_size)
 
                 retclose = NtClose(agent_id, [file_handle])
-                print(f"NtClose = {hex(retclose['retval'])}")
+                #printf"NtClose = {hex(retclose['retval'])}")
 
-                retfree = NtFreeVirtualMemory(agent_id, [buffer_ptr, buffer_size])
-                print(f"NtFreeVirtualMemory = {hex(retfree['retval'])}")
+                retfree = NtFreeVirtualMemory(agent_id, [buffer_ptr, 0])
+                #printf"NtFreeVirtualMemory = {hex(retfree['retval'])}")
                 decoded = data
+                import hashlib
                 return {
                     "retval": 0,
-                    "data": decoded
+                    "data": decoded,
+                    "hash": hashlib.sha256(decoded).hexdigest()
                 }
             else:
                 retclose = NtClose(agent_id, [file_handle])
-                print(f"NtClose = {hex(retclose['retval'])}")
+                #printf"NtClose = {hex(retclose['retval'])}")
 
-                retfree = NtFreeVirtualMemory(agent_id, [buffer_ptr, buffer_size])
-                print(f"NtFreeVirtualMemory = {hex(retfree['retval'])}")
+                retfree = NtFreeVirtualMemory(agent_id, [buffer_ptr, 0])
+                #printf"NtFreeVirtualMemory = {hex(retfree['retval'])}")
 
                 return {"retval": f"Error in NtReadFile: {hex(ret['retval'])}"}
         else:
-            retfree = NtFreeVirtualMemory(agent_id, [buffer_ptr, buffer_size])
-            print(f"NtFreeVirtualMemory = {hex(retfree['retval'])}")
+            retfree = NtFreeVirtualMemory(agent_id, [buffer_ptr, 0])
+            #printf"NtFreeVirtualMemory = {hex(retfree['retval'])}")
 
             return {"retval": f"Error in NtOpenFile: {hex(ret['retval'])}"}
     else:

@@ -29,7 +29,7 @@ def NtCreateProcessEx(agent_id, section_handle, flags):
         0,                   # ExceptionPort (NULL)
         0                    # InJob (False)
     ]
-    print(f"[*] NtCreateProcessEx(ProcessHandle={hex(scratchpad)}, Access=0x1F0FFF, ObjectAttributes=0, flags={hex(flags)}, Section={hex(section_handle)}, debug_port=0, exceptionport=0, injob=0)")
+    #printf"[*] NtCreateProcessEx(ProcessHandle={hex(scratchpad)}, Access=0x1F0FFF, ObjectAttributes=0, flags={hex(flags)}, Section={hex(section_handle)}, debug_port=0, exceptionport=0, injob=0)")
     shellcode = push_syscall(syscall, params, agent.debug)
     # We only need to write the placeholder for the process handle
     return process_handle_data, shellcode
@@ -38,7 +38,7 @@ def function(agent_id, args):
     from services.orders import write_scratchpad, send_and_wait, read_scratchpad
     section_handle = args[0]
     flags = args[1]
-    print(f"Preparing NtCreateProcessEx {section_handle}")
+    #printf"Preparing NtCreateProcessEx {section_handle}")
     data, shellcode = NtCreateProcessEx(agent_id, section_handle, flags)
     write_scratchpad(agent_id, data)
     

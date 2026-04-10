@@ -11,12 +11,12 @@ DEPENDENCIES = ["read", "write"]
 def generate_encrypted_header():
     from flask import current_app
     from hashlib import pbkdf2_hmac
-    print(current_app.config["SECRET_KEY"])
+    #printcurrent_app.config["SECRET_KEY"])
     secret = current_app.config["SECRET_KEY"].encode()
     salt = current_app.config["SECRET_KEY"][:16].encode()
     iterations = 200
     header = pbkdf2_hmac("sha256", secret, salt, iterations, dklen=32)[:8]
-    print(f"Header = {header}")
+    #printf"Header = {header}")
     return header
 
 def is_encrypted(data, header):
@@ -37,28 +37,24 @@ def encrypt_bytearray(data: bytearray, header) -> bytes:
     ciphertext = aesgcm.encrypt(nonce, bytes(data), None)
     return header + salt + nonce + ciphertext
 
-def generate_server_key():
-    from hashlib import pbkdf2_hmac
-    from flask import current_app
-    password = current_app
-    salt = current_app.config["SECRET_KEY"][:16]
-    iterations = 2000
-    return pbkdf2_hmac("sha256", password.encode("utf-8"), salt, iterations, dklen=32)
-
 
 def function(agent_id, args):
+    #printf"[*][*][*][*][*][*][*][*][*][*][*][*]Encrypt received args {args}")
     header = generate_encrypted_header()
     file = args[0]
-    print(f"Generated encrypted header: {header}")
+    #printf"Generated encrypted header: {header}")
     data = read(agent_id, [file])
-    print(f"Received data {data}")
+    print(f"read = {data}")
     if(data["retval"] != 0):
         return {"retval":"Error opening file"}
     if is_encrypted(data["data"], header):
         return {"retval":"File already encrypted"}
     encrypted = encrypt_bytearray(data["data"], header)
-    print(f"About to write {encrypted}")
+    #printf"About to write {encrypted} length={len(encrypted)}")
     write_ret = write(agent_id, [file, encrypted])
+    print(f"write = {write_ret}")
+    import hashlib
+    print(f"About to write {len(encrypted)} {hashlib.sha256(encrypted).hexdigest()} {encrypted}")
     if write_ret["retval"] != 0:
         return {"retval":"Error writing"}
-    return {"retval":0} 
+    return {"retval":0, "hash":hashlib.sha256(encrypted).hexdigest()} 

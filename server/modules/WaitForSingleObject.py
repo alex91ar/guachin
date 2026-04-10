@@ -25,14 +25,14 @@ def WaitForSingleObject(agent_id, handle, timeout_ms):
     ]
 
     shellcode = push_rtl(func_addr, params, agent.debug)
-
-    print(
+    '''
+    #print
         f"WaitForSingleObject("
         f"Handle={hex(handle)}, "
         f"Timeout={hex(timeout_ms)} ({timeout_ms}), "
         f"Func={hex(func_addr)})"
     )
-
+    '''
     return b"", shellcode
 
 

@@ -43,7 +43,8 @@ def CreateNamedPipeA(agent_id, pipename):
 
     data = pipename_data
 
-    print(
+    '''
+    print
     f"CreateNamedPipeA("
     f"lpName='{hex(scratchpad)}', "
     f"dwOpenMode={hex(open_mode)}, "
@@ -55,6 +56,7 @@ def CreateNamedPipeA(agent_id, pipename):
     f"lpSecurityAttributes={hex(lpSecurityAttributes) if lpSecurityAttributes else 0}"
     f")"
     )
+    '''
     return data, shellcode
 
 
@@ -69,12 +71,12 @@ def createNamedPipe(agent_id, pipename):
     write_scratchpad(agent_id, data)
 
     ret_val = int.from_bytes(send_and_wait(agent_id, shellcode), 'little')
-    print(f"Response from CreateNamedPipe = {hex(ret_val)}")
+    #printf"Response from CreateNamedPipe = {hex(ret_val)}")
     return {"retval": ret_val}
 
 
 def function(agent_id, args):
-    print(f"Calling CreateNamedPipeA {args}")
+    #printf"Calling CreateNamedPipeA {args}")
     pipename = args[0]
     result = createNamedPipe(
         agent_id,

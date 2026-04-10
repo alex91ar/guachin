@@ -14,19 +14,19 @@ def NtClose(agent_id, handle):
         handle
              ]
     shellcode = push_syscall(syscall, params, agent.debug)
-
-    print(
+    '''
+    #print
         f"NtClose("
         f"Handle={hex(handle)}) "
     )
-
+    '''
     return None, shellcode
 
 def closeHandle(agent_id, handle):
     from services.orders import send_and_wait
     data, shellcode = NtClose(agent_id, handle)
     response_data = int.from_bytes(send_and_wait(agent_id, shellcode), byteorder='little')
-    print(f"Response from NtClose = {hex(response_data)}")
+    #printf"Response from NtClose = {hex(response_data)}")
     return response_data
 
 def function(agent_id, args):

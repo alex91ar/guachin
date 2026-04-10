@@ -37,7 +37,7 @@ def CreateFileA(agent_id, filename, desired_access):
 
     data = filename_data
 
-    print(f"CreateFileA(File='{filename}', Access={hex(desired_access)}, pFile={hex(scratchpad)})")
+    #printf"CreateFileA(File='{filename}', Access={hex(desired_access)}, pFile={hex(scratchpad)})")
     return data, shellcode
 
 

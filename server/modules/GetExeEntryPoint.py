@@ -17,7 +17,7 @@ def function(agent_id, args):
         data = retval["data"]
         if data[:2] != b'MZ':
             return {"retval": 0}
-        print("1e09u309jf")
+        #print"1e09u309jf")
         # 3. GET OFFSET TO NT HEADERS (e_lfanew is at 0x3C)
         e_lfanew = struct.unpack_from("<I", data, 0x3C)[0]
 

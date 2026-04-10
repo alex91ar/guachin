@@ -8,16 +8,16 @@ def function(agent_id, args):
     pipename = "\\??\\pipe\\MyNativePipe"
     ret = CreateNamedPipe(agent_id, [pipename])
     if ret["retval"] == 0xFFFFFFFFFFFFFFFF:
-        print(f"Error creating named pipe {pipename}")
+        #printf"Error creating named pipe {pipename}")
         return {"retval": False}
     read_pipe_h = ret["retval"]
     ret = NtOpenFile(agent_id, [pipename, 0xC0100000])
     if ret["retval"] != 0:
-        print(f"Error opening write handle to pipe {pipename}")
+        #printf"Error opening write handle to pipe {pipename}")
         NtClose(read_pipe_h)
         return {"retval": False}
     write_pipe_h = ret["FILE_HANDLE"]
-    print(f"createpipesforexeckernel read_pipe_h = {hex(read_pipe_h)}, write_pipe_h = {hex(write_pipe_h)}")
+    #printf"createpipesforexeckernel read_pipe_h = {hex(read_pipe_h)}, write_pipe_h = {hex(write_pipe_h)}")
     return {
         "retval": True,
         "READ_HANDLE": read_pipe_h,

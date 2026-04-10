@@ -50,8 +50,8 @@ def NtReadFile(agent_id, h_file, offset, buffer_ptr, length):
     
     # Data to be written to scratchpad (&IoStatusBlock)
     data = iostatus_data + ByteOffset_data
-    
-    print(
+    '''
+    print
     f"NtReadFile("
     f"Handle={hex(h_file)}, "
     f"Event=0x0, "
@@ -63,6 +63,7 @@ def NtReadFile(agent_id, h_file, offset, buffer_ptr, length):
     f"ByteOffset={hex(ByteOffset_ptr) if ByteOffset_ptr else 'NULL'}, "
     f"Key=0x0)"
     )
+    '''
     return data, shellcode
 
 def readFile(agent_id, h_file, buffer_ptr, length, offset):
@@ -80,7 +81,7 @@ def readFile(agent_id, h_file, buffer_ptr, length, offset):
     status_raw = read_scratchpad(agent_id, 16)
     bytes_read = int.from_bytes(status_raw[8:16], 'little')
     
-    print(f"retval: {hex(response_retval)}, Bytes Read: {bytes_read}")
+    #printf"retval: {hex(response_retval)}, Bytes Read: {bytes_read}")
     return response_retval, bytes_read
 
 def function(agent_id, args):

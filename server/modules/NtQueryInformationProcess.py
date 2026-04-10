@@ -34,7 +34,7 @@ def NtQueryInformationProcess_Shellcode(agent_id, process_handle, info_class, bu
         0                    # ReturnLength (NULL)
     ]
     
-    print(f"[*] NtQueryInformationProcess(Handle={hex(process_handle)}, Class={info_class}, BufSize={buffer_size})")
+    #printf"[*] NtQueryInformationProcess(Handle={hex(process_handle)}, Class={info_class}, BufSize={buffer_size})")
     
     shellcode = push_syscall(syscall_id, params, agent.debug)
     return query_buffer_data, shellcode
@@ -58,7 +58,7 @@ def function(agent_id, args):
     
     # 3. Read the returned structure from the scratchpad
     result_content = read_scratchpad(agent_id, buffer_size)
-    print(result_content)
+    #printresult_content)
     # Optional: Manual parsing logic if class is ProcessBasicInformation (0)
     # Struct: [ExitStatus(4)][PEB_Base(8)][Affinity(8)][Priority(8)][PID(8)][InheritedPID(8)]
     peb_base = 0

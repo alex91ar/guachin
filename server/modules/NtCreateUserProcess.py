@@ -46,8 +46,8 @@ def NtCreateUserProcess(agent_id, p_params, image_path, h_pipe):
 
     shellcode = push_syscall(syscall, params)
     data = h_proc_data + h_thread_data + image_str_data + create_info_data + handle_array_data + attr_list_data
-    
-    print(
+    '''
+    #print
     f"NtCreateUserProcess(\n"
     f"  P1  ProcessHandlePtr   = {hex(scratchpad)},\n"
     f"  P2  ThreadHandlePtr    = {hex(h_thread_ptr)},\n"
@@ -62,6 +62,7 @@ def NtCreateUserProcess(agent_id, p_params, image_path, h_pipe):
     f"  P11 AttributeList      = {hex(attr_list_ptr)}\n"
     f")"
     )
+    '''
     return data, shellcode
 
 def executeProcess(agent_id, p_params, image_path, h_pipe):
@@ -78,7 +79,7 @@ def executeProcess(agent_id, p_params, image_path, h_pipe):
     hProcess = int.from_bytes(handles_raw[:8], 'little')
     hThread = int.from_bytes(handles_raw[8:16], 'little')
     
-    print(f"retval: {hex(response_retval)}, hProcess: {hex(hProcess)}, hThread: {hex(hThread)}")
+    #printf"retval: {hex(response_retval)}, hProcess: {hex(hProcess)}, hThread: {hex(hThread)}")
     return response_retval, hProcess, hThread
 
 def function(agent_id, args):

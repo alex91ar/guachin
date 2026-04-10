@@ -15,7 +15,7 @@ def RtlInitUnicodeString(agent_id, buffer_add, string_ptr):
               string_ptr,
              ]
     shellcode = push_rtl(call_add, params, agent.debug)
-    print(f"RtlInitUnicodeString(DestinationString={hex(buffer_add)}, SourceString={hex(string_ptr)})")
+    #printf"RtlInitUnicodeString(DestinationString={hex(buffer_add)}, SourceString={hex(string_ptr)})")
     return None, shellcode
 
 
@@ -26,7 +26,7 @@ def InitUS(agent_id, buffer_add, string):
     write_to_agent(agent_id, buffer_add+16, unicode_str)
     data, shellcode = RtlInitUnicodeString(agent_id, buffer_add, buffer_add+16)
     response_data = int.from_bytes(send_and_wait(agent_id, shellcode), byteorder='little')
-    print(f"Response from RtlInitUnicodeString = {hex(response_data)}")
+    #printf"Response from RtlInitUnicodeString = {hex(response_data)}")
     return response_data
 
 def function(agent_id, args):

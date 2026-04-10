@@ -34,7 +34,7 @@ def NtReadVirtualMemory_Shellcode(agent_id, process_handle, base_address, buffer
         0                    # NumberOfBytesRead (NULL for simplicity)
     ]
     
-    print(f"[*] NtReadVirtualMemory(Process={hex(process_handle)}, RemoteAddr={hex(base_address)}, LocalBuf={hex(scratchpad)}, Size={buffer_size})")
+    #printf"[*] NtReadVirtualMemory(Process={hex(process_handle)}, RemoteAddr={hex(base_address)}, LocalBuf={hex(scratchpad)}, Size={buffer_size})")
     
     shellcode = push_syscall(syscall, params, agent.debug)
     return read_buffer_data, shellcode
@@ -55,7 +55,7 @@ def readVirtualMemory(agent_id, process_handle, base_address, buffer_size):
     # 4. Read the populated buffer back from the scratchpad
     read_content = read_scratchpad(agent_id, buffer_size)
     
-    print(f"Response from NtReadVirtualMemory = {hex(ntstatus)}, bytes_read = {len(read_content)}")
+    #printf"Response from NtReadVirtualMemory = {hex(ntstatus)}, bytes_read = {len(read_content)}")
     return ntstatus, read_content
 
 def function(agent_id, args):

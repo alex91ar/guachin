@@ -29,7 +29,9 @@ def try_cast_dynamic(value: Any, type_name: str):
         return None
 
     try:
-        print(f"Processing value {value} expected type {type_name} type {type(value)}")
+        #print(f"Processing value {value} expected type {type_name} type {type(value)}")
+        if value == "null":
+            return "null"
         if type(value) == int:
             return value
         if type_name == "hex":
@@ -83,7 +85,7 @@ class Module(Base):
         namespace: dict[str, Any] = {}
 
         for dependency in self.dependencies or []:
-            logger.info("Loading dependency %s into %s", dependency, self.id)
+            #logger.info("Loading dependency %s into %s", dependency, self.id)
 
             dep_module = Module.by_id(dependency)
             if dep_module is None:
@@ -96,20 +98,21 @@ class Module(Base):
 
     def exec(self, agent_id, args: list[Any]) -> str:
         try:
+            print(f"About to execute {self.id}")
             expected_params = self.params or []
 
 
             casted_args = []
-            print(expected_params)
-            print(args)
-            for i in range(len(expected_params)-1):
-                print(expected_params[i])
-                print(len(expected_params))
-                print(f"i = {i}")
-                print(f"Length of args {len(args)}")
-                if i >= len(expected_params):
+            #print(expected_params)
+            #print(args)
+            for i in range(len(expected_params)):
+                #print(expected_params[i])
+                #print(len(expected_params))
+                #print(f"i = {i}")
+                #print(f"Length of args {len(args)}")
+                if i >= len(args):
                     if expected_params[i].get("optional", False):
-                        print(f"Setting optional parameter {expected_params[i]}")
+                        #print(f"Setting optional parameter {expected_params[i]}")
                         arg = expected_params[i].get("default")
                         casted_arg = try_cast_dynamic(arg, expected_params[i]["type"])
                         casted_args.append(casted_arg)

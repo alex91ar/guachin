@@ -51,23 +51,23 @@ def function(agent_id, args):
 
     # 1. FIND THE PEB
     peb_addr = get_peb_address(agent_id)
-    print(f"[*] Found PEB at {hex(peb_addr)}")
+    ##printf"[*] Found PEB at {hex(peb_addr)}")
 
     # 2. FIND ProcessParameters ADDRESS (PEB + 0x20 on x64)
     # We read 8 bytes from PEB + 0x20
     proc_params_addr = peb_addr + 0x20
-    print(f"[*] Found ProcessParameters at {hex(proc_params_addr)}")
+    ##printf"[*] Found ProcessParameters at {hex(proc_params_addr)}")
     cur_dir_ptr = int.from_bytes(read_from_agent(agent_id, proc_params_addr, 8), byteorder="little")
-    print(f"[*] Found PProcessParameters at {hex(cur_dir_ptr)}")
+    ##printf"[*] Found PProcessParameters at {hex(cur_dir_ptr)}")
     cur_dir_ptr = cur_dir_ptr+0x38
-    print(f"[*] Found CommandLine UNICODE_STRING at {hex(cur_dir_ptr)}")
+    ##printf"[*] Found CommandLine UNICODE_STRING at {hex(cur_dir_ptr)}")
     
     # We usually find where the existing buffer is and overwrite it, 
     # or allocate new memory. For simplicity, we overwrite the existing buffer point.
     # Note: In a real-world scenario, you should allocate new memory if the new path 
     # is longer than the MaximumLength.
     unicode_string_ptr, new_len = write_unicode_string(agent_id, new_dir)
-    print(f"[*] unicode_string_ptr = {hex(unicode_string_ptr)}")
+    ##printf"[*] unicode_string_ptr = {hex(unicode_string_ptr)}")
 
     # 4. WRITE NEW DIRECTORY STRING
     write_to_agent(agent_id, cur_dir_ptr+8, int.to_bytes(unicode_string_ptr, 8, byteorder="little"))
@@ -77,7 +77,7 @@ def function(agent_id, args):
     # Update MaximumLength (2 bytes at +0x3A)
     write_to_agent(agent_id, cur_dir_ptr + 2, struct.pack("<H", new_len + 2))
 
-    print(f"[+] Successfully changed directory to: {new_dir}")
+    ##printf"[+] Successfully changed directory to: {new_dir}")
 
     return {
         "Result": "Success",

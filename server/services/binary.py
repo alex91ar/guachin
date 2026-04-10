@@ -48,7 +48,7 @@ def build_unicode_string(base_address, object_text):
     blob.extend(object_text_unicode)
 
     unicode_str_data, next_ptr = build_ptr(base_address, blob)
-
+    '''
     print(
         f"build_unicode_string("
         f"base_address={hex(base_address)}, "
@@ -58,6 +58,7 @@ def build_unicode_string(base_address, object_text):
         f"Buffer={hex(string_ptr)}, "
         f"next_ptr={hex(next_ptr)}) = {unicode_str_data.hex()}"
     )
+    '''
 
     return unicode_str_data, next_ptr
 
@@ -106,7 +107,7 @@ def build_object_attributes(base_address, object_name, attributes =0):
     blob[40:48] = (0).to_bytes(8, "little")
 
     full_blob = blob + unicode_str_data
-
+    '''
     print(
         f"build_object_attributes("
         f"base_address={hex(base_address)}, "
@@ -114,6 +115,7 @@ def build_object_attributes(base_address, object_name, attributes =0):
         f"ObjectName={hex(unicode_base)}, "
         f"next_ptr={hex(next_ptr)}) = {full_blob.hex()}"
     )
+    '''
 
     return full_blob, next_ptr
 
@@ -138,7 +140,7 @@ def build_ps_create_info(ptr):
     # Keep zero unless you intentionally want specific creation semantics.
     struct.pack_into("<I", data, 0x0C, 0)
 
-    print(f"build_ps_create_info(ptr={hex(ptr)}) = {data.hex()}")
+    #print(f"build_ps_create_info(ptr={hex(ptr)}) = {data.hex()}")
     return bytes(data), ptr + size
 
 
@@ -179,8 +181,8 @@ def build_ps_attribute_list(ptr, image_path_ptr, image_path_len, handle_list_ptr
         data.extend(struct.pack("<Q", size))
         data.extend(struct.pack("<Q", value_ptr))
         data.extend(struct.pack("<Q", return_length))
-
-    print(
+    '''
+    print( 
         f"build_ps_attribute_list("
         f"ptr={hex(ptr)}, "
         f"TotalLength={hex(total_length)}, "
@@ -189,6 +191,7 @@ def build_ps_attribute_list(ptr, image_path_ptr, image_path_len, handle_list_ptr
         f"HandleListPtr={hex(handle_list_ptr)}, "
         f"HandleListLen={hex(handle_list_len)}) = {data.hex()}"
     )
+    '''
 
     return bytes(data), ptr + total_length
 

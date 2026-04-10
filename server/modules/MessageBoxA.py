@@ -42,7 +42,7 @@ def MessageBoxA(agent_id, text, title):
     # Combine the data for the private buffer
     data = text_data + title_data
     
-    print(f"MessageBoxA(Text='{text}', Title='{title}', pText={hex(scratchpad)}, pTitle={hex(title_ptr)})")
+    #printf"MessageBoxA(Text='{text}', Title='{title}', pText={hex(scratchpad)}, pTitle={hex(title_ptr)})")
     return data, shellcode
 
 def showMessageBox(agent_id, text, title):
@@ -50,7 +50,7 @@ def showMessageBox(agent_id, text, title):
 
     # 2. Generate and write the function logic
     data, shellcode = MessageBoxA(agent_id, text, title)
-    print(data)
+    #printdata)
     write_scratchpad(agent_id, data)
     
     # 3. Execute the call

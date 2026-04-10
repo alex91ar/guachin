@@ -14,7 +14,7 @@ def function(agent_id, args):
     
     file_name = args[0] if args[0].startswith("\\??\\") else "\\??\\" + args[0]
     ret = NtOpenFile(agent_id, [file_name,  0x100080, 0x00000007, 0x00000020, 0])
-    print(f"NtOpenFile {ret}")
+    #printf"NtOpenFile {ret}")
     if ret["retval"] != 0:
         return{"retval"f"Error in NtOpenFile {ret["retval"]}"}
     ret_ntquery = NtQueryInformationFile(agent_id, [ret["FILE_HANDLE"], 5,  24])
@@ -22,10 +22,10 @@ def function(agent_id, args):
         NtClose(agent_id, [ret["FILE_HANDLE"]])
         return {"retval":f"Error in NtQueryInformationFile {ret_ntquery["retval"]}"}
     buffer_hex = ret_ntquery["BufferHex"]
-    print(f"NtQuerInformationFile returned 0: {buffer_hex}")
+    #printf"NtQueryInformationFile returned 0: {buffer_hex}")
     NtClose(agent_id, [ret["FILE_HANDLE"]])
-    file_size = int.from_bytes(buffer_hex[:8], byteorder="little")
-    print(f"File size = {file_size}")
+    file_size = int.from_bytes(buffer_hex[8:16], byteorder="little")
+    #printf"File size = {file_size}")
     return {
         "retval": 0,
         "file_size": file_size,

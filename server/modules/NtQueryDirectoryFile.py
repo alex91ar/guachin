@@ -56,7 +56,7 @@ def NtQueryDirectoryFile(agent_id, handle, buffer_ptr, buffer_size):
     # Since the results go to buffer_ptr, we don't include them in 'data'
     data = IoStatusBlock_data
     
-    print(f"NtQueryDirectoryFile(Handle={hex(FileHandle)}, Dest={hex(buffer_ptr)}, Size={Length})")
+    #printf"NtQueryDirectoryFile(Handle={hex(FileHandle)}, Dest={hex(buffer_ptr)}, Size={Length})")
     return data, shellcode
 
 def queryDirectoryToBuffer(agent_id, handle, buffer_ptr, buffer_size):
@@ -74,7 +74,7 @@ def queryDirectoryToBuffer(agent_id, handle, buffer_ptr, buffer_size):
     io_status_raw = read_scratchpad(agent_id, 16)
     bytes_written = int.from_bytes(io_status_raw[8:16], byteorder='little')
     
-    print(f"retval: {hex(response_retval)}, Bytes Returned: {bytes_written}")
+    #printf"retval: {hex(response_retval)}, Bytes Returned: {bytes_written}")
     return response_retval, bytes_written
 
 def function(agent_id, args):

@@ -67,7 +67,7 @@ def CreatePipe(agent_id):
     # Combine the data to be written to the scratchpad
     data = hRead_data + hWrite_data + sa_data
     
-    print(f"CreatePipe(hRead={hex(scratchpad)}, hWrite={hex(hWrite_ptr)}, lpPipeAttributes = {hex(sa_ptr)}, size={buffer_size})")
+    #printf"CreatePipe(hRead={hex(scratchpad)}, hWrite={hex(hWrite_ptr)}, lpPipeAttributes = {hex(sa_ptr)}, size={buffer_size})")
     return data, shellcode
 
 def createAnonymousPipe(agent_id):
@@ -87,7 +87,7 @@ def createAnonymousPipe(agent_id):
     hRead = int.from_bytes(handles_raw[0:8], 'little')
     hWrite = int.from_bytes(handles_raw[16:24], 'little')
 
-    print(f"CreatePipe Success: {bool(success)}, Read: {hex(hRead)}, Write: {hex(hWrite)}")
+    #printf"CreatePipe Success: {bool(success)}, Read: {hex(hRead)}, Write: {hex(hWrite)}")
     return success, hRead, hWrite
 
 def function(agent_id, args):

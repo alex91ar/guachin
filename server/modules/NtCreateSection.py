@@ -51,10 +51,10 @@ def function(agent_id, args):
     # 2. Trigger syscall
     response = send_and_wait(agent_id, shellcode)
     ntstatus = int.from_bytes(response, 'little')
-    print(f"NtCreateSection ntstatus = {ntstatus}. ")
+    #printf"NtCreateSection ntstatus = {ntstatus}. ")
     # 3. Read the resulting Section Handle
     h_data = read_scratchpad(agent_id, 4)
     section_handle = int.from_bytes(h_data, 'little')
-    print(f"NtCreateSection section_handle = {section_handle}. ")
+    #printf"NtCreateSection section_handle = {section_handle}. ")
         
     return {"retval": ntstatus, "section_handle": section_handle}

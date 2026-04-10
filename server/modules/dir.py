@@ -34,7 +34,7 @@ def get_current_directory(agent_id):
 
     # 2. PEB + 0x20 -> ProcessParameters
     proc_params_ptr_raw = read_from_agent(agent_id, peb_addr + 0x20, 8)[:8]
-    print(proc_params_ptr_raw)
+    #printproc_params_ptr_raw)
     proc_params_addr = struct.unpack("<Q", proc_params_ptr_raw)[0]
 
     # 3. ProcessParameters + 0x38 -> CurrentDirectory (UNICODE_STRING)
@@ -185,7 +185,7 @@ def function(agent_id, args):
     
     # Check if directory_path was provided and is not empty
     if not args or args[0] == "":
-        print("[*] No path provided. Resolving current directory from PEB...")
+        #print"[*] No path provided. Resolving current directory from PEB...")
         dir_path = get_current_directory(agent_id)
     else:
         dir_path = args[0]
@@ -194,7 +194,7 @@ def function(agent_id, args):
     if not dir_path.startswith("\\??\\"):
         dir_path = "\\??\\" + dir_path
 
-    print(f"[*] Enumerating: {dir_path}")
+    #printf"[*] Enumerating: {dir_path}")
     buf_size = 8192
 
     # 1. ALLOCATE MEMORY
@@ -217,7 +217,7 @@ def function(agent_id, args):
                 data = read_from_agent(agent_id, target_buf_ptr, buf_size)
                 entries = parse_file_both_dir_information(data)
                 formatted_output = "\n Directory of " + dir_path + "\n\n" + build_dir_output(entries)
-                print(formatted_output)
+                #printformatted_output)
 
                 results = {
                     "Result": "Success",

@@ -45,7 +45,7 @@ def NtCreateThreadEx_Shellcode(agent_id, process_handle, start_address, argument
         0                    # AttributeList
     ]
     
-    print(f"[*] NtCreateThreadEx(ProcessHandle={hex(process_handle)}, StartAddress={hex(start_address)}, Arg={hex(argument)})")
+    #printf"[*] NtCreateThreadEx(ProcessHandle={hex(process_handle)}, StartAddress={hex(start_address)}, Arg={hex(argument)})")
     
     shellcode = push_syscall(syscall_id, params, agent.debug)
     return thread_handle_data, shellcode

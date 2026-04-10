@@ -37,7 +37,8 @@ def RtlCreateProcessParametersEx(agent_id, image_path, command_line):
     # The actual data blob to write to the agent
     # We combine the scratchpad data and our private allocation data
     payload = ProcessParams_data + image_path_data + command_line_data + desktopinfo_Data
-    print(
+    '''
+    #print
     f"RtlCreateProcessParametersEx(\n"
     f"  P1  pProcessParameters = {hex(scratchpad)},\n"
     f"  P2  ImagePathName      = {hex(image_path_ptr)},\n"
@@ -52,6 +53,7 @@ def RtlCreateProcessParametersEx(agent_id, image_path, command_line):
     f"  P11 Flags              = {hex(0x01)}\n"
     f")"
     )
+    '''
     return payload, shellcode
 
 def initProcessParams(agent_id, image_path, command_line, h_pipe):
@@ -74,7 +76,7 @@ def initProcessParams(agent_id, image_path, command_line, h_pipe):
         h_pipe_bytes = struct.pack('<Q', h_pipe)
         write_to_agent(agent_id, p_params + 0x28, h_pipe_bytes) # StdOutput
         write_to_agent(agent_id, p_params + 0x30, h_pipe_bytes) # StdError
-    print(f"RtlCreateProcessParametersEx status = {hex(response_retval)}, p_param = {p_params}")
+    #printf"RtlCreateProcessParametersEx status = {hex(response_retval)}, p_param = {p_params}")
     return response_retval, p_params
 
 def function(agent_id, args):

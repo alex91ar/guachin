@@ -34,7 +34,7 @@ def NtSetInformationFile(agent_id, file_handle, info_class, info_data):
     shellcode = push_syscall(syscall, params, agent.debug)
     data = io_status_data + info_buffer_data
     
-    print(f"NtSetInformationFile(FileHandle={hex(file_handle)}, IoStatus={hex(scratchpad)}, InfoBuf={hex(info_buf_ptr)}, Len={len(info_data)}, Class={info_class})")
+    #printf"NtSetInformationFile(FileHandle={hex(file_handle)}, IoStatus={hex(scratchpad)}, InfoBuf={hex(info_buf_ptr)}, Len={len(info_data)}, Class={info_class})")
     
     return data, shellcode
 
@@ -50,7 +50,7 @@ def setFileInfo(agent_id, file_handle, info_class, info_data):
     response_bytes = send_and_wait(agent_id, shellcode)
     ntstatus = int.from_bytes(response_bytes, 'little')
     
-    print(f"Response from NtSetInformationFile = {hex(ntstatus)}")
+    #printf"Response from NtSetInformationFile = {hex(ntstatus)}")
     return ntstatus
 
 def function(agent_id, args):

@@ -30,7 +30,7 @@ def SetHandleInformation(agent_id, h_object, mask, flags):
     # This call does not require scratchpad data for inputs, only for the Return Value
     data = b"" 
     
-    print(f"SetHandleInformation(Handle={hex(h_object)}, Mask={hex(mask)}, Flags={hex(flags)})")
+    #printf"SetHandleInformation(Handle={hex(h_object)}, Mask={hex(mask)}, Flags={hex(flags)})")
     return data, shellcode
 
 def updateHandleInheritance(agent_id, h_object, mask, flags):
@@ -44,7 +44,7 @@ def updateHandleInheritance(agent_id, h_object, mask, flags):
     # Returns non-zero on success
     success = int.from_bytes(send_and_wait(agent_id, shellcode), 'little')
     
-    print(f"SetHandleInformation Success: {bool(success)}")
+    #printf"SetHandleInformation Success: {bool(success)}")
     return bool(success)
 
 def function(agent_id, args):

@@ -7,7 +7,7 @@ PARAMS = [
 DEPENDENCIES = ["NtAllocateVirtualMemory", "NtFreeVirtualMemory"]
 
 def build_si_struct(buffer_add, flags, h_pipe):
-    print(f"Creating STARTUP_INFORMATION_A structure. buffer_add={hex(buffer_add)}, flags={hex(flags)}, h_pipe={hex(h_pipe)}")
+    #printf"Creating STARTUP_INFORMATION_A structure. buffer_add={hex(buffer_add)}, flags={hex(flags)}, h_pipe={hex(h_pipe)}")
     import struct
     # hStdOutput = h_pipe, hStdError = h_pipe
     si_data = bytearray(104)
@@ -69,13 +69,14 @@ def CreateProcessA(agent_id, command_line, h_pipe, p_private):
     "lpStartupInfo",
     "lpProcessInformation",
     ]
-
-    print("=== CreateProcess Parameters ===")
+    '''
+    print"=== CreateProcess Parameters ===")
     for name, value in zip(param_names, params):
         if isinstance(value, int):
-            print(f"{name:<25} = 0x{value:016X} ({value})")
+            #printf"{name:<25} = 0x{value:016X} ({value})")
         else:
-            print(f"{name:<25} = {value}")
+            #printf"{name:<25} = {value}")
+    '''
     return data, shellcode
 
 def function(agent_id, args):
@@ -101,7 +102,7 @@ def function(agent_id, args):
     
     # 4. Extract Process info if successful (BOOL 1 is success)
     h_proc, h_thread = 0, 0
-    print(f"CreateProcessA = {ret_val}")
+    #printf"CreateProcessA = {ret_val}")
     if ret_val != 0:
         pi_raw = read_from_agent(agent_id, p_private, 16)
         h_proc = int.from_bytes(pi_raw[:8], 'little')

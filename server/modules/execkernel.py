@@ -48,19 +48,13 @@ def function(agent_id, args):
         hProcess = proc_ret["PROCESS_HANDLE"]
         hThread  = proc_ret["THREAD_HANDLE"]
 
-        print(f"[*] Process launched (hProcess: {hex(hProcess)}). Waiting for termination...")
+        #printf"[*] Process launched (hProcess: {hex(hProcess)}). Waiting for termination...")
 
         # 4. WAIT FOR PROCESS TO FINISH (NtWaitForSingleObject)
         # We wait for hProcess to enter a signaled state (exit)
         # Timeout: 10000ms (10 seconds) to prevent the agent from hanging indefinitely
         wait_ret = NtWaitForSingleObject(agent_id, [hProcess, 10000])
         
-        if wait_ret["retval"] == 0:
-            print("[+] Process exited. Reading output...")
-        elif wait_ret["retval"] == 0x102:
-            print("[!] Warning: Wait timed out (10s). Reading partial output.")
-        else:
-            print(f"[!] Wait failed with status: {hex(wait_ret['retval'])}")
         if wait_ret["retval"] == 0:
             # 5. READ OUTPUT (NtReadFile)
             # Since the process has (likely) exited, the pipe now contains the full output buffer

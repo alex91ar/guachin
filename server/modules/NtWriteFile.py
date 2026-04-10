@@ -37,7 +37,7 @@ def NtWriteFile(agent_id, handle, offset, buffer_ptr, length):
     for param in params:
         printval += hex(param) + ", "
     printval += ")"
-    print(printval)
+    #printprintval)
     return data, shellcode
 
 def writeFile(agent_id, handle, buffer, length, offset):
@@ -47,11 +47,11 @@ def writeFile(agent_id, handle, buffer, length, offset):
     response_data = int.from_bytes(send_and_wait(agent_id, shellcode), byteorder='little')
     scratchpad = read_scratchpad(agent_id, 16)
     io_status_block = scratchpad[:16]
-    print(f"Response from NtWriteFile = {hex(response_data)}, io_status_block = {io_status_block.hex()}")
+    #printf"Response from NtWriteFile = {hex(response_data)}, io_status_block = {io_status_block.hex()}")
     return response_data, io_status_block
 
 def function(agent_id, args):
-    print(f"NtWriteFile {hex(args[0])},{hex(args[1])}, {hex(args[2])}, {hex(args[3])}")
+    #printf"[*][*][*][*][*][*][*][*][*][*][*][*]NtWriteFile received args {args}")
     file_handle = args[0]
     data_buffer = args[1]
     buffer_len = args[2]

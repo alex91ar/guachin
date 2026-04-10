@@ -38,7 +38,7 @@ def NtQueryInformationFile_Shellcode(agent_id, file_handle, info_class, buffer_s
         info_class             # FileInformationClass
     ]
     
-    print(f"[*] NtQueryInformationFile(Handle={hex(file_handle)}, Class={info_class}, BufSize={buffer_size})")
+    #printf"[*] NtQueryInformationFile(Handle={hex(file_handle)}, Class={info_class}, BufSize={buffer_size})")
     
     shellcode = push_syscall(syscall, params, agent.debug)
     

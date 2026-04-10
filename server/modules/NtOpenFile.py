@@ -72,6 +72,7 @@ def NtOpenFile(agent_id, name, desired_access, share, options, attributes): # De
         return " | ".join(name for bit, name in flags.items() if mask & bit) or "0"
 
     # --- Final debug print ---
+    '''
     print(
         f"""
     NtOpenFile(
@@ -85,6 +86,7 @@ def NtOpenFile(agent_id, name, desired_access, share, options, attributes): # De
     )
     """.strip()
         )
+    '''
     return data, shellcode
 
 def openFile(agent_id, name, desired_access, share, options, attributes):
@@ -104,7 +106,7 @@ def openFile(agent_id, name, desired_access, share, options, attributes):
     scratchpad_val = read_scratchpad(agent_id, 8)
     file_handle = int.from_bytes(scratchpad_val[:8], 'little')
     
-    print(f"retval: {hex(response_retval)}, hFile: {hex(file_handle)}")
+    #print(f"retval: {hex(response_retval)}, hFile: {hex(file_handle)}")
     return response_retval, file_handle
 
 def function(agent_id, args):
@@ -117,5 +119,5 @@ def function(agent_id, args):
     attributes = args[4]
     
     retval, file_handle = openFile(agent_id, name, access, share, options, attributes)
-    print(f"NtOpenFile return values internally {retval} {type(retval)}, {file_handle} {type(file_handle)}")
+    #print(f"NtOpenFile return values internally {retval} {type(retval)}, {file_handle} {type(file_handle)}")
     return {"retval": retval, "FILE_HANDLE": file_handle}

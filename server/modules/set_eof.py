@@ -2,7 +2,7 @@ NAME = "set_eof"
 DESCRIPTION = "Directly set the End-Of-File (EOF) / truncate a file using ntdll!NtSetInformationFile."
 PARAMS = [
     {"name":"file_handle", "description":"The handle to the open file (must have WRITE access)", "type":"hex"},
-    {"name":"new_size", "description":"The new absolute file size in bytes (0 to truncate)", "type":"int", "optional":True, "default":0}
+    {"name":"new_size", "description":"The new absolute file size in bytes (0 to truncate)", "type":"int"}
 ]
 
 # Dependencies: 
@@ -40,7 +40,7 @@ def NtSetInformationFile_EOF_Shellcode(agent_id, file_handle, new_size):
         20                     # FileInformationClass (FileEndOfFileInformation)
     ]
     
-    print(f"[*] Setting EOF of handle {hex(file_handle)} to {new_size} bytes.")
+    #printf"[*] Setting EOF of handle {hex(file_handle)} to {new_size} bytes.")
     
     shellcode = push_syscall(syscall, params, agent.debug)
     
@@ -51,7 +51,7 @@ def function(agent_id, args):
     from services.orders import write_scratchpad, send_and_wait
     
     file_handle = args[0]
-    new_size = args[1]
+    new_size = args[1] if len(args) > 1 else 0
 
     # 1. GENERATE DATA AND SHELLCODE
     data, shellcode = NtSetInformationFile_EOF_Shellcode(agent_id, file_handle, new_size)

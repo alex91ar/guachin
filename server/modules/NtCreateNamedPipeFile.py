@@ -48,9 +48,9 @@ def NtCreateNamedPipeFile(agent_id, pipe_name, desired_access, share, create_dis
     data = h_file_data + object_attributes_data + object_attributes_data + status_block_data
     
     # Trace/Print all parameters for debugging and audit
-    print(f"NtCreateNamedPipeFile Parameters:")
-    for i, p in enumerate(params, 1):
-        print(f"  P{i:02}: {hex(p) if isinstance(p, int) else p}")
+    #printf"NtCreateNamedPipeFile Parameters:")
+    #for i, p in enumerate(params, 1):
+        #printf"  P{i:02}: {hex(p) if isinstance(p, int) else p}")
     
     return data, shellcode
 
@@ -67,7 +67,7 @@ def createNamedPipe(agent_id, pipe_name, access, share, create_disposition, oa_a
     handle_raw = read_scratchpad(agent_id, 8)
     hPipe = int.from_bytes(handle_raw, 'little')
     
-    print(f"retval: {hex(response_retval)}, hPipe: {hex(hPipe)}")
+    #printf"retval: {hex(response_retval)}, hPipe: {hex(hPipe)}")
     return response_retval, hPipe
 
 def function(agent_id, args):

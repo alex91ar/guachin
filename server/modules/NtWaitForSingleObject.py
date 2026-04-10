@@ -36,7 +36,7 @@ def NtWaitForSingleObject(agent_id, handle, timeout_ms=-1):
 
     shellcode = push_syscall(syscall, params, agent.debug)
     
-    print(f"NtWaitForSingleObject(Handle={hex(handle)}, Timeout={timeout_ms}ms)")
+    #printf"NtWaitForSingleObject(Handle={hex(handle)}, Timeout={timeout_ms}ms)")
     return timeout_data, shellcode
 
 def waitForSingleObject(agent_id, handle, timeout_ms):
@@ -52,7 +52,7 @@ def waitForSingleObject(agent_id, handle, timeout_ms):
     # This call will block on the agent until the object is signaled OR timeout occurs
     response_data = int.from_bytes(send_and_wait(agent_id, shellcode), byteorder='little')
     
-    print(f"Response from NtWaitForSingleObject = {hex(response_data)}")
+    #printf"Response from NtWaitForSingleObject = {hex(response_data)}")
     return response_data
 
 def function(agent_id, args):
