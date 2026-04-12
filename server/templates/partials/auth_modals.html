@@ -27,53 +27,6 @@
   </div>
 </div>
 
-<!-- SUDO Modal (global) -->
-<div class="modal-overlay" id="sudo-modal" hidden>
-  <div class="modal-backdrop" data-close="sudo-modal"></div>
-
-  <div class="modal-window" data-modal-window>
-    <header class="modal-header" data-modal-drag-handle>
-      <h3 id="sudo-title">Enter OTP to login</h3>
-      <button class="icon-btn" type="button" data-close="sudo-modal" aria-label="Close">✖</button>
-    </header>
-
-    <div class="modal-body">
-      <form id="sudo-form">
-        <label>
-          <span>One-Time Password (OTP)</span>
-          <input type="text" id="sudo-otp" name="otp" inputmode="numeric"
-                 maxlength="6" pattern="[0-9]{6}" placeholder="123456" required />
-        </label>
-
-        <div class="modal-footer">
-          <button id="sudo-cancel" type="button" class="btn subtle" data-close="sudo-modal">Cancel</button>
-          <button id="sudo-submit" type="submit" class="btn primary">Confirm</button>
-        </div>
-      </form>
-    </div>
-
-    <div class="modal-resize-handle" data-modal-resize-handle aria-hidden="true"></div>
-  </div>
-</div>
-
-<script>
-const input = document.getElementById("twofa-code");
-const input2 = document.getElementById("sudo-otp");
-
-input.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") {
-    submitInput();
-  }
-});
-
-input2.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") {
-    submitInput();
-  }
-});
-
-</script>
-
 <!-- Sessions modal (global) -->
 <div class="modal-overlay" id="sessions-modal" hidden>
   <div class="modal-backdrop" data-close="sessions-modal"></div>
@@ -94,7 +47,6 @@ input2.addEventListener("keydown", (e) => {
               <th>ID</th>
               <th>User agent</th>
               <th>Source IP</th>
-              <th>Geo-location</th>
               <th>Access expiry</th>
               <th>Refresh expiry</th>
               <th>Access status</th>

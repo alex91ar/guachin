@@ -82,10 +82,6 @@ function updateSessionsUI(sessions) {
     const ipTd = document.createElement("td");
     ipTd.textContent = s.source_ip || "Unknown";
 
-    // Geo-location
-    const geoTd = document.createElement("td");
-    geoTd.textContent = s.geo_location || "Unknown";
-
     // Expiry dates
     const accessExpTd = document.createElement("td");
     accessExpTd.textContent = formatUnix(s.valid_until);
@@ -140,7 +136,6 @@ function updateSessionsUI(sessions) {
     tr.appendChild(idTd);
     tr.appendChild(uaTd);
     tr.appendChild(ipTd);
-    tr.appendChild(geoTd);
     tr.appendChild(accessExpTd);
     tr.appendChild(refreshExpTd);
     tr.appendChild(accessStatusTd);

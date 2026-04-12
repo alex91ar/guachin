@@ -183,7 +183,7 @@ async function checkAuth() {
 async function logoutUser() {
   const access_jwt = localStorage.getItem("access_jwt");
   const refresh_jwt = localStorage.getItem("refresh_jwt");
-  const user_name = getUser()?.id;
+  const user_name = getUser().id;
   try {
     const logoutRes = await fetch(window.logout_API, {
       method: "POST",

@@ -28,10 +28,10 @@ def login_twofa():
     if user_obj.twofa_enabled is False or user_obj.verify_2fa(otp):
         user_sess.sudo = True
         user_sess.partial = False
+        print(f"Current status {user_sess.valid_until}")
         user_sess.save()
 
         access_jwt, refresh_jwt = user_sess.get_jwts()
-        UserSession.clear_partial_sessions(user_obj.id)
 
         return jsonify({
             "result": "success",
@@ -42,7 +42,6 @@ def login_twofa():
             },
         }), 200
 
-    UserSession.clear_partial_sessions(user_obj.id)
     return jsonify({"result": "error", "message": "invalid_otp"}), 401
 
 
@@ -155,6 +154,9 @@ def update_details():
 
     return jsonify({"result": "success", "message": "Details updated successfully."}), 200
 
+@bp.route("/error", methods=["GET"])
+def gen_error():
+    raise ValueError("Test")
 
 @bp.route("/enable_2fa", methods=["PUT"])
 def enable_2fa():
@@ -177,8 +179,9 @@ def enable_2fa():
 
         user_sess.sudo = True
         user_sess.passkey = True
+        print(f"(before)user_sess.exp = {user_sess.valid_until}")
         user_sess.save()
-
+        print(f"user_sess.exp = {user_sess.valid_until}")
         access_jwt, refresh_jwt = user_sess.get_jwts()
 
         return jsonify({

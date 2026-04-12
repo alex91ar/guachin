@@ -1,15 +1,27 @@
+{% extends "base.html" %}
 <!DOCTYPE html>
 <html lang="en">
 <meta name="csrf-token" content="{{ g.csrf_token }}">
 <body>
 {% include "urls.html" %}
 {% include "partials/auth_modals.html" %}
+{% block content %}
 
   <link rel="stylesheet" href="{{ url_for('static', filename='css/unified.css') }}">
 
 <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
 <script src="{{ url_for('static', filename='js/login.js') }}"></script>
 <script>
+
+const inputval = document.getElementById("twofa-code");
+
+inputval.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    submitInput();
+  }
+});
+
+
 
 function is_sudo_enabled(){
   return (getUser()["twofa_enabled"]);
@@ -48,10 +60,11 @@ if(!is_sudo_enabled()){
   });
 }
 
-document.getElementById("sudo-modal").hidden = false;
+document.getElementById("twofa-modal").hidden = false;
 
           
 </script>
 
 </body>
 </html>
+{% endblock %}

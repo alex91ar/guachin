@@ -30,7 +30,7 @@ psutil
 pyyaml
 ua-parser
 user-agents
-geoip2
+
 dockerx
 flask-admin
 webauthn

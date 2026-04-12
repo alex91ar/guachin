@@ -28,15 +28,21 @@ class PassKey(Base):
 
     @staticmethod
     def by_credential_id(
-        session: Session,
         user_id: str,
         credential_id: str,
+        session: Session | None = None,
     ) -> Optional["PassKey"]:
-        stmt = select(PassKey).where(
-            PassKey.user_id == user_id,
-            PassKey.credential_id == credential_id,
-        )
-        return session.scalar(stmt)
+        owns_session = session is None
+        session = session or get_session()
+        try:
+            stmt = select(PassKey).where(
+                PassKey.user_id == user_id,
+                PassKey.credential_id == credential_id,
+            )
+            return session.scalar(stmt)
+        finally:
+            if owns_session:
+                session.close()
 
 
     def to_dict(self) -> dict:

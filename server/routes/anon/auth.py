@@ -137,7 +137,7 @@ def refresh():
             "message": "refresh_token_expired",
         }), 401
 
-    user_obj = token_obj.user
+    user_obj = User.by_id(token_obj.user_id)
     if not user_obj:
         return jsonify(result="error", message="User not found"), 404
 
@@ -199,7 +199,7 @@ def signup():
     new_user.add_role("user")
     new_user.save()
 
-    user_session = UserSession(new_user)
+    user_session = UserSession(new_user, is_signup=True)
     user_session.save()
 
     access, refresh = user_session.get_jwts()

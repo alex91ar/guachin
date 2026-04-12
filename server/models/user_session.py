@@ -12,7 +12,6 @@ from sqlalchemy.orm import selectinload
 from models.db import get_session
 from models.user import User
 from models.role import Role
-import geoip2.database
 import ipaddress
 from flask import current_app, request, url_for
 from flask_jwt_extended import create_access_token, create_refresh_token
@@ -66,43 +65,9 @@ def ua_string(ua_raw: str) -> str:
 
 
 
-def lan_or_class_label(ip: str) -> str | None:
-    try:
-        addr = ipaddress.ip_address(ip)
-    except ValueError:
-        return "Unknown"
-
-    if addr.is_loopback:
-        return "Localhost"
-
-    if addr.is_private:
-        if addr in ipaddress.ip_network("10.0.0.0/8"):
-            return "LAN Class A"
-        if addr in ipaddress.ip_network("172.16.0.0/12"):
-            return "LAN Class B"
-        if addr in ipaddress.ip_network("192.168.0.0/16"):
-            return "LAN Class C"
-        return "LAN (Private)"
-
-    if addr.is_link_local:
-        return "LAN (Link-local)"
-
-    if addr.is_multicast:
-        return "Class D (Multicast)"
-    if addr.is_reserved or addr.is_unspecified:
-        return "Class E (Reserved)"
-
-    return None
 
 
 
-
-
-def ip_label(ip: str) -> str:
-    label = lan_or_class_label(ip)
-    if label is not None:
-        return label
-    return "Public"
 
 
 class UserSession(Base):
@@ -116,12 +81,12 @@ class UserSession(Base):
     refresh_token_value: Mapped[Optional[str]] = mapped_column("refresh_token", String(1023), nullable=True)
     access_token_value: Mapped[Optional[str]] = mapped_column("access_token", Text, nullable=True)
     user_agent: Mapped[str] = mapped_column(Text, nullable=False)
-    geo_location: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     source_ip: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)
     created: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     valid_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     valid_until_refresh: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     partial: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    is_signup: Mapped[bool] = mapped_column(Boolean, nullable=False)
 
     user_id: Mapped[str] = mapped_column(
         String(255),
@@ -130,102 +95,182 @@ class UserSession(Base):
         index=True,
     )
 
-    def __init__(self, user_obj):
+    @classmethod
+    def by_id(
+        cls,
+        id: Any,
+        session: Session | None = None,
+        *,
+        options: list | None = None,
+    ):
+        import inspect
+        print(f"Loaded session {id} from {inspect.stack()[1].function} from {inspect.stack()[2].function}")
+        ret = super().by_id(id, session=session, options=options)
+        if ret is not None:
+            print(f"Expiration = {ret.valid_until}")
+        return ret
+
+    def __init__(self, user_obj, is_signup=False):
+        self.is_signup = is_signup
         self.id = secrets.token_hex(16)
-        self.user_id = user_obj.id
         self.user = user_obj
+        self.user_id = user_obj.id
         self.user_agent = ua_string(request.headers.get("User-Agent", ""))
-        self.geo_location = ip_label(request.remote_addr) if request.remote_addr else "Unknown"
         self.source_ip = request.remote_addr
         now = datetime.now(timezone.utc) - timedelta(seconds=1)
         self.created = now
         self.valid_until = now + current_app.config.get("JWT_ACCESS_TOKEN_EXPIRES")
         self.valid_until_refresh = now + current_app.config.get("JWT_REFRESH_TOKEN_EXPIRES")
-        logger.info("Creating new session.")
+        logger.info(f"Creating new session.")
 
     def refresh_tokens(self, session: Session = None) -> None:
         owns_session = session is None
         session = session or get_session()
         try:
             now = datetime.now(timezone.utc) - timedelta(seconds=1)
-            self.created = now
-            self.valid_until = now + current_app.config.get("JWT_ACCESS_TOKEN_EXPIRES")
-            self.valid_until_refresh = now + current_app.config.get("JWT_REFRESH_TOKEN_EXPIRES")
-            session.add(self)
+
+            obj = self
+            if session is not None:
+                existing = session.get(UserSession, self.id)
+                if existing is not None and existing is not self:
+                    obj = existing
+                else:
+                    obj = session.merge(self)
+
+            obj.created = now
+            obj.valid_until = now + current_app.config.get("JWT_ACCESS_TOKEN_EXPIRES")
+            obj.valid_until_refresh = now + current_app.config.get("JWT_REFRESH_TOKEN_EXPIRES")
+
             session.commit()
+
+            self.created = obj.created
+            self.valid_until = obj.valid_until
+            self.valid_until_refresh = obj.valid_until_refresh
         finally:
             if owns_session:
                 session.close()
 
     @property
     def access_token(self) -> str:
-        perms = set()
+        session = get_session()
+        try:
+            fresh = session.execute(
+                select(UserSession)
+                .options(
+                    selectinload(UserSession.user)
+                    .selectinload(User.roles)
+                    .selectinload(Role.actions),
+                    selectinload(UserSession.user)
+                    .selectinload(User.passkeys),
+                )
+                .where(UserSession.id == self.id)
+            ).unique().scalar_one()
 
-        if (self.sudo and self.password) or self.passkey:
-            for role_obj in self.user.roles:
-                for action in role_obj.actions:
-                    perms.add(action.id)
-            self.partial = False
-        else:
-            twofa_action = Action.by_path_and_method(
-                self._session_for_lookup(),
-                path=url_for("auth_api.me.login_twofa"),
-                method="POST",
-            )
-            passkey_action = Action.by_path_and_method(
-                self._session_for_lookup(),
-                path=url_for("auth_api.passkeys.passkey_login_complete"),
-                method="POST",
-            )
-            if twofa_action is not None:
-                perms.add(twofa_action.id)
-            if passkey_action is not None:
-                perms.add(passkey_action.id)
-            self.partial = True
+            perms = set()
 
-        payload = {
-            "sudo": self.sudo,
-            "valid_password": self.password,
-            "valid_passkey": self.passkey,
-            "user_id": self.user.id,
-            "perms": list(perms),
-            "twofa_enabled": self.user.twofa_enabled,
-            "environment": current_app.config.get("ENV"),
-            "id": self.id,
-        }
+            if (fresh.sudo and fresh.password) or fresh.passkey or fresh.is_signup:
+                for role_obj in fresh.user.roles:
+                    for action in role_obj.actions:
+                        perms.add(action.id)
+                fresh.partial = False
+            else:
+                lookup_session = fresh._session_for_lookup()
+                try:
+                    twofa_action = Action.by_path_and_method(
+                        lookup_session,
+                        path=url_for("auth_api.me.login_twofa"),
+                        method="POST",
+                    )
+                    passkey_action = Action.by_path_and_method(
+                        lookup_session,
+                        path=url_for("auth_api.passkeys.passkey_login_complete"),
+                        method="POST",
+                    )
+                finally:
+                    lookup_session.close()
 
-        payload["exp"] = self.valid_until
-        payload["iat"] = self.created
+                if twofa_action is not None:
+                    perms.add(twofa_action.id)
+                if passkey_action is not None:
+                    perms.add(passkey_action.id)
 
-        logger.info("Creating new access token sudo=%s.", self.sudo)
-        token = create_access_token(identity=self.user.id, additional_claims=payload)
-        self.access_token_value = token
-        return token
+                fresh.partial = True
+
+            payload = {
+                "sudo": fresh.sudo,
+                "valid_password": fresh.password,
+                "valid_passkey": fresh.passkey,
+                "user_id": fresh.user_id,
+                "perms": list(perms),
+                "twofa_enabled": fresh.user.twofa_enabled,
+                "environment": current_app.config.get("ENV"),
+                "id": fresh.id,
+                "exp": fresh.valid_until,
+                "iat": fresh.created,
+            }
+
+            logger.info("Creating new access token sudo=%s.", fresh.sudo)
+            token = create_access_token(identity=fresh.user_id, additional_claims=payload)
+            fresh.access_token_value = token
+
+            session.add(fresh)
+            session.commit()
+
+            self.access_token_value = fresh.access_token_value
+            self.partial = fresh.partial
+            return token
+
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
 
     @access_token.setter
     def access_token(self, access_token: str) -> None:
+        session = get_session()
         exp, iat, user = get_vals_from_token_unchecked(access_token)
         self.access_token_value = access_token
         self.user_id = user
         self.valid_until = datetime.fromtimestamp(exp, tz=timezone.utc)
         self.created = datetime.fromtimestamp(iat, tz=timezone.utc)
-        self.save()
+        session.add(self)
+        session.commit()
+        session.close()
 
     @property
     def refresh_token(self) -> Optional[str]:
-        payload_refresh = {
-            "user_id": self.user.id,
-            "environment": current_app.config.get("ENV"),
-            "id": self.id,
-        }
+        session = get_session()
+        try:
+            fresh = session.execute(
+                select(UserSession)
+                .where(UserSession.id == self.id)
+            ).unique().scalar_one()
 
-        if self.valid_until_refresh:
-            payload_refresh["exp"] = self.valid_until_refresh
-            payload_refresh["iat"] = self.created
+            payload_refresh = {
+                "user_id": fresh.user_id,
+                "environment": current_app.config.get("ENV"),
+                "id": fresh.id,
+            }
 
-        token = create_refresh_token(identity=self.user.id, additional_claims=payload_refresh)
-        self.refresh_token_value = token
-        return token
+            if fresh.valid_until_refresh:
+                payload_refresh["exp"] = fresh.valid_until_refresh
+                payload_refresh["iat"] = fresh.created
+
+            token = create_refresh_token(identity=fresh.user_id, additional_claims=payload_refresh)
+            fresh.refresh_token_value = token
+
+            session.add(fresh)
+            session.commit()
+
+            self.refresh_token_value = fresh.refresh_token_value
+            return token
+
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
 
     @refresh_token.setter
     def refresh_token(self, refresh_token: str) -> None:
@@ -258,15 +303,22 @@ class UserSession(Base):
 
         return vu > now
 
-    def expire(self) -> None:
+    def expire(self, session=None) -> None:
+        if session is None:
+            session = get_session()
         self.valid_until = None
-        self.save()
+        session.add(self)
+        session.commit()
+        session.close()
         
 
-    def expire_refresh(self, session: Session) -> None:
+    def expire_refresh(self, session: Session = None) -> None:
+        if session is None:
+            session = get_session()
         self.valid_until_refresh = None
         session.add(self)
         session.commit()
+        session.close()
 
     def to_dict(self) -> dict:
         return {
@@ -276,11 +328,9 @@ class UserSession(Base):
             "source_ip": self.source_ip,
             "valid_until": to_unix(self.valid_until),
             "valid_until_refresh": to_unix(self.valid_until_refresh),
-            "geo_location": self.geo_location,
-            "elevated": self.is_elevated(),
         }
 
-    def is_elevated(self) -> bool:
+    def is_elevated(self, user_obj) -> bool:
         auths = 0
         if self.sudo:
             auths += 1
@@ -288,7 +338,7 @@ class UserSession(Base):
             auths += 1
         if self.passkey:
             auths += 1
-        if not self.user.can_2fa() and not self.user.can_passkey():
+        if not user_obj.can_2fa() and not user_obj.can_passkey():
             auths += 1
         return auths >= 2
 
@@ -317,10 +367,15 @@ class UserSession(Base):
         finally:
             session.close()
 
-    def elevate(self, session: Session):
+    def elevate(self, session: Session = None):
+        owns_session = session is None
+        if session is None:
+            session = get_session()
         self.sudo = True
         session.add(self)
         session.commit()
+        if owns_session:
+            session.close()
         return self.access_token, self.refresh_token
 
 

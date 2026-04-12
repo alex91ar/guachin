@@ -162,7 +162,6 @@ class User(Base):
             self.twofa_enabled = True
             session.add(self)
             session.commit()
-            self.prune_sessions(session=session)
             return True
         finally:
             if owns_session:
@@ -265,6 +264,8 @@ class User(Base):
 
     @classmethod
     def by_id(cls, id: str, session: Session | None = None) -> Optional["User"]:
+        if session is None:
+            session = get_session()
         from models.role import Role
 
         if not id or not id.isalnum():

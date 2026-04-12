@@ -1,7 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
   const form = document.querySelector("#login-form");
   const modal = document.querySelector("#twofa-modal");
-  const toastContainer = document.querySelector("#toast-container");
+  const toastContainer = document.getElementById("toast-container");
   const errorBox = document.querySelector("#error-box");
 
   function randOtp6() {

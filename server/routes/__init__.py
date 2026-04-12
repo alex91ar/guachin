@@ -104,6 +104,7 @@ def log_if_necessary(response):
             response_code=response.status_code,
             user_id=user,
         )
+        new_log.save()
 
 
     return response
@@ -200,8 +201,9 @@ def enforce_rbac():
     method = request.method
     key = gen_key(path, method)
     action_keys = get_jwt().get("perms", [])
-
+    
     if key not in action_keys:
+        logger.info(f"Path not accepted {key} not in {action_keys}")
         return jsonify({
             "result": "error",
             "message": "permission_not_granted",

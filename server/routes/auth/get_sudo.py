@@ -15,7 +15,7 @@ def get_sudo():
     if user_obj is None or user_session is None:
         return jsonify({"result": "error", "message": "session_or_user_not_found"}), 404
 
-    if current_app.config.get("DEBUG") is False and not user_session.is_elevated():
+    if current_app.config.get("DEBUG") is False and not user_session.is_elevated(user_obj):
         data = request.get_json(silent=True) or {}
         otp = data.get("otp")
         if not otp:
