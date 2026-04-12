@@ -193,6 +193,7 @@ def check_expired():
         "message": "access_token_expired",
         "hint": "The access token provided has expired. Request a new access token by using your refresh token and the endpoint " + url_for("anon_api.login.refresh") + ".",
     }), 401
+    g.session = this_session
 
 
 @jwt_required()

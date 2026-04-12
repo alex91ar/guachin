@@ -106,11 +106,6 @@ async function get_twofa(){
   document.getElementById("twofa-modal").hidden=false;
 }
 
-async function get_sudo(){
-  document.getElementById("sudo-modal").hidden=false;
-  document.getElementById("sudo-modal").classList.remove("hidden");
-}
-
 function new_session(access_jwt, refresh_jwt, user_object){
   localStorage.setItem("access_jwt", access_jwt);
   localStorage.setItem("refresh_jwt", refresh_jwt);
@@ -150,7 +145,7 @@ if (!window._native_fetch) {
       } else if(result.message === "2fa_required") {
       await get_twofa();
       } else if(result.message === "sudo_required") {
-      await get_sudo();
+      await get_twofa();
       } else if(result.message === "user_not_found") {
       handleLogout();
       return back_response; 

@@ -30,7 +30,12 @@ function is_sudo_enabled(){
 function is_sudo_needed() {
   return fetch(window.am_i_admin_API, { credentials: "include" })
     .then(res => res.json())
-    .then(json => json.message === true);
+    .then(json => {
+      if(json.new_jwt){
+        localStorage.setItem("access_jwt", json.new_jwt)
+      }
+      json.message === true
+    });
 }
 
 if (!is_sudo_needed()){ 

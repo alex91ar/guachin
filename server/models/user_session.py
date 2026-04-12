@@ -337,7 +337,7 @@ class UserSession(Base):
         if self.password:
             auths += 1
         if self.passkey:
-            auths += 1
+            return True
         if not user_obj.can_2fa() and not user_obj.can_passkey():
             auths += 1
         return auths >= 2

@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, g
 from flask_jwt_extended import get_jwt, get_jwt_identity
 import traceback
 
@@ -57,8 +57,16 @@ def me():
 
 @bp.route("/am_i_admin", methods=["GET"])
 def am_i_admin():
-    claims = get_jwt()
-    return jsonify({"result": "success", "message": claims.get("sudo", False)}), 200
+    user_obj = User.by_id(get_jwt_identity())
+    session = g.session
+    sudo = session.is_elevated(user_obj)
+    obj = {"result": "success", "message": sudo}
+    if sudo == True:
+        session.sudo = True
+        session.save()
+        obj["new_jwt"] = session.access_token
+    
+    return jsonify(obj), 200
 
 
 @bp.route("/2fa", methods=["GET"])
