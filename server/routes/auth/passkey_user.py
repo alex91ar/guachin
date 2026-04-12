@@ -75,7 +75,7 @@ def list_passkeys():
         "message": [
             {
                 "id": k.id,
-                "credential_id": k.credential_id,
+                "credential_id": k.id,
                 "sign_count": k.sign_count,
             }
             for k in keys
@@ -101,7 +101,7 @@ def register_begin():
         ),
         [
             PublicKeyCredentialDescriptor(
-                id=b64url_decode(passkey.credential_id),
+                id=b64url_decode(passkey.id),
                 type="public-key",
             )
             for passkey in getattr(user_obj, "passkeys", [])
@@ -138,15 +138,17 @@ def passkey_register_complete():
 
     cred_data = auth_data.credential_data
     credential_id_b64u = b64url_encode(cred_data.credential_id)
+    print(credential_id_b64u)
 
     pk = PassKey(
         user_id=user_obj.id,
-        credential_id=credential_id_b64u,
+        id=credential_id_b64u,
         public_key=cbor.dumps(cred_data.public_key),
         credential_data=bytes(cred_data),
         sign_count=auth_data.counter or 0,
     )
-    pk.save()
+    print(pk.save())
+    print(pk)
 
     user_obj.fido2_state = None
     user_obj.fido2_state_timestamp = None

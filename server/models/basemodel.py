@@ -14,13 +14,27 @@ logger = logging.getLogger(__name__)
 class Base(DeclarativeBase):
     __abstract__ = True
 
-    def save(self, session: Session | None = None, *, commit: bool = True) -> None:
+    def save(self, session: Session | None = None, *, commit: bool = True):
         owns_session = session is None
         session = session or get_session()
         try:
-            session.add(self)
+            if inspect(self).identity is None:
+                print("New object using add.")
+                session.add(self)
+                obj = self
+            else:
+                print("Old object using merge.")
+                obj = session.merge(self)
+
             if commit:
                 session.commit()
+                session.refresh(obj)
+
+            for key, value in obj.__dict__.items():
+                if not key.startswith("_sa_"):
+                    setattr(self, key, value)
+
+            return obj
         except Exception:
             session.rollback()
             raise

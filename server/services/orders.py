@@ -1,4 +1,3 @@
-from models.request import Request
 from models.agent import Agent
 
 import time

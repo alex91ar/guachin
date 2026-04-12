@@ -61,8 +61,7 @@ def wire_relationships():
     from models.passkey import PassKey
     from models.agent import Agent
     from models.syscall import Syscall
-    from models.request import Request
-    from models.response import Response
+
 
     # -------- Action <-> Role (many-to-many) --------
     Action.roles = relationship(
@@ -154,31 +153,5 @@ def wire_relationships():
     Syscall.agent = relationship(
         "Agent",
         back_populates="syscalls",
-        lazy="raise_on_sql",
-    )
-
-    # -------- Request -> Agent (many-to-one) --------
-    Agent.requests = relationship(
-        "Request",
-        back_populates="agent",
-        cascade="all, delete-orphan",
-        lazy="raise_on_sql",
-    )
-    Request.agent = relationship(
-        "Agent",
-        back_populates="requests",
-        lazy="raise_on_sql",
-    )
-
-    # -------- Response -> Agent (many-to-one) --------
-    Agent.responses = relationship(
-        "Response",
-        back_populates="agent",
-        cascade="all, delete-orphan",
-        lazy="raise_on_sql",
-    )
-    Response.agent = relationship(
-        "Agent",
-        back_populates="responses",
         lazy="raise_on_sql",
     )

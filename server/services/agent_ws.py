@@ -1,5 +1,4 @@
 import logging
-from models.response import Response
 from models.module import Module
 from models.agent import Agent
 logger = logging.getLogger(__name__)

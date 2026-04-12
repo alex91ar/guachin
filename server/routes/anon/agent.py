@@ -11,7 +11,6 @@ from sqlalchemy import select
 
 from routes.auth.sudo.system import sock
 from models.agent import Agent
-from models.request import Request
 from models.syscall import Syscall
 from utils import profile
 from services.orders import responses as agent_responses

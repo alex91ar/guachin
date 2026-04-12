@@ -249,7 +249,7 @@ def passkey_login_begin():
 
     credentials = [
         PublicKeyCredentialDescriptor(
-            id=b64url_decode(pk.credential_id),
+            id=b64url_decode(pk.id),
             type="public-key",
         )
         for pk in getattr(user_obj, "passkeys", [])

@@ -260,8 +260,6 @@ def init_mysql_db(container_name: str | None = None, retries: int = 5, initial_d
         "import models.log; "
         "import models.agent; "
         "import models.module; "
-        "import models.request; "
-        "import models.response; "
         "import models.syscall; "
         "url = os.environ.get('DATABASE_URL'); "
         "print('Initializing DB...'); "

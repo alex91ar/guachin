@@ -13,7 +13,6 @@ from models.db import get_session
 class PassKey(Base):
     __tablename__ = "passkeys"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[str] = mapped_column(
         String(255),
         ForeignKey("users.id"),
@@ -21,7 +20,7 @@ class PassKey(Base):
         index=True,
     )
 
-    credential_id: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    id: Mapped[str] = mapped_column(String(255),primary_key=True, unique=True, nullable=False)
     public_key: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     sign_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     credential_data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
@@ -29,7 +28,7 @@ class PassKey(Base):
     @staticmethod
     def by_credential_id(
         user_id: str,
-        credential_id: str,
+        id: str,
         session: Session | None = None,
     ) -> Optional["PassKey"]:
         owns_session = session is None
@@ -37,7 +36,7 @@ class PassKey(Base):
         try:
             stmt = select(PassKey).where(
                 PassKey.user_id == user_id,
-                PassKey.credential_id == credential_id,
+                PassKey.id == id,
             )
             return session.scalar(stmt)
         finally:
@@ -45,11 +44,17 @@ class PassKey(Base):
                 session.close()
 
 
+    def __init__(self, user_id, id, public_key, credential_data, sign_count):
+        self.user_id = user_id
+        self.id = id
+        self.public_key = public_key
+        self.credential_data = credential_data
+        self.sign_count = sign_count
+
     def to_dict(self) -> dict:
         return {
-            "id": self.id,
             "user_id": self.user_id,
-            "credential_id": self.credential_id,
+            "id": self.id,
             "public_key_b64": base64.b64encode(self.public_key).decode("ascii"),
             "sign_count": self.sign_count,
         }
