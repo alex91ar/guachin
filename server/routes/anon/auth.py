@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 import jwt
 from fido2.webauthn import PublicKeyCredentialDescriptor, UserVerificationRequirement
-from flask import Blueprint, jsonify, make_response, request, url_for
+from flask import Blueprint, jsonify, make_response, request, url_for, g
 from flask_jwt_extended import get_jwt, jwt_required
 from flask_jwt_extended.exceptions import JWTExtendedException
 from flask_jwt_extended.utils import decode_token
@@ -14,6 +14,7 @@ from flask_jwt_extended.utils import decode_token
 from models.passkey import PassKey
 from models.user import User
 from models.user_session import UserSession
+from models.basemodel import get_session
 from routes.auth.passkey_user import (
     b64url_decode,
     dict_to_base64,
@@ -53,44 +54,48 @@ def gen_error():
 
 @bp.route("/", methods=["POST"])
 def login():
-    data = request.get_json(silent=True) or {}
+    db_session = get_session()
+    try:
+        data = request.get_json(silent=True) or {}
 
-    if "id" not in data or "password" not in data:
-        time.sleep(1)
-        return jsonify(result="Error", Message="Invalid Username or Password"), 401
+        if "id" not in data or "password" not in data:
+            time.sleep(1)
+            return jsonify(result="Error", Message="Invalid Username or Password"), 401
 
-    password = data["password"]
-    user_id = sanitize_username(data["id"])
+        password = data["password"]
+        user_id = sanitize_username(data["id"])
 
-    ok, _ = check_password_complexity(password)
-    if not ok:
-        time.sleep(1)
-        return jsonify(result="Error", Message="Invalid Username or Password"), 401
+        ok, _ = check_password_complexity(password)
+        if not ok:
+            time.sleep(1)
+            return jsonify(result="Error", Message="Invalid Username or Password"), 401
 
-    sanitized_id = sanitize_username(user_id)
-    if user_id != sanitized_id:
-        time.sleep(1)
-        return jsonify(result="Error", Message="Invalid Username or Password"), 401
+        sanitized_id = sanitize_username(user_id)
+        if user_id != sanitized_id:
+            time.sleep(1)
+            return jsonify(result="Error", Message="Invalid Username or Password"), 401
 
-    user_obj = User.by_id(user_id)
-    if not user_obj or not user_obj.verify_password(password):
-        time.sleep(1)
-        return jsonify(result="Error", Message="Invalid Username or Password"), 401
+        user_obj = User.by_id(user_id, db_session)
+        if not user_obj or not user_obj.verify_password(password):
+            time.sleep(1)
+            return jsonify(result="Error", Message="Invalid Username or Password"), 401
 
-    u_sess = UserSession(user_obj)
-    u_sess.password = True
-    u_sess.save()
+        u_sess = UserSession(user_obj)
+        u_sess.password = True
+        u_sess.save(session=db_session)
 
-    access, refresh = u_sess.get_jwts()
-
-    return jsonify(
-        result="success",
-        message={
-            "access_jwt": access,
-            "refresh_jwt": refresh,
-            "user_obj": user_obj.to_dict_only_user(),
-        },
-    ), 200
+        access, refresh = u_sess.get_jwts(db_session)
+        return jsonify(
+            result="success",
+            message={
+                "access_jwt": access,
+                "refresh_jwt": refresh,
+                "user_obj": user_obj.to_dict_only_user(),
+            },
+        ), 200
+    finally:
+        db_session.commit()
+        db_session.close()
 
 
 @bp.route("/logout", methods=["POST"])
@@ -115,7 +120,7 @@ def logout():
     refresh_sub = refresh_jwt_claims.get("sub")
 
     if access_sub == refresh_sub == user_name:
-        session_obj = UserSession.by_id(access_jwt_claims.get("id"))
+        session_obj = g.session
         if session_obj:
             session_obj.delete()
 
@@ -133,7 +138,7 @@ def logout():
 @bp.route("/refresh", methods=["GET"])
 @jwt_required(refresh=True)
 def refresh():
-    token_obj = UserSession.by_id(get_jwt().get("id"))
+    token_obj = g.session
     if not token_obj or not token_obj.is_valid_refresh():
         return jsonify({
             "result": "error",

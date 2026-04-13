@@ -41,6 +41,7 @@ class PassKey(Base):
             return session.scalar(stmt)
         finally:
             if owns_session:
+                session.commit()
                 session.close()
 
 

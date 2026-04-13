@@ -74,7 +74,6 @@ class UserSession(Base):
     __tablename__ = "user_sessions"
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
-    access_token_sig: Mapped[Optional[str]] = mapped_column(String(127), nullable=True)
     sudo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     passkey: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     password: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
@@ -94,18 +93,6 @@ class UserSession(Base):
         nullable=False,
         index=True,
     )
-
-    @classmethod
-    def by_id(
-        cls,
-        id: Any,
-        session: Session | None = None,
-        *,
-        options: list | None = None,
-    ):
-        import inspect
-        ret = super().by_id(id, session=session, options=options)
-        return ret
 
     def __init__(self, user_obj, is_signup=False):
         self.is_signup = is_signup
@@ -184,6 +171,7 @@ class UserSession(Base):
                         method="POST",
                     )
                 finally:
+                    lookup_session.commit()
                     lookup_session.close()
 
                 if twofa_action is not None:
@@ -218,6 +206,8 @@ class UserSession(Base):
             return token
 
         except Exception:
+            import traceback
+            traceback.print_exc()
             session.rollback()
             raise
         finally:
@@ -264,6 +254,8 @@ class UserSession(Base):
             return token
 
         except Exception:
+            import traceback
+            traceback.print_exc()
             session.rollback()
             raise
         finally:
@@ -359,7 +351,6 @@ class UserSession(Base):
             access = fresh_self.access_token
             refresh = fresh_self.refresh_token
 
-            self.access_token_sig = fresh_self.access_token_sig
             self.valid_until = fresh_self.valid_until
             self.valid_until_refresh = fresh_self.valid_until_refresh
             self.created = fresh_self.created
@@ -367,6 +358,7 @@ class UserSession(Base):
             return access, refresh
         finally:
             if owns_session:
+                session.commit()
                 session.close()
 
     def elevate(self, session: Session = None):
@@ -405,6 +397,8 @@ class UserSession(Base):
 
             session.commit()
         except Exception:
+            import traceback
+            traceback.print_exc()
             session.rollback()
             raise
         finally:
@@ -420,6 +414,7 @@ class UserSession(Base):
             return list(session.scalars(stmt).all())
         finally:
             if owns_session:
+                session.commit()
                 session.close()
 
     @classmethod

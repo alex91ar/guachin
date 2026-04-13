@@ -4,7 +4,7 @@ import pkgutil
 import re
 
 from flask import Blueprint, g, jsonify, request, url_for, redirect, current_app
-from flask_jwt_extended import JWTManager, get_jwt, jwt_required
+from flask_jwt_extended import JWTManager, get_jwt, jwt_required, verify_jwt_in_request
 from flask_wtf.csrf import generate_csrf
 from sqlalchemy.orm import Session
 from werkzeug.exceptions import BadRequest
@@ -42,7 +42,7 @@ def register_blueprints_from_package(app, package, base_blueprint: Blueprint, be
             for before_request_fn in before_request_fns:
                 sub_bp.before_request(before_request_fn)
 
-            sub_bp.after_request(log_if_necessary)
+            #sub_bp.after_request(log_if_necessary)
             base_blueprint.register_blueprint(sub_bp)
 
     app.register_blueprint(base_blueprint)
@@ -176,6 +176,29 @@ def request_validator():
     logger.debug("request_validator: csrf_token_issued")
     return None
 
+def session_loader():
+    import time
+    verify_jwt_in_request(optional=True)
+    claims = get_jwt()
+    if claims.get("id", None) is not None:
+        ATTEMPTS = 5
+        while ATTEMPTS != 0:
+            ATTEMPTS = ATTEMPTS -1
+            this_session = UserSession.by_id(claims.get("id"))
+            if this_session is not None:
+                g.session = this_session
+                return
+            else:
+                print(f"********* Session {claims.get("id")} not found = {this_session} attempts remaining {ATTEMPTS}")
+                time.sleep(0.1)
+        print(f"Session not found in database after 5 attempts {claims.get("id")}")
+        return jsonify({
+            "result": "error",
+            "message": "session_not_found",
+        }), 500
+
+
+
 @jwt_required()
 def check_expired():
     claims = get_jwt()
@@ -187,14 +210,16 @@ def check_expired():
             "message": "access_token_expired",
             "hint": "The access token provided has expired. Request a new access token by using your refresh token and the endpoint " + url_for("anon_api.login.refresh") + ".",
         }), 401
-    this_session = UserSession.by_id(claims.get("id"))
+    this_session = g.session
+    if this_session is None:
+        print("Session not found in db.")
     if this_session is None or not this_session.is_valid():
+        print("Session is not valid.")
         return jsonify({
         "result": "error",
         "message": "access_token_expired",
         "hint": "The access token provided has expired. Request a new access token by using your refresh token and the endpoint " + url_for("anon_api.login.refresh") + ".",
     }), 401
-    g.session = this_session
 
 
 @jwt_required()

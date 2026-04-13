@@ -39,7 +39,7 @@ def init_engine(database_url: str, *, echo: bool = False) -> None:
         max_overflow=40,
         pool_timeout=30,
         pool_recycle=1800,
-        pool_reset_on_return="rollback",
+        pool_reset_on_return=None,
         connect_args=connect_args,
     )
 

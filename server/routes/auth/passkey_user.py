@@ -169,113 +169,111 @@ def passkey_register_complete():
 @bp.route("/login/complete", methods=["POST"])
 def passkey_login_complete():
     db_session = get_session()
-    data = request.get_json(force=True) or {}
-    username = (data.get("username") or "").strip()
-
-    user_obj = User.by_id(username, db_session) if username else None
-    if not user_obj or not user_obj.fido2_state:
-        UserSession.clear_partial_sessions(username, db_session)
-        db_session.close()
-        return jsonify({"result": "error", "message": "Invalid or expired login attempt."}), 400
-
-    server = get_fido2_server()
-    state = base64_to_dict(user_obj.fido2_state)
-
-    cred_id_b64u = (data.get("rawId") or data.get("id") or "").strip()
-    if not cred_id_b64u:
-        return jsonify({"result": "error", "message": "Missing credential id."}), 400
-
-    pk = PassKey.by_credential_id(user_obj.id, cred_id_b64u, db_session)
-    if not pk:
-        db_session.close()
-        return jsonify({"result": "error", "message": "Unknown passkey."}), 400
-
-    cred_id_bytes = b64url_decode(cred_id_b64u)
-    cose_key_cbor = pk.public_key
-    cose_key_map = cbor.loads(cose_key_cbor)
-    _public_key = CoseKey.parse(cose_key_map)
-
-    aaguid = getattr(pk, "aaguid", None)
-    if aaguid:
-        aaguid_bytes = aaguid if isinstance(aaguid, (bytes, bytearray)) else bytes.fromhex(aaguid)
-        aaguid_bytes = aaguid_bytes[:16].ljust(16, b"\x00")
-    else:
-        aaguid_bytes = b"\x00" * 16
-
-    credential_data = (
-        aaguid_bytes
-        + struct.pack(">H", len(cred_id_bytes))
-        + cred_id_bytes
-        + cose_key_cbor
-    )
-    credential = AttestedCredentialData(credential_data)
-
-    response = dict(data)
-    resp_obj = dict(response.get("response") or {})
-
     try:
-        resp_obj["clientDataJSON"] = b64url_decode(resp_obj["clientDataJSON"])
-        resp_obj["authenticatorData"] = b64url_decode(resp_obj["authenticatorData"])
-        resp_obj["signature"] = b64url_decode(resp_obj["signature"])
-    except Exception:
+        data = request.get_json(force=True) or {}
+        username = (data.get("username") or "").strip()
+
+        user_obj = User.by_id(username, db_session) if username else None
+        if not user_obj or not user_obj.fido2_state:
+            UserSession.clear_partial_sessions(username, db_session)
+            return jsonify({"result": "error", "message": "Invalid or expired login attempt."}), 400
+
+        server = get_fido2_server()
+        state = base64_to_dict(user_obj.fido2_state)
+
+        cred_id_b64u = (data.get("rawId") or data.get("id") or "").strip()
+        if not cred_id_b64u:
+            return jsonify({"result": "error", "message": "Missing credential id."}), 400
+
+        pk = PassKey.by_credential_id(user_obj.id, cred_id_b64u, db_session)
+        if not pk:
+            return jsonify({"result": "error", "message": "Unknown passkey."}), 400
+
+        cred_id_bytes = b64url_decode(cred_id_b64u)
+        cose_key_cbor = pk.public_key
+        cose_key_map = cbor.loads(cose_key_cbor)
+        _public_key = CoseKey.parse(cose_key_map)
+
+        aaguid = getattr(pk, "aaguid", None)
+        if aaguid:
+            aaguid_bytes = aaguid if isinstance(aaguid, (bytes, bytearray)) else bytes.fromhex(aaguid)
+            aaguid_bytes = aaguid_bytes[:16].ljust(16, b"\x00")
+        else:
+            aaguid_bytes = b"\x00" * 16
+
+        credential_data = (
+            aaguid_bytes
+            + struct.pack(">H", len(cred_id_bytes))
+            + cred_id_bytes
+            + cose_key_cbor
+        )
+        credential = AttestedCredentialData(credential_data)
+
+        response = dict(data)
+        resp_obj = dict(response.get("response") or {})
+
+        try:
+            resp_obj["clientDataJSON"] = b64url_decode(resp_obj["clientDataJSON"])
+            resp_obj["authenticatorData"] = b64url_decode(resp_obj["authenticatorData"])
+            resp_obj["signature"] = b64url_decode(resp_obj["signature"])
+        except Exception:
+            return jsonify({"result": "error", "message": "Invalid base64url in assertion response."}), 400
+
+        if resp_obj.get("userHandle"):
+            resp_obj["userHandle"] = b64url_decode(resp_obj["userHandle"])
+        else:
+            resp_obj["userHandle"] = None
+
+        response["response"] = resp_obj
+
+        server.authenticate_complete(
+            state=state,
+            credentials=[credential],
+            response=response,
+        )
+
+        ad = AuthenticatorData(resp_obj["authenticatorData"])
+        new_counter = ad.counter
+        old_counter = pk.sign_count if pk.sign_count is not None else 0
+
+        if new_counter == 0:
+            pk.sign_count = old_counter
+        else:
+            if old_counter not in (None, 0) and new_counter <= old_counter:
+                return jsonify({
+                    "result": "error",
+                    "message": "Potential cloned authenticator (signCount not increasing).",
+                }), 400
+            pk.sign_count = new_counter
+
+        pk.save(db_session)
+
+        user_sess = UserSession.by_id(get_jwt().get("id", None), db_session)
+        if user_sess is None:
+            return jsonify({"result": "error", "message": "Session not found"}), 404
+
+        user_sess.passkey = True
+        user_sess.partial = False
+        user_sess.valid_passkey = True
+        user_sess.sudo = True
+        user_sess.save(db_session)
+
+        access_jwt, refresh_jwt = user_sess.get_jwts(db_session)
+
+        UserSession.clear_partial_sessions(user_obj.id, db_session)
+        user_obj.fido2_state = None
+        user_obj.fido2_state_timestamp = None
+        user_obj.save(db_session)
+
+
+        return jsonify({
+            "result": "success",
+            "message": {"access_jwt": access_jwt, "refresh_jwt": refresh_jwt},
+            "user_obj": user_obj.to_dict(),
+        }), 200
+    finally:
+        db_session.commit()
         db_session.close()
-        return jsonify({"result": "error", "message": "Invalid base64url in assertion response."}), 400
-
-    if resp_obj.get("userHandle"):
-        resp_obj["userHandle"] = b64url_decode(resp_obj["userHandle"])
-    else:
-        resp_obj["userHandle"] = None
-
-    response["response"] = resp_obj
-
-    server.authenticate_complete(
-        state=state,
-        credentials=[credential],
-        response=response,
-    )
-
-    ad = AuthenticatorData(resp_obj["authenticatorData"])
-    new_counter = ad.counter
-    old_counter = pk.sign_count if pk.sign_count is not None else 0
-
-    if new_counter == 0:
-        pk.sign_count = old_counter
-    else:
-        if old_counter not in (None, 0) and new_counter <= old_counter:
-            db_session.close()
-            return jsonify({
-                "result": "error",
-                "message": "Potential cloned authenticator (signCount not increasing).",
-            }), 400
-        pk.sign_count = new_counter
-
-    pk.save(db_session)
-
-    user_sess = UserSession.by_id(get_jwt().get("id", None), db_session)
-    if user_sess is None:
-        db_session.close()
-        return jsonify({"result": "error", "message": "Session not found"}), 404
-
-    user_sess.passkey = True
-    user_sess.partial = False
-    user_sess.valid_passkey = True
-    user_sess.sudo = True
-    user_sess.save(db_session)
-
-    access_jwt, refresh_jwt = user_sess.get_jwts(db_session)
-
-    UserSession.clear_partial_sessions(user_obj.id, db_session)
-    user_obj.fido2_state = None
-    user_obj.fido2_state_timestamp = None
-    user_obj.save(db_session)
-
-    db_session.close()
-
-    return jsonify({
-        "result": "success",
-        "message": {"access_jwt": access_jwt, "refresh_jwt": refresh_jwt},
-        "user_obj": user_obj.to_dict(),
-    }), 200
 
 
 @bp.route("/delete", methods=["POST"])

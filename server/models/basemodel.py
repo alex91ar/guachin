@@ -21,20 +21,15 @@ class Base(DeclarativeBase):
         try:
             print(f"Save called object {type(self)} {stack_inspect.stack()[1].function} from {stack_inspect.stack()[2].function}")
             if inspect(self).identity is None:
-                print("New object using add.")
+                print("*****************New object using add.")
                 session.add(self)
                 obj = self
             else:
-                print("Old object using merge.")
+                print("*****************Old object using merge.")
                 obj = session.merge(self)
 
             if commit:
                 session.commit()
-                session.refresh(obj)
-
-            for key, value in obj.__dict__.items():
-                if not key.startswith("_sa_"):
-                    setattr(self, key, value)
 
             return obj
         except Exception:
@@ -49,10 +44,13 @@ class Base(DeclarativeBase):
         owns_session = session is None
         session = session or get_session()
         try:
+            print(f"Delete called object {type(self)} {stack_inspect.stack()[1].function} from {stack_inspect.stack()[2].function}")
+            print(f"*****************Deleting object {self}")
             session.delete(self)
             if commit:
                 session.commit()
         except Exception:
+            traceback.print_exc()
             session.rollback()
             raise
         finally:
@@ -76,6 +74,7 @@ class Base(DeclarativeBase):
             return session.execute(stmt).unique().scalar_one_or_none()
         finally:
             if owns_session:
+                session.commit()
                 session.close()
 
     @classmethod
@@ -113,6 +112,7 @@ class Base(DeclarativeBase):
             return list(session.execute(stmt).unique().scalars().all())
         finally:
             if owns_session:
+                session.commit()
                 session.close()
 
     @classmethod
@@ -127,6 +127,7 @@ class Base(DeclarativeBase):
             logger.warning("Cleared table %s (%s rows deleted)", cls.__tablename__, rows)
             return rows
         except Exception:
+            traceback.print_exc()
             session.rollback()
             logger.exception("Failed to clear table %s", cls.__tablename__)
             raise

@@ -14,6 +14,7 @@ from routes import (
     enforce_rbac,
     sudo_validator,
     check_expired,
+    session_loader,
     jwt,
 )
 import routes.auth, routes.anon, routes.html, routes.auth.sudo
@@ -108,19 +109,19 @@ def create_app():
 
     register_blueprints_from_package(
         app, routes.auth.sudo, sudo_bp,
-        [request_validator, enforce_rbac, sudo_validator, check_expired],
+        [request_validator, session_loader, enforce_rbac, sudo_validator, check_expired],
     )
     register_blueprints_from_package(
         app, routes.auth, auth_bp,
-        [request_validator, enforce_rbac, check_expired],
+        [request_validator, session_loader, enforce_rbac, check_expired],
     )
     register_blueprints_from_package(
         app, routes.anon, anon_bp,
-        [request_validator],
+        [request_validator, session_loader],
     )
     register_blueprints_from_package(
         app, routes.html, html_bp,
-        [request_validator],
+        [request_validator, session_loader],
     )
     init_admin(app)
     csrf.init_app(app)
