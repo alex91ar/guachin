@@ -185,9 +185,10 @@ def populate_actions_from_routes(
                     new_non_sudo_actions.append(key)
 
                 action = session.get(Action, key)
+                func_name = rule.endpoint.split(".")[-1]
 
                 if action is None:
-                    action = Action(path=path, method=method)
+                    action = Action(path=path, method=method, endpoint=func_name)
                     session.add(action)
                 elif refresh:
                     action.path = path

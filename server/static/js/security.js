@@ -131,6 +131,23 @@ document.querySelectorAll(".toggle-password").forEach((btn) => {
     });
   }
 
+  const openBtnActions = document.getElementById("open-actions-modal");
+  const modalActions = document.getElementById("actions-modal");
+  if (openBtnActions && modalActions) {
+    openBtnActions.addEventListener("click", async () => {
+      await loadActions();
+      modalActions.classList.remove("hidden");
+      modalActions.hidden = false;
+    });
+
+    // click on backdrop closes modal
+    modalActions.addEventListener("click", (e) => {
+      if (e.target === modalActions) {
+        modalActions.classList.add("hidden");
+      }
+    });
+  }
+
   // ---------- CHANGE PASSWORD MODAL ----------
   const changePwBtn = document.getElementById("open-change-password-modal");
   const changePwModal = document.getElementById("change-password-modal");

@@ -178,7 +178,7 @@ def request_validator():
 
 def session_loader():
     import time
-    verify_jwt_in_request(optional=True)
+    verify_jwt_in_request(optional=True, verify_type=False)
     claims = get_jwt()
     if claims.get("id", None) is not None:
         ATTEMPTS = 5

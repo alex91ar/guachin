@@ -5,6 +5,7 @@ import traceback
 from models.log import Log
 from models.user import User
 from models.user_session import UserSession
+from models.action import Action
 
 bp = Blueprint("me", __name__, url_prefix="/me")
 
@@ -44,6 +45,13 @@ def login_twofa():
 
     return jsonify({"result": "error", "message": "invalid_otp"}), 401
 
+@bp.route("/actions", methods=["GET"])
+def list_actions():
+    actions = Action.all()
+    return jsonify({
+        "result": "success",
+        "message": [action.to_dict() for action in actions],
+    }), 200
 
 @bp.route("/", methods=["GET"])
 def me():

@@ -3,6 +3,7 @@ from flask import Blueprint, jsonify, request
 from models.user import User
 from models.user_session import UserSession
 from utils import check_password_complexity
+from sqlalchemy.orm import selectinload
 
 bp = Blueprint("users", __name__, url_prefix="/users")
 
@@ -70,7 +71,9 @@ def create_user():
 
 @bp.route("/", methods=["GET"])
 def list_users():
-    users = User.all()
+    users = User.all(options=[
+                selectinload(User.roles),
+            ])
     return jsonify({
         "result": "success",
         "message": [u.to_dict() for u in users],

@@ -466,11 +466,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // expose helpers if needed elsewhere
   window.$ = $;
   window.$$ = $$;
-  // Preload actions catalog once
-  ensureActionsLoaded();
   // Add Role
   $("#add-role-btn").onclick = async () => {
-    await ensureActionsLoaded();
+    await loadActions();
     $("#add-role-modal").removeAttribute("hidden");
     setupActionSelectors([], "add");
     bindActionDualButtons("add");
@@ -483,7 +481,7 @@ document.addEventListener("DOMContentLoaded", () => {
       let data;
       try { data = JSON.parse(btn.dataset.json); }
       catch { showToast("Invalid role payload", "error"); return; }
-      await ensureActionsLoaded();
+      await loadActions();
       const modal = $("#edit-role-modal");
       modal.removeAttribute("hidden");
       modal.querySelector(`[name="id"]`).value = data.id;
@@ -586,13 +584,6 @@ window.loadPasskeys = async function () {
   }
 };
 
-/* ---------------- ACTION CATALOG ---------------- */
-async function ensureActionsLoaded() {
-  if (Array.isArray(window.cachedActions) && window.cachedActions.length) return;
-  let data = await fetch(window.list_actions_SUDO);
-  // Expect: [{ id, method, path, ... }]
-  window.cachedActions = data.actions || data.message || [];
-}
 /* load---------------- ACTION SELECTORS (dual lists) ---------------- */
 function setupActionSelectors(preselected = [], prefix = "add") {
   const allActions = window.cachedActions || [];
@@ -652,7 +643,7 @@ async function submitEditRole(e) {
       description: f.description,   // required by backend
       actions
     };
-    let url = window.update_role_SUDO || window.update_role_API || "/roles/"; 
+    let url = window.update_role_SUDO; 
     // ^ pick whatever your generator exposes, otherwise common fallback
     await fetch(url, {
       method: "PATCH",
@@ -703,25 +694,7 @@ function moveOptions(fromSel, toSel) {
    ==================================================X=== */
 
 /* ---------------- LOAD ACTIONS ---------------- */
-window.loadActions = async function () {
-  let data = await fetch(window.list_actions_SUDO);
-  data = await data.json();
-  const actions = data.message || [];
-  window.cachedActions = actions;
-  const tbody = $("#actions-table tbody");
-  tbody.innerHTML = "";
-  actions.forEach((a) => {
-    tbody.insertAdjacentHTML(
-      "beforeend",
-      `
-      <tr>
-        <td>${a.method}</td>
-        <td>${a.path}</td>
-        <td>${a.description}</td>
-      </tr>`
-    );
-  });
-};
+
 
 function activateTab(tabName) {
   // deactivate all tabs

@@ -7,15 +7,6 @@ from utils import generate_urls
 bp = Blueprint("actions", __name__, url_prefix="/actions")
 
 
-@bp.route("/", methods=["GET"])
-def list_actions():
-    actions = Action.all()
-    return jsonify({
-        "result": "success",
-        "message": [action.to_dict() for action in actions],
-    }), 200
-
-
 @bp.route("/reset", methods=["GET"])
 def reset_actions():
     Action.clear_table()

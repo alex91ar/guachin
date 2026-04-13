@@ -106,10 +106,23 @@ async function get_twofa(){
   document.getElementById("twofa-modal").hidden=false;
 }
 
+function decodeJwtPayload(token) {
+  const payload = token.split('.')[1];
+
+  // fix padding
+  const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
+
+  const decoded = atob(padded);
+  return JSON.parse(decoded);
+}
+
 function new_session(access_jwt, refresh_jwt, user_object){
   localStorage.setItem("access_jwt", access_jwt);
   localStorage.setItem("refresh_jwt", refresh_jwt);
-  saveUser(user_object);
+  let jwt_info = decodeJwtPayload(access_jwt);
+  jwt_info["roles"] = user_object["roles"];
+  saveUser(jwt_info);
 }
 
 // ---------- FETCH OVERRIDE ----------
@@ -168,7 +181,9 @@ async function checkAuth() {
   }
   else 
     {
-      saveUser(data.message);
+      let jwt_info = decodeJwtPayload(localStorage.getItem("access_jwt"));
+      jwt_info["roles"] = data.message["roles"];
+      saveUser(jwt_info);
       showUserLinks();
       if (typeof loadUser === "function") loadUser();
     }

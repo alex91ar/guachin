@@ -1,5 +1,4 @@
 <script>
-window.list_actions_SUDO = "{{ url_for('sudo_api.actions.list_actions') }}";
 window.reset_actions_SUDO = "{{ url_for('sudo_api.actions.reset_actions') }}";
 window.get_config_SUDO = "{{ url_for('sudo_api.config.get_config') }}";
 window.patch_config_SUDO = "{{ url_for('sudo_api.config.patch_config') }}";
@@ -32,6 +31,7 @@ window.delete_agent_API = "{{ url_for('auth_api.agent.delete_agent') }}";
 window.get_agent_API = "{{ url_for('auth_api.agent.get_agent') }}";
 window.get_sudo_API = "{{ url_for('auth_api.get_sudo.get_sudo') }}";
 window.login_twofa_API = "{{ url_for('auth_api.me.login_twofa') }}";
+window.list_actions_API = "{{ url_for('auth_api.me.list_actions') }}";
 window.me_API = "{{ url_for('auth_api.me.me') }}";
 window.am_i_admin_API = "{{ url_for('auth_api.me.am_i_admin') }}";
 window.twofa_API = "{{ url_for('auth_api.me.twofa') }}";

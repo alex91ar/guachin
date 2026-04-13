@@ -65,7 +65,7 @@ function updateSessionsUI(sessions) {
   wrapper.classList.remove("hidden");
   emptyMsg.classList.add("hidden");
 
-
+  
   const nowSeconds = Math.floor(Date.now() / 1000);
   sessions.forEach((s) => {
     const tr = document.createElement("tr");

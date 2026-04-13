@@ -42,7 +42,7 @@ class Action(Base):
     )
 
     # ---- Init ----
-    def __init__(self, path: str, method: str):
+    def __init__(self, path: str, method: str, endpoint):
         if not path or not method:
             raise ValueError("Actions require a valid path and method.")
 
@@ -51,7 +51,7 @@ class Action(Base):
 
         self.path = path
         self.method = method
-        self.description = f"Method {method} for path {path}."
+        self.description = f"Method {method} for endpoint {endpoint}."
         self.id = gen_key(path, method)
 
     # ---- Serialization ----
@@ -60,6 +60,7 @@ class Action(Base):
             "id": self.id,
             "path": self.path,
             "method": self.method,
+            "description":self.description
         }
 
         if include_roles and self.is_loaded("roles"):

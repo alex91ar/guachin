@@ -432,30 +432,39 @@ class UserSession(Base):
         return session.scalar(stmt)
 
     @classmethod
-    def expire_sessions_by_role(cls, session: Session, role: str) -> int:
-        from models.role import Role
-        from models.user import User
-        from utils import sanitize
+    def expire_sessions_by_role(cls, role: str, session: Session=None) -> int:
+        owns_session = False
+        if session is None:
+            session = get_session()
+            owns_session = True
+        try:
+            from models.role import Role
+            from models.user import User
+            from utils import sanitize
 
-        rid = sanitize(role).lower()
-        now = datetime.now(timezone.utc)
-        expired_count = 0
+            rid = sanitize(role).lower()
+            now = datetime.now(timezone.utc)
+            expired_count = 0
 
-        user_ids_subq = select(User.id).where(User.roles.any(Role.id == rid))
-        sessions_q = session.scalars(select(cls).where(cls.user_id.in_(user_ids_subq))).all()
+            user_ids_subq = select(User.id).where(User.roles.any(Role.id == rid))
+            sessions_q = session.scalars(select(cls).where(cls.user_id.in_(user_ids_subq))).all()
 
-        for sess in sessions_q:
-            if sess.valid_until is not None:
-                vu = sess.valid_until
-                if vu.tzinfo is None:
-                    vu = vu.replace(tzinfo=timezone.utc)
-                if vu > now:
-                    expired_count += 1
-            sess.valid_until = None
+            for sess in sessions_q:
+                if sess.valid_until is not None:
+                    vu = sess.valid_until
+                    if vu.tzinfo is None:
+                        vu = vu.replace(tzinfo=timezone.utc)
+                    if vu > now:
+                        expired_count += 1
+                sess.valid_until = None
 
-        session.commit()
-        logger.info("Expired %s session(s) for role '%s'.", expired_count, rid)
-        return expired_count
+            logger.info("Expired %s session(s) for role '%s'.", expired_count, rid)
+            return expired_count
+        finally:
+            session.commit()
+            if owns_session:
+                session.close()
+
 
     @staticmethod
     def _session_for_lookup() -> Session:

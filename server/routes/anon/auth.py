@@ -136,19 +136,23 @@ def logout():
 
 
 @bp.route("/refresh", methods=["GET"])
-@jwt_required(refresh=True)
 def refresh():
     token_obj = g.session
-    if not token_obj or not token_obj.is_valid_refresh():
+    if not token_obj:
         return jsonify({
             "result": "error",
-            "message": "refresh_token_expired",
+            "message": "No token provided",
         }), 401
 
     user_obj = User.by_id(token_obj.user_id)
     if not user_obj:
         return jsonify(result="error", message="User not found"), 404
-
+    if not token_obj.is_valid_refresh():
+        return jsonify(result="error", message="Refresh token has expired."), 401
+    claims = get_jwt()
+    type = claims.get("type", None)
+    if type is None or type != "refresh":
+        return jsonify(result="error", message="Invalid token type."), 401
     token_obj.refresh_tokens()
     access_token, refresh_token = token_obj.get_jwts()
 
