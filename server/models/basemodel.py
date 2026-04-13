@@ -9,7 +9,8 @@ from sqlalchemy.orm import DeclarativeBase, Session
 from models.db import get_session
 
 logger = logging.getLogger(__name__)
-
+import traceback
+import inspect as stack_inspect
 
 class Base(DeclarativeBase):
     __abstract__ = True
@@ -18,6 +19,7 @@ class Base(DeclarativeBase):
         owns_session = session is None
         session = session or get_session()
         try:
+            print(f"Save called object {type(self)} {stack_inspect.stack()[1].function} from {stack_inspect.stack()[2].function}")
             if inspect(self).identity is None:
                 print("New object using add.")
                 session.add(self)
@@ -36,6 +38,7 @@ class Base(DeclarativeBase):
 
             return obj
         except Exception:
+            traceback.print_exc()
             session.rollback()
             raise
         finally:

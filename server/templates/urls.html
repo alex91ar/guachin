@@ -39,7 +39,6 @@ window.sessions_API = "{{ url_for('auth_api.me.sessions') }}";
 window.expire_session_API = "{{ url_for('auth_api.me.expire_session') }}";
 window.update_password_API = "{{ url_for('auth_api.me.update_password') }}";
 window.update_details_API = "{{ url_for('auth_api.me.update_details') }}";
-window.gen_error_API = "{{ url_for('auth_api.me.gen_error') }}";
 window.enable_2fa_API = "{{ url_for('auth_api.me.enable_2fa') }}";
 window.disable_2fa_API = "{{ url_for('auth_api.me.disable_2fa') }}";
 window.get_user_logs_API = "{{ url_for('auth_api.me.get_user_logs') }}";
@@ -50,6 +49,7 @@ window.passkey_register_complete_API = "{{ url_for('auth_api.passkeys.passkey_re
 window.passkey_login_complete_API = "{{ url_for('auth_api.passkeys.passkey_login_complete') }}";
 window.delete_passkey_API = "{{ url_for('auth_api.passkeys.delete_passkey') }}";
 window.server_agent_ws_API = "{{ url_for('server_agent_ws', agent_id='0') }}";
+window.gen_error_API = "{{ url_for('anon_api.login.gen_error') }}";
 window.login_API = "{{ url_for('anon_api.login.login') }}";
 window.logout_API = "{{ url_for('anon_api.login.logout') }}";
 window.refresh_API = "{{ url_for('anon_api.login.refresh') }}";

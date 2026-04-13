@@ -167,7 +167,7 @@ class UserSession(Base):
             ).unique().scalar_one()
 
             perms = set()
-
+            print(f"sudo = {fresh.sudo}. password = {fresh.password}. passkey = {fresh.passkey}. is_signup = {fresh.is_signup}. partial = {fresh.partial}")
             if (fresh.sudo and fresh.password) or fresh.passkey or fresh.is_signup:
                 for role_obj in fresh.user.roles:
                     for action in role_obj.actions:
@@ -333,7 +333,7 @@ class UserSession(Base):
     def is_elevated(self, user_obj) -> bool:
         auths = 0
         if self.sudo:
-            auths += 1
+            return True
         if self.password:
             auths += 1
         if self.passkey:
@@ -342,8 +342,12 @@ class UserSession(Base):
             auths += 1
         return auths >= 2
 
-    def get_jwts(self):
-        session = get_session()
+    def get_jwts(self, session: Session = None):
+        if session is None:
+            owns_session = False
+            session = get_session()
+        else:
+            owns_session = True
         try:
             fresh_self = session.execute(
                 select(UserSession)
@@ -365,14 +369,15 @@ class UserSession(Base):
 
             return access, refresh
         finally:
-            session.close()
+            if owns_session:
+                session.close()
 
     def elevate(self, session: Session = None):
         owns_session = session is None
         if session is None:
             session = get_session()
         self.sudo = True
-        session.add(self)
+        session.merge(self)
         session.commit()
         if owns_session:
             session.close()

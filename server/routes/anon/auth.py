@@ -47,6 +47,9 @@ def get_token_claims_manually(token):
     except Exception as e:
         return None, f"Unexpected error: {str(e)}"
 
+@bp.route("/error", methods=["GET"])
+def gen_error():
+    raise ValueError("Test")
 
 @bp.route("/", methods=["POST"])
 def login():

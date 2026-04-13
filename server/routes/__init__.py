@@ -81,7 +81,7 @@ def sudo_validator():
         if not sudo_required:
             if token_obj is not None:
                 token_obj.elevate()
-            return redirect(url_for("html_pages.admin.admin_elevate"))
+            return redirect(url_for("html_pages.admin_html.admin_elevate"))
 
         return jsonify({
             "result": "error",
@@ -97,6 +97,7 @@ def log_if_necessary(response):
         user = None
 
     if response.status_code >= 400 and response.status_code != 401:
+        print("Logging exception.")
         new_log = Log(
             path=request.path,
             method=request.method,

@@ -14,6 +14,10 @@
       window.location.replace(window.admin_elevate_HTML); 
       return; // ⛔ stop executing anything else
     }
+    if(json.new_jwt) {
+      console.log("Setting new jwt")
+      localStorage.setItem("access_jwt", json.new_jwt);
+    }
     console.log("User already admin...");
     // ✅ user is admin → continue loading
     window.global_sudo = true;

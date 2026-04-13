@@ -59,6 +59,7 @@ def me():
 def am_i_admin():
     user_obj = User.by_id(get_jwt_identity())
     session = g.session
+    print(f"sudo = {session.sudo}. password = {session.password}. id = {session.id}. passkey = {session.passkey}. partial = {session.partial}")
     sudo = session.is_elevated(user_obj)
     obj = {"result": "success", "message": sudo}
     if sudo == True:
@@ -162,9 +163,7 @@ def update_details():
 
     return jsonify({"result": "success", "message": "Details updated successfully."}), 200
 
-@bp.route("/error", methods=["GET"])
-def gen_error():
-    raise ValueError("Test")
+
 
 @bp.route("/enable_2fa", methods=["PUT"])
 def enable_2fa():

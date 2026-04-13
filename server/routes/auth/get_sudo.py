@@ -11,6 +11,7 @@ bp = Blueprint("get_sudo", __name__, url_prefix="/get_sudo")
 def get_sudo():
     user_obj = User.by_id(get_jwt_identity())
     user_session = UserSession.by_id(get_jwt().get("id", None))
+    print(f"from get_sudo sudo = {user_session.sudo}. password = {user_session.password}. id = {user_session.id}. passkey = {user_session.passkey}. partial = {user_session.partial}")
 
     if user_obj is None or user_session is None:
         return jsonify({"result": "error", "message": "session_or_user_not_found"}), 404
@@ -22,7 +23,6 @@ def get_sudo():
             return jsonify({"result": "error", "message": "2fa_required"}), 400
         if user_obj.verify_2fa(otp) is False:
             return jsonify({"result": "error", "message": "2fa_required"}), 401
-
     token, refresh_token = user_session.elevate()
 
     return jsonify(

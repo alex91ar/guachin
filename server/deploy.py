@@ -348,7 +348,7 @@ def start_flask_app_gunicorn():
         "--threads", "4",
         "--reload",
         "--graceful-timeout", "1",
-        "--access-logfile", "/dev/null",
+        "--access-logfile", "-",
         "--error-logfile", "-",
         "app:create_app()",
     ]

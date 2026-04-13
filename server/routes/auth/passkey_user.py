@@ -24,7 +24,7 @@ from fido2.webauthn import (
 from models.passkey import PassKey
 from models.user import User
 from models.user_session import UserSession
-
+from models.basemodel import get_session
 bp = Blueprint("passkeys", __name__, url_prefix="/passkeys")
 
 
@@ -109,7 +109,6 @@ def register_begin():
         user_verification=UserVerificationRequirement.PREFERRED,
         authenticator_attachment=AuthenticatorAttachment.PLATFORM,
     )
-
     user_obj.fido2_state = dict_to_base64(state)
     user_obj.fido2_state_timestamp = datetime.now(timezone.utc)
     user_obj.save()
@@ -119,9 +118,10 @@ def register_begin():
 
 @bp.route("/register/complete", methods=["POST"])
 def passkey_register_complete():
+    db_session = get_session()
     user_id = get_jwt_identity()
     data = request.get_json(force=True)
-    user_obj = User.by_id(user_id)
+    user_obj = User.by_id(user_id, db_session)
     if not user_obj:
         return jsonify({"result": "error", "message": "Exception during registration begin."}), 500
 
@@ -139,7 +139,16 @@ def passkey_register_complete():
     cred_data = auth_data.credential_data
     credential_id_b64u = b64url_encode(cred_data.credential_id)
     print(credential_id_b64u)
-
+    print("[************************************************************************************************************************************************]")
+    print("[************************************************************************************************************************************************]")
+    print("[************************************************************************************************************************************************]")
+    print("[************************************************************************************************************************************************]")
+    print("[************************************************************************************************************************************************]")
+    print("[************************************************************************************************************************************************]")
+    print("[************************************************************************************************************************************************]")
+    print("[************************************************************************************************************************************************]")
+    print("[************************************************************************************************************************************************]")
+    print("[************************************************************************************************************************************************]")
     pk = PassKey(
         user_id=user_obj.id,
         id=credential_id_b64u,
@@ -147,24 +156,26 @@ def passkey_register_complete():
         credential_data=bytes(cred_data),
         sign_count=auth_data.counter or 0,
     )
-    print(pk.save())
-    print(pk)
+    pk.save(session=db_session)
 
     user_obj.fido2_state = None
     user_obj.fido2_state_timestamp = None
-    user_obj.save()
+    user_obj.save(session=db_session)
+    db_session.close()
 
     return jsonify({"result": "success", "message": {"status": "ok"}})
 
 
 @bp.route("/login/complete", methods=["POST"])
 def passkey_login_complete():
+    db_session = get_session()
     data = request.get_json(force=True) or {}
     username = (data.get("username") or "").strip()
 
-    user_obj = User.by_id(username) if username else None
+    user_obj = User.by_id(username, db_session) if username else None
     if not user_obj or not user_obj.fido2_state:
-        UserSession.clear_partial_sessions(username)
+        UserSession.clear_partial_sessions(username, db_session)
+        db_session.close()
         return jsonify({"result": "error", "message": "Invalid or expired login attempt."}), 400
 
     server = get_fido2_server()
@@ -174,8 +185,9 @@ def passkey_login_complete():
     if not cred_id_b64u:
         return jsonify({"result": "error", "message": "Missing credential id."}), 400
 
-    pk = PassKey.by_credential_id(user_obj.id, cred_id_b64u)
+    pk = PassKey.by_credential_id(user_obj.id, cred_id_b64u, db_session)
     if not pk:
+        db_session.close()
         return jsonify({"result": "error", "message": "Unknown passkey."}), 400
 
     cred_id_bytes = b64url_decode(cred_id_b64u)
@@ -206,6 +218,7 @@ def passkey_login_complete():
         resp_obj["authenticatorData"] = b64url_decode(resp_obj["authenticatorData"])
         resp_obj["signature"] = b64url_decode(resp_obj["signature"])
     except Exception:
+        db_session.close()
         return jsonify({"result": "error", "message": "Invalid base64url in assertion response."}), 400
 
     if resp_obj.get("userHandle"):
@@ -229,27 +242,34 @@ def passkey_login_complete():
         pk.sign_count = old_counter
     else:
         if old_counter not in (None, 0) and new_counter <= old_counter:
+            db_session.close()
             return jsonify({
                 "result": "error",
                 "message": "Potential cloned authenticator (signCount not increasing).",
             }), 400
         pk.sign_count = new_counter
 
-    pk.save()
+    pk.save(db_session)
 
-    user_sess = UserSession.by_id(get_jwt().get("id", None))
+    user_sess = UserSession.by_id(get_jwt().get("id", None), db_session)
     if user_sess is None:
+        db_session.close()
         return jsonify({"result": "error", "message": "Session not found"}), 404
 
     user_sess.passkey = True
-    user_sess.save()
+    user_sess.partial = False
+    user_sess.valid_passkey = True
+    user_sess.sudo = True
+    user_sess.save(db_session)
 
-    access_jwt, refresh_jwt = user_sess.get_jwts()
+    access_jwt, refresh_jwt = user_sess.get_jwts(db_session)
 
-    UserSession.clear_partial_sessions(user_obj.id)
+    UserSession.clear_partial_sessions(user_obj.id, db_session)
     user_obj.fido2_state = None
     user_obj.fido2_state_timestamp = None
-    user_obj.save()
+    user_obj.save(db_session)
+
+    db_session.close()
 
     return jsonify({
         "result": "success",
