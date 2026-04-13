@@ -43,9 +43,8 @@ def parse_handshake(msg: bytes, agent_id: str) -> None:
         f"New agent os = {hex(agent.os)} {len(os_bytes)}, "
         f"scratchpad = {hex(agent.scratchpad)}"
     )
-
-    Syscall.save_syscalls_bytes(agent.id, syscall_blob)
     agent.save()
+    Syscall.save_syscalls_bytes(agent.id, syscall_blob)
 
 
 def handle_msg_type(agent_id):
@@ -62,7 +61,7 @@ def handle_msg_type(agent_id):
     payload = msg[1:]
 
     if msg_type == 0x00:
-        profile(parse_handshake, payload, agent_id)
+        parse_handshake(payload, agent_id)
         return None
     if msg_type == 0x01:
         return payload

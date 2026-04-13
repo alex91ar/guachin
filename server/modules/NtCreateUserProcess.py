@@ -15,7 +15,6 @@ def NtCreateUserProcess(agent_id, p_params, image_path, h_pipe):
     agent = Agent.by_id(agent_id)
     syscall = Syscall.sys(agent.id, "NtCreateUserProcess")
     scratchpad = agent.scratchpad
-
     # Memory Layout for Syscall
     # 1. ProcessHandle (8)
     h_proc_data, h_thread_ptr = build_ptr(scratchpad, b"\x00" * 8)
@@ -29,7 +28,6 @@ def NtCreateUserProcess(agent_id, p_params, image_path, h_pipe):
     handle_array_data, attr_list_ptr = build_ptr(handle_array_ptr, struct.pack('<Q', h_pipe))
     # 6. PS_ATTRIBUTE_LIST (64)
     attr_list_data, next_ptr = build_ps_attribute_list(attr_list_ptr, image_str_ptr, len(image_path)*2, handle_array_ptr, 8)
-
     params = [
         scratchpad,      # P1: &ProcessHandle (R10)
         h_thread_ptr,    # P2: &ThreadHandle (RDX)
@@ -37,14 +35,13 @@ def NtCreateUserProcess(agent_id, p_params, image_path, h_pipe):
         0x2000000,        # P4: THREAD_ALL_ACCESS (R9)
         0x0,             # P5: [RSP+0x28] ObjectAttributes
         0x0,             # P6: [RSP+0x30] ObjectAttributes
-        0x0,            # P7: [RSP+0x38] ProcessFlags (Inherit Handles)
-        0x0,             # P8: [RSP+0x40] ThreadFlags
+        0x204,            # P7: [RSP+0x38] ProcessFlags (Inherit Handles)
+        0x1,             # P8: [RSP+0x40] ThreadFlags
         p_params,        # P9: [RSP+0x48] Pointer to RTL_USER_PROCESS_PARAMETERS
         create_info_ptr, # P10:[RSP+0x50] Pointer to PS_CREATE_INFO
-        0    # P11:[RSP+0x58] Pointer to PS_ATTRIBUTE_LIST
+        attr_list_ptr    # P11:[RSP+0x58] Pointer to PS_ATTRIBUTE_LIST
     ]
-
-    shellcode = push_syscall(syscall, params)
+    shellcode = push_syscall(syscall, params, True)
     data = h_proc_data + h_thread_data + image_str_data + create_info_data + handle_array_data + attr_list_data
     '''
     #print

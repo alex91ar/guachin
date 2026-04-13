@@ -51,7 +51,6 @@ def writeFile(agent_id, handle, buffer, length, offset):
     return response_data, io_status_block
 
 def function(agent_id, args):
-    #printf"[*][*][*][*][*][*][*][*][*][*][*][*]NtWriteFile received args {args}")
     file_handle = args[0]
     data_buffer = args[1]
     buffer_len = args[2]

@@ -29,7 +29,7 @@ def try_cast_dynamic(value: Any, type_name: str):
         return None
 
     try:
-        #print(f"Processing value {value} expected type {type_name} type {type(value)}")
+        print(f"Processing value {value} expected type {type_name} type {type(value)}")
         if value == "null":
             return "null"
         if type(value) == int:
@@ -38,6 +38,8 @@ def try_cast_dynamic(value: Any, type_name: str):
             return int(value, base=16)
         if type_name == "bytes":
             print("Is bytes")
+            if type(value) == bytearray:
+                return bytes(value)
             if type(value) == bytes:
                 return value
             else:
@@ -152,7 +154,11 @@ class Module(Base):
             else:
                 retmsg = retvals
         except Exception as e:
-            tb = traceback.format_exc()
+            import inspect as stack_inspect
+            tb = f"Exception in {stack_inspect.stack()[1].function} from {stack_inspect.stack()[2].function}\n"
+            tb = tb + f"Module name = {self.id}\n"
+            tb = tb + traceback.format_exc()
+
             return tb
         return retmsg
 

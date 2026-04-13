@@ -3,7 +3,7 @@
 #include <cstring>
 
 //#define PROFILE
-//#define DEBUG
+#define DEBUG
 #ifdef PROFILE
 #include <iostream>
 using namespace std;
@@ -55,7 +55,7 @@ bool handleExecuteShellcode(
 
 #ifdef DEBUG
     cout << "Executing " << hex << (unsigned long long)execution_mem
-         << ". Size " << sc_size << endl;
+         << ". Size " << (dec) << sc_size << endl;
 #endif
 
     unsigned long long result = exec();
@@ -99,11 +99,11 @@ void handleReadMemory(
 
     #ifdef DEBUG
         cout << "Reading from " << hex << (unsigned long long)startAddr
-            << ". Size " << readLen << endl;
+            << ". Size " << (dec) << readLen << endl;
     #endif
 
     memcpy(output, (void*)startAddr, (size_t)readLen);
-    outputSize = (size_t)readLen + 1;
+    outputSize = (size_t)readLen;
 
     #ifdef PROFILE
         QueryPerformanceCounter(&end);
@@ -133,7 +133,7 @@ void handleWriteMemory(
 
     #ifdef DEBUG
         cout << "Writing to " << hex << (unsigned long long)writeAddr
-            << ". Size " << writeLen << endl;
+            << ". Size " << (dec) << writeLen << endl;
     #endif
 
     memcpy((void*)writeAddr, input + 16, (size_t)writeLen);

@@ -31,7 +31,7 @@ def function(agent_id, args):
         ret = NtOpenFile(agent_id, [file_name,  0x00100001, 0x00000007, 0x00000020, 0])
         if ret["retval"] == 0:
             file_handle = ret["FILE_HANDLE"]
-            #printf"About to call NtReadFile {[file_handle, buffer_ptr, read_size, byte_offset]}")
+            print(f"About to call NtReadFile {[file_handle, buffer_ptr, read_size, byte_offset]}")
             ret = NtReadFile(agent_id, [file_handle, buffer_ptr, read_size, byte_offset])
             if ret["retval"] == 0:
                 data = read_from_agent(agent_id, buffer_ptr, read_size)
@@ -46,7 +46,8 @@ def function(agent_id, args):
                 return {
                     "retval": 0,
                     "data": decoded,
-                    "hash": hashlib.sha256(decoded).hexdigest()
+                    "hash": hashlib.sha256(decoded).hexdigest(),
+                    "len": len(decoded)
                 }
             else:
                 retclose = NtClose(agent_id, [file_handle])

@@ -11,7 +11,7 @@ DEPENDENCIES = [
     "RtlCreateProcessParametersEx", # To build the parameter block
     "NtCreateUserProcess",          # The core modern process creator
     "NtClose",                      # Cleanup
-    "NtFreeVirtualMemory"           # Cleanup
+    "NtFreeVirtualMemory",           # Cleanup
 ]
 
 def function(agent_id, args):
@@ -25,7 +25,7 @@ def function(agent_id, args):
     # 1. CREATE PROCESS PARAMETERS (RtlCreateProcessParametersEx)
     # This initializes the structure containing the command line and environment.
     # We pass 0x01 (RTL_USER_PROCESS_PARAMETERS_NORMALIZED) to ensure pointers are valid.
-    params_ret = RtlCreateProcessParametersEx(agent_id, [exe_path, full_cmd, 0x01])
+    params_ret = RtlCreateProcessParametersEx(agent_id, [exe_path, full_cmd])
     if params_ret["retval"] != 0:
         return {"retval": f"Failed to create process parameters: {hex(params_ret['retval'])}"}
     

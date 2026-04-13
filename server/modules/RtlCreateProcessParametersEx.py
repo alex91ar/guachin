@@ -3,7 +3,7 @@ DESCRIPTION = "Initialize process parameters with private memory allocation"
 PARAMS = [
     {"name":"image_path", "description":"NT path to binary", "type":"str"},
     {"name":"command_line", "description":"Full command line", "type":"str"},
-    {"name":"h_output_pipe", "description":"Handle for redirection", "type":"hex"},
+    {"name":"h_output_pipe", "description":"Handle for redirection", "type":"hex", "optional":True, "default":"0"},
 ]
 # Requires memory management dependencies
 DEPENDENCIES = ["NtAllocateVirtualMemory", "NtFreeVirtualMemory", "RtlInitUnicodeString"]
@@ -14,13 +14,12 @@ def RtlCreateProcessParametersEx(agent_id, image_path, command_line):
     from services.binary import build_ptr, push_rtl, build_unicode_string
     import struct
     agent = Agent.by_id(agent_id)
+    print(f"agent = {agent} scratchpad = {agent.scratchpad}")
     func_addr = Syscall.sys(agent.id, "RtlCreateProcessParametersEx")
     scratchpad = agent.scratchpad
-
     ProcessParams_data, image_path_ptr = build_ptr(scratchpad, b"\x00"*8)
     image_path_data, command_line_ptr = build_unicode_string(image_path_ptr, image_path)
-    command_line_data, desktopinfo_ptr = build_unicode_string(command_line_ptr, command_line)
-    desktopinfo_Data, next_ptr  = build_unicode_string(command_line_ptr, "Winsta0\\Default")
+    command_line_data, next_ptr = build_unicode_string(command_line_ptr, command_line)
     # 11 Parameters for     
     params = [
         scratchpad,      # P1: RCX (&pProcessParams)
@@ -28,15 +27,15 @@ def RtlCreateProcessParametersEx(agent_id, image_path, command_line):
         0,               # P3: R8
         0,               # P4: R9
         command_line_ptr,     # P5: [RSP+0x28] (Pointer to CommandLine struct)
-        0, 0, desktopinfo_ptr, 0, 0,
+        0, 0, 0, 0, 0,
         0x01             # P11: RTL_USER_PROC_PARAMS_NORMALIZED
     ]
-
+    print(f"args = {params}")
     shellcode = push_rtl(func_addr, params, agent.debug)
     
     # The actual data blob to write to the agent
     # We combine the scratchpad data and our private allocation data
-    payload = ProcessParams_data + image_path_data + command_line_data + desktopinfo_Data
+    payload = ProcessParams_data + image_path_data + command_line_data
     '''
     #print
     f"RtlCreateProcessParametersEx(\n"
@@ -59,20 +58,16 @@ def RtlCreateProcessParametersEx(agent_id, image_path, command_line):
 def initProcessParams(agent_id, image_path, command_line, h_pipe):
     from services.orders import write_scratchpad, write_to_agent, send_and_wait, read_scratchpad
     import struct
-    
     # 2. Generate and write the function logic
     data, shellcode = RtlCreateProcessParametersEx(agent_id, image_path, command_line)
-    
     # Write the scratchpad pointer AND the private memory data
     write_scratchpad(agent_id, data) # Write &pParams back to scratchpad
-    
     # 3. Execute
     response_retval = int.from_bytes(send_and_wait(agent_id, shellcode), 'little')
-    
     # 4. Retrieve pProcessParams and Patch Output Pipes
     p_params_raw = read_scratchpad(agent_id, 8)
     p_params = int.from_bytes(p_params_raw, 'little')
-    if response_retval == 0:
+    if response_retval == 0 and h_pipe != 0:
         h_pipe_bytes = struct.pack('<Q', h_pipe)
         write_to_agent(agent_id, p_params + 0x28, h_pipe_bytes) # StdOutput
         write_to_agent(agent_id, p_params + 0x30, h_pipe_bytes) # StdError
@@ -81,6 +76,7 @@ def initProcessParams(agent_id, image_path, command_line, h_pipe):
 
 def function(agent_id, args):
     from services.binary import align_up
+    print(f"Args = {args}")
     image_path= args[0]
     command_line = args[1]
     h_pipe = args[2]

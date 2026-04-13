@@ -104,10 +104,7 @@ class UserSession(Base):
         options: list | None = None,
     ):
         import inspect
-        print(f"Loaded session {id} from {inspect.stack()[1].function} from {inspect.stack()[2].function}")
         ret = super().by_id(id, session=session, options=options)
-        if ret is not None:
-            print(f"Expiration = {ret.valid_until}")
         return ret
 
     def __init__(self, user_obj, is_signup=False):
