@@ -59,12 +59,19 @@ def create_module():
 
     write_module(id, description, params, dependencies, code)
     load_modules_from_directory()
+    module_obj = Module.by_id(id)
 
-    return jsonify({
-        "result": "success",
-        "message": "Module created",
-        "module": module_obj.to_dict(),
-    }), 201
+    if module_obj is not None:
+        return jsonify({
+            "result": "success",
+            "message": "Module created",
+            "module": module_obj.to_dict(),
+        }), 201
+    else:
+        return jsonify({
+            "result": "error",
+            "message": "Error creating new module"
+        }), 500
 
 
 @bp.route("/", methods=["PATCH"])

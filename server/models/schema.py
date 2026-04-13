@@ -59,15 +59,24 @@ def load_modules_from_directory(directory: str = "./modules", session: Session |
                     logger.error(f"{file_path.name}: Could not load module.")
                     logger.exception(traceback.format_exc())
                     os.remove(file_path)
+                    continue
 
                 if not hasattr(py_module, "function"):
                     logger.error("%s missing 'function'", file_path.name)
+                    os.remove(file_path)
                     continue
 
                 func = getattr(py_module, "function")
                 if not callable(func):
                     logger.error("'function' in %s is not callable", file_path.name)
+                    os.remove(file_path)
                     continue
+                sig = inspect.signature(func)
+                if not all(name in sig.parameters for name in ["agent_id","args"]):
+                    logger.error("'function' has not arguments \"agent_id\" and \"args\"", file_path.name)
+                    os.remove(file_path)
+                    continue
+
 
                 name = getattr(py_module, "NAME", file_path.stem)
                 params = getattr(py_module, "PARAMS", [])
@@ -77,6 +86,7 @@ def load_modules_from_directory(directory: str = "./modules", session: Session |
 
                 if not isinstance(params, list):
                     logger.error("%s: PARAMS must be a list", file_path.name)
+                    os.remove(file_path)
                     continue
 
                 code = ""

@@ -238,6 +238,7 @@ function renderModules(rows) {
     const actionsTd = document.createElement("td");
     actionsTd.className = "right";
     const readonly = module.builtin ? "disabled" : "";
+    const hidden = module.builtin ? "" : "hidden";
     const spanMessage = module.builtin ? "Cannot delete a Built-In module." : ""
     actionsTd.innerHTML = `
       <div style="display:flex;gap:.5rem;justify-content:flex-end;flex-wrap:wrap;">
@@ -245,7 +246,7 @@ function renderModules(rows) {
         <button type="button" class="btn small">Edit</button>
         <div class="tooltip">
           <button type="button" class="btn small danger" ${readonly}>Delete</button>
-          <span class="tooltip-text" id="delete-button-tooltip">${spanMessage}</span>
+          <span class="tooltip-text" id="delete-button-tooltip" ${hidden}>${spanMessage}</span>
         </div>
       </div>
     `;
@@ -399,6 +400,7 @@ function openEditModuleModal(module) {
     document.getElementById("add-dependency-to-edit").disabled = true;
     document.getElementById("remove-dependency-from-edit").disabled = true;
     document.getElementById("save-button-tooltip").innerHTML = "Cannot save a Built-In module.";
+    document.getElementById("save-button-tooltip").hidden = false;
   }
   else{
     form.elements.params.readOnly = false;
@@ -408,6 +410,7 @@ function openEditModuleModal(module) {
     document.getElementById("add-dependency-to-edit").disabled = false;
     document.getElementById("remove-dependency-from-edit").disabled = false;
     document.getElementById("save-button-tooltip").innerHTML = "";
+    document.getElementById("save-button-tooltip").hidden = true;
   }
   document.getElementById("save-button-edit").disabled = form.elements.code.readOnly;
 
