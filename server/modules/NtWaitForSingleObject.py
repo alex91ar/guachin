@@ -4,6 +4,7 @@ PARAMS = [
     {"name":"handle", "description":"Handle to the object", "type":"hex"},
     {"name":"timeout_ms", "description":"Timeout in milliseconds (-1 for infinite)", "type":"int"}
 ]
+DEFAULT = True
 
 def NtWaitForSingleObject(agent_id, handle, timeout_ms=-1):
     from models.agent import Agent

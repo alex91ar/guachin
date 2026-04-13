@@ -5,6 +5,7 @@ PARAMS = [
 ]
 
 DEPENDENCIES = ["read", "write"]
+DEFAULT = True
 
 def generate_encrypted_header():
     from flask import current_app

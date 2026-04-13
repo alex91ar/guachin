@@ -5,6 +5,7 @@ PARAMS = [
     {"name":"info_class", "description":"ProcessInformationClass (0 for BasicInformation)", "type":"int"},
     {"name":"buffer_size", "description":"Size of the structure to return (e.g., 48 for BasicInfo on x64)", "type":"int"}
 ]
+DEFAULT = True
 
 def NtQueryInformationProcess_Shellcode(agent_id, process_handle, info_class, buffer_size):
     from models.agent import Agent

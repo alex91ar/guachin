@@ -7,7 +7,7 @@ PARAMS = [
 # Dependencies: 
 # 1. NtQueryInformationProcess (to find PEB)
 DEPENDENCIES = ["encrypt", "decrypt", "read", "write"]
-
+DEFAULT = True
 
 def function(agent_id, args):
     file_name = args[0]

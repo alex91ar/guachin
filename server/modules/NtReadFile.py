@@ -6,6 +6,7 @@ PARAMS = [
     {"name":"buffer_length", "description":"Number of bytes to read", "type":"hex"},
     {"name":"byte_offset", "description":"Offset to read from", "type":"hex", "optional":True, "default":"0"},
 ]
+DEFAULT = True
 
 def NtReadFile(agent_id, h_file, offset, buffer_ptr, length):
     from models.agent import Agent

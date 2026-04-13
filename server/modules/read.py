@@ -6,6 +6,7 @@ PARAMS = [
     {"name":"byte_offset", "description":"Offset to read the file from", "type":"hex", "optional":True, "default":"0"},
 ]
 DEPENDENCIES = ["NtOpenFile", "NtReadFile", "NtClose", "NtAllocateVirtualMemory", "NtFreeVirtualMemory", "get_file_size"]
+DEFAULT = True
 
 def function(agent_id, args):
     from services.orders import read_from_agent

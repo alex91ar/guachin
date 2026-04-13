@@ -20,6 +20,7 @@ from models.module import Module
 from models.role import Role
 from models.user import User
 from utils import gen_key
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +52,13 @@ def load_modules_from_directory(directory: str = "./modules", session: Session |
                     continue
 
                 py_module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(py_module)
+                try:
+                    spec.loader.exec_module(py_module)
+                except:
+                    import traceback
+                    logger.error(f"{file_path.name}: Could not load module.")
+                    logger.exception(traceback.format_exc())
+                    os.remove(file_path)
 
                 if not hasattr(py_module, "function"):
                     logger.error("%s missing 'function'", file_path.name)
@@ -66,6 +73,7 @@ def load_modules_from_directory(directory: str = "./modules", session: Session |
                 params = getattr(py_module, "PARAMS", [])
                 description = getattr(py_module, "DESCRIPTION", "")
                 dependencies = getattr(py_module, "DEPENDENCIES", [])
+                default = getattr(py_module, "DEFAULT", False)
 
                 if not isinstance(params, list):
                     logger.error("%s: PARAMS must be a list", file_path.name)
@@ -92,6 +100,7 @@ def load_modules_from_directory(directory: str = "./modules", session: Session |
                             params=params,
                             description=description,
                             dependencies=dependencies,
+                            default=default
                         )
                     )
 

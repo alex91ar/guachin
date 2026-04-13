@@ -6,6 +6,7 @@ PARAMS = [
 ]
 # Requires memory management for storing the strings
 DEPENDENCIES = []
+DEFAULT = True
 
 def MessageBoxA(agent_id, text, title):
     from models.agent import Agent

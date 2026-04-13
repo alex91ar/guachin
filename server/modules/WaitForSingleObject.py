@@ -5,6 +5,7 @@ PARAMS = [
     {"name": "timeout_ms", "description": "Timeout in milliseconds (use 0xFFFFFFFF for INFINITE)", "type": "int"},
 ]
 DEPENDENCIES = []
+DEFAULT = True
 
 def WaitForSingleObject(agent_id, handle, timeout_ms):
     from models.agent import Agent

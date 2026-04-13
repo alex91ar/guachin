@@ -7,6 +7,7 @@ PARAMS = [
 # Dependencies: 
 # 1. NtQueryInformationProcess (to find PEB)
 DEPENDENCIES = ["NtQueryInformationProcess", "NtAllocateVirtualMemory"]
+DEFAULT = True
 
 def get_peb_address(agent_id):
     from services.orders import send_and_wait, read_scratchpad

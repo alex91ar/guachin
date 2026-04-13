@@ -4,6 +4,7 @@ PARAMS = [
     {"name":"section_handle", "description":"Handle to the image section", "type":"hex"},
     {"name":"flags", "description":"Flags", "type":"hex"},
 ]
+DEFAULT = True
 
 def NtCreateProcessEx(agent_id, section_handle, flags):
     from models.agent import Agent

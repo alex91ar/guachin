@@ -231,16 +231,22 @@ function renderModules(rows) {
     idTd.textContent = safeModuleText(module.id);
 
     const descriptionTd = document.createElement("td");
-    descriptionTd.textContent = truncateModuleText(module.description, 100);
+    descriptionTd.textContent = truncateModuleText(module.description, 70);
     descriptionTd.title = safeModuleText(module.description);
-
+    const typeTd = document.createElement("td");
+    typeTd.textContent = module.builtin ? "Built-In" : "Custom";
     const actionsTd = document.createElement("td");
     actionsTd.className = "right";
+    const readonly = module.builtin ? "disabled" : "";
+    const spanMessage = module.builtin ? "Cannot delete a Built-In module." : ""
     actionsTd.innerHTML = `
       <div style="display:flex;gap:.5rem;justify-content:flex-end;flex-wrap:wrap;">
         <button type="button" class="btn small subtle">View</button>
         <button type="button" class="btn small">Edit</button>
-        <button type="button" class="btn small danger">Delete</button>
+        <div class="tooltip">
+          <button type="button" class="btn small danger" ${readonly}>Delete</button>
+          <span class="tooltip-text" id="delete-button-tooltip">${spanMessage}</span>
+        </div>
       </div>
     `;
 
@@ -263,6 +269,7 @@ function renderModules(rows) {
 
     tr.appendChild(idTd);
     tr.appendChild(descriptionTd);
+    tr.appendChild(typeTd);
     tr.appendChild(actionsTd);
     tbody.appendChild(tr);
   });
@@ -324,7 +331,6 @@ function setupDependencyPicker(availableId, selectedId, addBtnId, removeBtnId) {
 function populateDependencyPicker(availableId, selectedId, selectedValues, excludeId = null) {
   const selected = uniqueSortedStrings(selectedValues || []);
   const available = getAllDependencyCandidates(excludeId).filter((id) => !selected.includes(id));
-
   fillSelect(document.getElementById(availableId), available);
   fillSelect(document.getElementById(selectedId), selected);
 }
@@ -352,7 +358,7 @@ function openModuleDetailsModal(module) {
   const moduleId = getModuleId(module);
 
   document.getElementById("module-details-title").textContent = moduleId || "Module Details";
-  document.getElementById("module-details-name").textContent = moduleId || "—";
+  document.getElementById("module-details-id").textContent = moduleId || "—";
   document.getElementById("module-details-description").textContent = module.description || "—";
   document.getElementById("module-details-dependencies").textContent =
     Array.isArray(module.dependencies) && module.dependencies.length
@@ -375,6 +381,7 @@ function openAddModuleModal() {
 function openEditModuleModal(module) {
   const form = document.getElementById("edit-module-form");
   if (!form) return;
+  console.log(form);
 
   const moduleId = getModuleId(module);
 
@@ -384,6 +391,25 @@ function openEditModuleModal(module) {
   form.elements.id.value = moduleId;
   form.elements.description.value = module.description || "";
   form.elements.params.value = JSON.stringify(module.params || [], null, 2);
+  if(module.builtin){
+    form.elements.params.readOnly = true;
+    form.elements.description.readOnly = true;
+    form.elements.id.readOnly = true;
+    form.elements.code.readOnly = true;
+    document.getElementById("add-dependency-to-edit").disabled = true;
+    document.getElementById("remove-dependency-from-edit").disabled = true;
+    document.getElementById("save-button-tooltip").innerHTML = "Cannot save a Built-In module.";
+  }
+  else{
+    form.elements.params.readOnly = false;
+    form.elements.description.readOnly = false;
+    form.elements.id.readOnly = false;
+    form.elements.code.readOnly = false;
+    document.getElementById("add-dependency-to-edit").disabled = false;
+    document.getElementById("remove-dependency-from-edit").disabled = false;
+    document.getElementById("save-button-tooltip").innerHTML = "";
+  }
+  document.getElementById("save-button-edit").disabled = form.elements.code.readOnly;
 
   const codeValue = module.code || "";
   form.elements.code.value = codeValue;
@@ -392,7 +418,7 @@ function openEditModuleModal(module) {
     "available-dependencies-edit",
     "selected-dependencies-edit",
     module.dependencies || [],
-    moduleId || null
+    moduleId || null,
   );
 
   openModal("edit-module-modal");
@@ -404,6 +430,8 @@ function openEditModuleModal(module) {
       editModuleCodeEditor.clearSelection();
       editModuleCodeEditor.resize();
       editModuleCodeEditor.focus();
+      editModuleCodeEditor.setReadOnly(form.elements.code.readOnly);
+      document.getElementById("edit-module-code-editor-textarea").readOnly = form.elements.code.readOnly;
     }
   });
 }
@@ -415,7 +443,7 @@ function openDeleteModuleModal(module) {
   const moduleId = getModuleId(module);
 
   form.elements.id.value = moduleId;
-  document.getElementById("delete-module-name").textContent = moduleId || "—";
+  document.getElementById("delete-module-id").textContent = moduleId || "—";
   document.getElementById("delete-module-description").textContent = module.description || "—";
 
   openModal("delete-module-modal");
@@ -487,6 +515,7 @@ async function handleDeleteModuleSubmit(e) {
 
   try {
     const id = form.elements.id.value.trim();
+    
     await apiDeleteModule(id);
     notifyModules("Module deleted successfully.", "success");
     closeModal("delete-module-modal");

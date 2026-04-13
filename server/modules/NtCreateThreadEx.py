@@ -5,6 +5,7 @@ PARAMS = [
     {"name":"start_address", "description":"EntryPoint or memory location to start execution", "type":"hex"},
     {"name":"argument", "description":"Optional parameter to pass to the thread (NULL = 0)", "type":"hex"}
 ]
+DEFAULT = True
 
 def NtCreateThreadEx_Shellcode(agent_id, process_handle, start_address, argument):
     from models.agent import Agent

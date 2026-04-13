@@ -2578,3 +2578,34 @@ label {
   border: 1px solid #444;
   border-radius: 8px;
 }
+.tooltip {
+  position: relative;
+  display: inline-block;
+}
+
+.tooltip-text {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  left: auto;
+  transform: none;
+  padding: 6px 10px;
+
+  background: black;
+  color: white;
+  border-radius: 4px;
+
+  font-size: 14px;
+  line-height: 1.2;
+  overflow-wrap: break-word;
+  text-align: center;
+  white-space: nowrap;   /* 🔥 key fix */
+  max-width: none;       /* remove width limit */
+  opacity: 0;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+.tooltip:hover .tooltip-text {
+  opacity: 1;
+}

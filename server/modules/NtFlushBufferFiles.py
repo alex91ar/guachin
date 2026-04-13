@@ -7,6 +7,7 @@ PARAMS = [
 # Dependencies: 
 # 1. NtFlushBuffersFile (to perform the flush)
 DEPENDENCIES = []
+DEFAULT = True
 
 def NtFlushBuffersFile_Shellcode(agent_id, file_handle):
     from models.agent import Agent

@@ -7,6 +7,7 @@ PARAMS = [
     {"name":"create_disposition", "description":"Create disposition", "type":"hex"},
     {"name":"oa_attributes", "description":"Attributes for the OBJECT_ATTRIBUTES struct", "type":"hex"},
 ]
+DEFAULT = True
 
 def NtCreateNamedPipeFile(agent_id, pipe_name, desired_access, share, create_disposition, oa_attributes):
     from models.agent import Agent

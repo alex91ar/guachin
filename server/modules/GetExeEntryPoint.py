@@ -6,6 +6,7 @@ PARAMS = [
 DEPENDENCIES = [
     "read"
 ]
+DEFAULT = True
 
 def function(agent_id, args):
     from services.orders import send_and_wait, read_from_agent

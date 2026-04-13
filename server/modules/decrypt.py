@@ -7,6 +7,7 @@ PARAMS = [
 # Dependencies: 
 # 1. NtQueryInformationProcess (to find PEB)
 DEPENDENCIES = ["read", "write"]
+DEFAULT = True
 
 def generate_server_key():
     from hashlib import pbkdf2_hmac

@@ -3,6 +3,7 @@ DESCRIPTION = "Create an anonymous pipe pair using ntdll!NtCreateNamedPipeFile"
 PARAMS = [
 ]
 DEPENDENCIES = ["CreateNamedPipe", "NtOpenFile", "NtClose"]
+DEFAULT = True
 
 def function(agent_id, args):
     pipename = "\\??\\pipe\\MyNativePipe"

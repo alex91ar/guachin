@@ -9,6 +9,7 @@ PARAMS = [
 # Dependencies: 
 # 1. NtQueryInformationFile (to query EOF)
 DEPENDENCIES = []
+DEFAULT = True
 
 def NtQueryInformationFile_Shellcode(agent_id, file_handle, info_class, buffer_size):
     from models.agent import Agent

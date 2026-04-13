@@ -6,6 +6,7 @@ PARAMS = [
     {"name":"buffer_len", "description":"Length to write", "type":"hex"},
     {"name":"byte_offset", "description":"Offset to write the file into", "type":"hex", "optional":True, "default":"0"},
 ]
+DEFAULT = True
 
 def NtWriteFile(agent_id, handle, offset, buffer_ptr, length):
     from models.agent import Agent

@@ -2,6 +2,7 @@ NAME = "whoami"
 DESCRIPTION = "Get the current agent and user."
 PARAMS = [
 ]
+DEFAULT = True
 
 def function(agent_id, args):
         from models.agent import Agent

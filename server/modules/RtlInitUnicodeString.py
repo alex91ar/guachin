@@ -4,6 +4,7 @@ PARAMS = [
     {"name":"string", "description":"Output buffer address", "type":"hex"},
     {"name":"string", "description":"String to initalize", "type":"str"},
 ]
+DEFAULT = True
 
 def RtlInitUnicodeString(agent_id, buffer_add, string_ptr):
     from models.agent import Agent

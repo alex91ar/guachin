@@ -5,6 +5,7 @@ PARAMS = [
     {"name":"image_path", "description":"Full NT path to the binary", "type":"str"},
     {"name":"h_write_pipe", "description":"Handle to the output pipe to inherit", "type":"int"},
 ]
+DEFAULT = True
 
 def NtCreateUserProcess(agent_id, p_params, image_path, h_pipe):
     from models.agent import Agent

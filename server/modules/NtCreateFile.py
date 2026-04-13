@@ -4,6 +4,7 @@ PARAMS = [
     {"name":"filename", "description":"Name of file to be created", "type":"str"},
     {"name": "desired_access", "description": "Desired access mask", "type": "hex"} 
 ]
+DEFAULT = True
 
 def NtCreateFile(agent_id, name, desired_access):
     from models.agent import Agent

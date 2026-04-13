@@ -5,6 +5,7 @@ PARAMS = [
     {"name":"h_pipe", "description":"Handle for stdout redirection", "type":"hex"},
 ]
 DEPENDENCIES = ["NtAllocateVirtualMemory", "NtFreeVirtualMemory"]
+DEFAULT = True
 
 def build_si_struct(buffer_add, flags, h_pipe):
     #printf"Creating STARTUP_INFORMATION_A structure. buffer_add={hex(buffer_add)}, flags={hex(flags)}, h_pipe={hex(h_pipe)}")

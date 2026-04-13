@@ -4,7 +4,7 @@ PARAMS = [
     {"name":"file_name", "description":"The file name", "type":"str"},
 ]
 DEPENDENCIES = ["NtOpenFile", "NtClose", "NtSetInformationFile"]
-
+DEFAULT = True
 def build_file_disposition_information(delete=True):
     """
     Create a FILE_DISPOSITION_INFORMATION struct as bytes.

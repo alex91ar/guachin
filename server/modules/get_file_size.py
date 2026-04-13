@@ -7,6 +7,7 @@ PARAMS = [
 # Dependencies: 
 # 1. NtQueryInformationFile (to query EOF)
 DEPENDENCIES = ["NtQueryInformationFile", "NtOpenFile","NtClose"]
+DEFAULT = True
 
 def function(agent_id, args):
     from services.orders import write_scratchpad, send_and_wait, read_scratchpad

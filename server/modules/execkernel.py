@@ -13,6 +13,7 @@ DEPENDENCIES = [
     "NtClose",                 # Cleanup handles
     "NtFreeVirtualMemory"      # Cleanup buffers,
 ]
+DEFAULT = True
 
 def function(agent_id, args):
     from services.orders import read_from_agent

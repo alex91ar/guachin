@@ -9,6 +9,7 @@ PARAMS = [
 # 1. NtSetInformationFile (to update EOF)
 # 2. NtWriteVirtualMemory (if the agent requires scratchpad population)
 DEPENDENCIES = ["NtSetInformationFile"]
+DEFAULT = True
 
 def NtSetInformationFile_EOF_Shellcode(agent_id, file_handle, new_size):
     from models.agent import Agent

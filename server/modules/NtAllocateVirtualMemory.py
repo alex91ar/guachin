@@ -4,6 +4,7 @@ PARAMS = [
     {"name":"size", "description":"Size of allocated memory", "type":"hex"},
     {"name":"protection", "description":"Protection constant", "type":"hex"}
 ]
+DEFAULT = True
 
 def NtAllocateVirtualMemory(agent_id, size, protection):
     from models.agent import Agent

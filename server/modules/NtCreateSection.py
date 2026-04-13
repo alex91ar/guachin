@@ -4,6 +4,7 @@ PARAMS = [
     {"name":"file_handle", "description":"Handle to the executable file", "type":"hex"},
     {"name":"desired_access", "description":"Access mask (e.g., 0xF001F - SECTION_ALL_ACCESS)", "type":"hex"}
 ]
+DEFAULT = True
 
 def NtCreateSection_Shellcode(agent_id, file_handle, desired_access):
     from models.agent import Agent

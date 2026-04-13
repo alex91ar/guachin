@@ -3,7 +3,7 @@ DESCRIPTION = "Create an anonymous pipe pair using kernel32!CreatePipe"
 PARAMS = [
 ]
 DEPENDENCIES = []
-
+DEFAULT = True
 
 def build_security_attributes(base_address):
     import struct

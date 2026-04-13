@@ -5,6 +5,7 @@ PARAMS = [
     {"name":"buffer_ptr", "description":"Memory address to write results into", "type":"hex"},
     {"name":"buffer_size", "description":"Size of the provided buffer", "type":"int"},
 ]
+DEFAULT = True
 
 
 

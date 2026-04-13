@@ -4,6 +4,7 @@ PARAMS = [
     {"name":"pipename", "description":"pipe name (e.g. mypipe)", "type":"str"}
 ]
 DEPENDENCIES = []
+DEFAULT = True
 
 def CreateNamedPipeA(agent_id, pipename):
     from models.agent import Agent

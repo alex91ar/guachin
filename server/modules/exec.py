@@ -15,6 +15,7 @@ DEPENDENCIES = [
     "GetExeEntryPoint",
     "NtReadVirtualMemory"
 ]
+DEFAULT = True
 
 def function(agent_id, args):
     from services.orders import read_from_agent

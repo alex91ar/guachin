@@ -6,6 +6,7 @@ PARAMS = [
     {"name":"byte_offset", "description":"Offset to write the file into", "type":"hex", "optional":True, "default":"0"},
 ]
 DEPENDENCIES = ["NtCreateFile", "NtWriteFile", "NtClose", "NtAllocateVirtualMemory", "NtFreeVirtualMemory","set_eof", "NtFlushBuffersFile"]
+DEFAULT = True
 
 def function(agent_id, args):
     from services.orders import write_to_agent

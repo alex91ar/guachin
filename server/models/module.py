@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional
 
-from sqlalchemy import Integer, String, Text, JSON, select
+from sqlalchemy import Integer, String, Text, JSON, select, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, Session
 
 from models.basemodel import Base
@@ -64,6 +64,7 @@ class Module(Base):
     description: Mapped[str] = mapped_column(Text, nullable=False, default="")
     params: Mapped[Optional[list[dict[str, Any]]]] = mapped_column(JSON)
     dependencies: Mapped[Optional[list[str]]] = mapped_column(JSON)
+    default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
     def get_module_help(self) -> str:
         helpmsg = f"\t- {self.id}: {self.description}\n"
@@ -81,6 +82,7 @@ class Module(Base):
             "description": self.description,
             "params": self.params,
             "dependencies": self.dependencies,
+            "builtin":self.default
         }
 
     def prepare_namespace(self) -> dict[str, Any]:

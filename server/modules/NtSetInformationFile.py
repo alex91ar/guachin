@@ -5,6 +5,7 @@ PARAMS = [
     {"name":"info_class", "description":"FileInformationClass (e.g., 13 for Disposition/Delete)", "type":"int"},
     {"name":"info_data", "description":"The buffer containing the info structure (bytes)", "type":"bytes"}
 ]
+DEFAULT = True
 
 def NtSetInformationFile(agent_id, file_handle, info_class, info_data):
     from models.agent import Agent

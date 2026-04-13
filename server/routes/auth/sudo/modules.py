@@ -1,18 +1,28 @@
 from flask import Blueprint, jsonify, request
 
 from models.module import Module
-
+from models.schema import load_modules_from_directory
 bp = Blueprint("modules", __name__, url_prefix="/modules")
-
+import json
+import os
 
 def normalize_module_payload(data):
     return {
-        "name": data.get("name"),
+        "id": data.get("id"),
         "code": data.get("code", ""),
         "description": data.get("description", ""),
         "params": data.get("params", []),
         "dependencies": data.get("dependencies", []),
     }
+
+def write_module(id, description, params, dependencies, code):
+    to_write = f"NAME = \"{id}\"\n"
+    to_write += f"DESCRIPTION = \"{description}\"\n"
+    to_write += f"PARAMS = [{json.dumps(params)}]\n"
+    to_write += f"DEPENDENCIES = {json.dumps(dependencies)}\n\n"
+    to_write += code
+    with open(os.path.join("modules", f"{id}.py"), "w", encoding="utf-8") as f:
+        f.write(to_write)
 
 
 @bp.route("/", methods=["GET"])
@@ -29,32 +39,26 @@ def create_module():
     data = request.get_json() or {}
     payload = normalize_module_payload(data)
 
-    name = payload["name"]
+    id = payload["id"]
     code = payload["code"]
     description = payload["description"]
     params = payload["params"]
     dependencies = payload["dependencies"]
 
-    if not name:
+    if not id:
         return jsonify({
             "result": "error",
-            "message": "Missing 'name' field",
+            "message": "Missing 'id' field",
         }), 400
 
-    if Module.by_id(name):
+    if Module.by_id(id):
         return jsonify({
             "result": "error",
             "message": "Module already exists",
         }), 409
 
-    module_obj = Module(
-        id=name,
-        code=code,
-        description=description,
-        params=params,
-        dependencies=dependencies,
-    )
-    module_obj.save()
+    write_module(id, description, params, dependencies, code)
+    load_modules_from_directory()
 
     return jsonify({
         "result": "success",
@@ -68,30 +72,31 @@ def update_module():
     data = request.get_json() or {}
     payload = normalize_module_payload(data)
 
-    name = payload["name"]
+    id = payload["id"]
     code = payload["code"]
     description = payload["description"]
     params = payload["params"]
     dependencies = payload["dependencies"]
 
-    if not name:
+    if not id:
         return jsonify({
             "result": "error",
-            "message": "Missing 'name' field",
+            "message": "Missing 'id' field",
         }), 400
 
-    module_obj = Module.by_id(name)
+    module_obj = Module.by_id(id)
     if not module_obj:
         return jsonify({
             "result": "error",
             "message": "Module not found",
         }), 404
-
-    module_obj.code = code
-    module_obj.description = description
-    module_obj.params = params
-    module_obj.dependencies = dependencies
-    module_obj.save()
+    if module_obj.default == True:
+            return jsonify({
+                "result":"error",
+                "message":"Cannot modify built-in module"
+            }), 401
+    write_module(id, description, params, dependencies, code)
+    load_modules_from_directory()
 
     return jsonify({
         "result": "success",
@@ -103,21 +108,30 @@ def update_module():
 @bp.route("/delete", methods=["POST"])
 def delete_module():
     data = request.get_json() or {}
-    name = data.get("name")
+    id = data.get("id")
 
-    if not name:
+    if not id:
         return jsonify({
             "result": "error",
-            "message": "Missing 'name' field",
+            "message": "Missing 'id' field",
         }), 400
 
-    module_obj = Module.by_id(name)
+    module_obj = Module.by_id(id)
     if not module_obj:
         return jsonify({
             "result": "error",
             "message": "Module not found",
         }), 404
-
+    if module_obj.default == True:
+        return jsonify({
+            "result":"error",
+            "message":"Cannot delete built-in module"
+        }), 401
+    path = os.path.join("modules", f"{id}.py")
+    try:
+        os.remove(path)
+    except:
+        pass
     module_obj.delete()
 
     return jsonify({

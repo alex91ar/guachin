@@ -3,6 +3,7 @@ DESCRIPTION = "Close a handle"
 PARAMS = [
     {"name":"file_handle", "description":"Handle of an open file", "type":"hex"}
 ]
+DEFAULT = True
 
 def NtClose(agent_id, handle):
     from models.agent import Agent

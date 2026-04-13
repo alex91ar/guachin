@@ -7,6 +7,7 @@ PARAMS = [
     {"name":"open_options", "description":"Open options mask", "type":"hex"},
     {"name":"attributes", "description":"Attributes for the OBJECT_ATTRIBUTES struct", "type":"hex"}
 ]
+DEFAULT = True
 
 def NtOpenFile(agent_id, name, desired_access, share, options, attributes): # Default GENERIC_READ | SYNCHRONIZE
     from models.agent import Agent

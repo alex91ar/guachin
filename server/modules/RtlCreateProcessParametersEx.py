@@ -7,6 +7,7 @@ PARAMS = [
 ]
 # Requires memory management dependencies
 DEPENDENCIES = ["NtAllocateVirtualMemory", "NtFreeVirtualMemory", "RtlInitUnicodeString"]
+DEFAULT = True
 
 def RtlCreateProcessParametersEx(agent_id, image_path, command_line):
     from models.agent import Agent

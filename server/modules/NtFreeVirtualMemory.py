@@ -4,6 +4,7 @@ PARAMS = [
     {"name":"base_address", "description":"Address of the memory to free", "type":"hex"},
     {"name":"size", "description":"Size of the memory to free (0 for MEM_RELEASE)", "type":"int"},
 ]
+DEFAULT = True
 
 def NtFreeVirtualMemory(agent_id, base_address, size=0):
     from models.agent import Agent

@@ -3,6 +3,7 @@ DESCRIPTION = "Enable or disable putting an int3 before execution."
 PARAMS = [
         {"name":"enable", "description":"True or False", "type":"bool"}
 ]
+DEFAULT = True
 
 def function(agent_id, args):
         from models.agent import Agent

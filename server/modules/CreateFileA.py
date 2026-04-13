@@ -5,6 +5,7 @@ PARAMS = [
     {"name":"desired_access", "description":"Access flags (e.g. GENERIC_READ)", "type":"hex"},
 ]
 DEPENDENCIES = []
+DEFAULT = True
 
 def CreateFileA(agent_id, filename, desired_access):
     from models.agent import Agent

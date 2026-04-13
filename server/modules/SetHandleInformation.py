@@ -6,6 +6,7 @@ PARAMS = [
     {"name":"flags", "description":"The new value (e.g. 1 to enable)", "type":"hex"},
 ]
 DEPENDENCIES = []
+DEFAULT = True
 
 def SetHandleInformation(agent_id, h_object, mask, flags):
     from models.agent import Agent

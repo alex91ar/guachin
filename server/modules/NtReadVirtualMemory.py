@@ -5,6 +5,7 @@ PARAMS = [
     {"name":"base_address", "description":"Memory address to read from", "type":"hex"},
     {"name":"buffer_size", "description":"Number of bytes to read", "type":"int"}
 ]
+DEFAULT = True
 
 def NtReadVirtualMemory_Shellcode(agent_id, process_handle, base_address, buffer_size):
     from models.agent import Agent
