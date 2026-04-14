@@ -9,38 +9,39 @@ Built with **Flask**, **SQLAlchemy**, and a custom **agent communication layer**
 ## ✨ Features
 
 - 🧠 **Dynamic module system**
-  - Execute Python modules stored in the database
-  - Dependency resolution between modules
-  - Runtime execution with isolated namespaces
+  - Execute Python modules stored in the database  
+  - Dependency resolution between modules  
+  - Runtime execution with isolated namespaces  
 
 - 🤖 **Agent communication (WebSocket)**
-  - Real-time interaction with remote agents
-  - Binary protocol for syscall execution
-  - Scratchpad-based memory exchange
+  - Real-time interaction with remote agents  
+  - Binary protocol for syscall execution  
+  - Scratchpad-based memory exchange  
 
 - 🧬 **Syscall abstraction layer**
-  - Native Windows syscalls (Nt*)
-  - Structured parameter building
-  - Remote execution via injected shellcode
+  - Native Windows syscalls (`Nt*`)  
+  - Structured parameter building  
+  - Remote execution via injected shellcode  
 
 - 🔐 **Authentication system**
-  - JWT-based auth
-  - Optional 2FA (TOTP)
-  - Role-based access control (RBAC)
+  - JWT-based auth  
+  - Optional 2FA (TOTP)  
+  - Role-based access control (RBAC)  
 
 - 🧑‍💼 **Admin interface**
-  - Manage users, roles, actions
-  - Manage modules and dependencies
-  - Inspect agents
+  - Manage users, roles, actions  
+  - Manage modules and dependencies  
+  - Inspect agents  
 
 - ⚙️ **Auto bootstrap**
-  - Routes → actions mapping
-  - Admin user seeding
-  - Module auto-loading
+  - Routes → actions mapping  
+  - Admin user seeding  
+  - Module auto-loading  
 
 ---
 
 ## 🏗️ Project Structure
+
 ```
 server/
 ├── app.py                # Flask app factory
@@ -53,6 +54,7 @@ server/
 ├── templates/            # Jinja templates
 └── utils.py              # Helpers
 ```
+
 ---
 
 ## ⚡ Quick Start (Dev)
@@ -62,120 +64,165 @@ server/
 ```bash
 python deploy.py dev
 ```
-This will:
-	* Create virtualenv
-	* Install dependencies
-	* Start MySQL (Docker)
-	* Run migrations / init DB
-	* Bootstrap actions + modules
-	* Start Gunicorn
-	* Start nginx (TLS)
 
-### 2. 🔌 Agent Connection
+This will:
+
+- Create virtualenv  
+- Install dependencies  
+- Start MySQL (Docker)  
+- Run migrations / init DB  
+- Bootstrap actions + modules  
+- Start Gunicorn  
+- Start nginx (TLS)  
+
+---
+
+## 🔌 Agent Connection
 
 Agents connect via WebSocket:
 
+```
 /api/v1/anon/agent/ws/<agent_id>
+```
 
-Flow:
-	1.	Agent connects
-	2.	Handshake initializes:
-	* OS
-	* Scratchpad memory
-	* Syscall table
-	3.	Server sends requests
-	4.	Agent executes and returns responses
+### Flow
 
+1. Agent connects  
+2. Handshake initializes:
+   - OS  
+   - Scratchpad memory  
+   - Syscall table  
+3. Server sends requests  
+4. Agent executes and returns responses  
 
-### 3. 🧠 Module System
+---
 
-Modules are stored in DB and executed dynamically.
+## 🧠 Module System
 
-Example
+Modules are stored in the DB and executed dynamically.
 
+### Example
+
+```python
 def function(agent_id, args):
     return {"result": "ok"}
+```
 
-Features
-	* Dependency injection
-	* Type casting (int, hex, bytes, etc.)
-	* Execution sandbox (namespace-based)
+### Features
 
+- Dependency injection  
+- Type casting (`int`, `hex`, `bytes`, etc.)  
+- Execution sandbox (namespace-based)  
 
-### 4. 🔧 Syscall Execution
+---
 
-Supports native Windows syscalls like:
-	* NtOpenFile
-	* NtCreateSection
-	* NtCreateProcessEx
-	* NtReadVirtualMemory
-	* NtCreateThreadEx
+## 🔧 Syscall Execution
 
-Execution flow:
-	1.	Build structures in scratchpad
-	2.	Generate shellcode
-	3.	Send to agent
-	4.	Read result back
+Supports native Windows syscalls such as:
 
+- `NtOpenFile`  
+- `NtCreateSection`  
+- `NtCreateProcessEx`  
+- `NtReadVirtualMemory`  
+- `NtCreateThreadEx`  
 
-### 5. 🗄️ Database
+### Execution flow
 
-Uses SQLAlchemy + MySQL
+1. Build structures in scratchpad  
+2. Generate shellcode  
+3. Send to agent  
+4. Read result back  
 
-Core models:
-	* User
-	* Role
-	* Action
-	* Agent
-	* Syscall
-	* Module
+---
 
+## 🗄️ Database
 
-### 6. 🔐 Authentication
+Uses **SQLAlchemy + MySQL**
 
-JWT (access + refresh)
-2FA (TOTP via QR)
-Role-based permissions
+### Core models
 
+- User  
+- Role  
+- Action  
+- Agent  
+- Syscall  
+- Module  
 
-### 7. Development Tips
+---
 
-Reset DB
+## 🔐 Authentication
 
+- JWT (access + refresh)  
+- 2FA (TOTP via QR)  
+- Role-based permissions  
+
+---
+
+## 🛠️ Development Tips
+
+### Reset DB
+
+```bash
 CLEAN_DB_ON_EXIT=1 python deploy.py dev
+```
 
-Kill stuck Gunicorn
+### Kill stuck Gunicorn
 
+```bash
 pkill -f gunicorn
+```
 
-Clean Python cache
+### Clean Python cache
 
+```bash
 find . -type d -name "__pycache__" -exec rm -r {} +
+```
 
+---
 
-### 8. Notes
-	* Configs and modules are loaded at startup → restart required after changes
-	* Lazy loading is disabled (lazy='raise_on_sql') → always preload relationships
-	* Agent communication is stateful → handle sessions carefully
+## 📌 Notes
 
+- Configs and modules are loaded at startup → restart required after changes  
+- Lazy loading is disabled (`lazy='raise_on_sql'`) → always preload relationships  
+- Agent communication is stateful → handle sessions carefully  
 
-### 9. Future Improvements
-	* Better module sandboxing
-	* Async agent handling
-	* UI improvements
-	* Module hot-reload
+---
 
-### 10. Author
+## 🚧 Future Improvements
 
-Alejo Popovici (Alex). Senior Cybersecurity Engineer with extensive experience in web application penetration testing, red teaming, source code review, and cloud secu‑
-rity (AWS). Skilled in developing custom tooling across multiple languages, with a strong record of identifying logic flaws and privilege escalation
-paths.
+- Better module sandboxing  
+- Async agent handling  
+- UI improvements  
+- Module hot-reload  
 
-### 11. Support
+---
 
-btc: bc1qen4gg5rckqk963zrfllg6w6h6aup060g0umh9g
-eth/usdt: 0x0866080557dfBbc0c5557d2bB57fe4102038Bd81
-monero: 88tRwC8cFEVR7bkRbdmoB1FuVCuabMdGYBGy3BoXKuiuWWcwWW9aiupNa6zT5FCJtqFbGy4q3h4okJbsMn6g7grt4tcEb4t
-Ko-fi: [https://ko-fi.com/alex91ar](https://ko-fi.com/alex91ar)
+## 👤 Author
+
+**Alejo Popovici (Alex)**  
+Senior Cybersecurity Engineer with experience in:
+
+- Web application penetration testing  
+- Red teaming  
+- Source code review  
+- Cloud security (AWS)  
+
+Skilled in developing custom tooling across multiple languages, with a strong track record in identifying logic flaws and privilege escalation paths.
+
+---
+
+## 💖 Support
+
+- **BTC**:  
+  `bc1qen4gg5rckqk963zrfllg6w6h6aup060g0umh9g`
+
+- **ETH / USDT**:  
+  `0x0866080557dfBbc0c5557d2bB57fe4102038Bd81`
+
+- **Monero**:  
+  `88tRwC8cFEVR7bkRbdmoB1FuVCuabMdGYBGy3BoXKuiuWWcwWW9aiupNa6zT5FCJtqFbGy4q3h4okJbsMn6g7grt4tcEb4t`
+
+- **Ko-fi**:  
+  https://ko-fi.com/alex91ar
 
 ---
