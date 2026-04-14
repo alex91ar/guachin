@@ -41,7 +41,7 @@ Built with **Flask**, **SQLAlchemy**, and a custom **agent communication layer**
 ---
 
 ## 🏗️ Project Structure
-
+```
 server/
 ├── app.py                # Flask app factory
 ├── deploy.py             # Dev/prod bootstrap script
@@ -52,7 +52,7 @@ server/
 ├── static/               # Frontend assets
 ├── templates/            # Jinja templates
 └── utils.py              # Helpers
-
+```
 ---
 
 ## ⚡ Quick Start (Dev)
