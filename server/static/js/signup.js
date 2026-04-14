@@ -28,7 +28,7 @@ async function signupFlow(ev) {
 
     // Save JWTs (if returned)
     if (payload.access_jwt) {
-      new_session(payload.access_jwt, payload.refresh_jwt);
+      new_session(payload.access_jwt, payload.refresh_jwt, payload.user_obj);
     }
 
     // Redirect to profile or dashboard

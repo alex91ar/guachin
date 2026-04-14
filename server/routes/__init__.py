@@ -189,7 +189,6 @@ def session_loader():
                 g.session = this_session
                 return
             else:
-                print(f"********* Session {claims.get("id")} not found = {this_session} attempts remaining {ATTEMPTS}")
                 time.sleep(0.1)
         print(f"Session not found in database after 5 attempts {claims.get("id")}")
         return jsonify({

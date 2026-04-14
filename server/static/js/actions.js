@@ -23,7 +23,6 @@ window.loadActions = async function () {
   const actions = data.message || [];
   window.cachedActions = actions;
   const tbody = document.getElementById("actions-table");
-  console.log(tbody);
   tbody.innerHTML = "";
   document.getElementById("actions-table-wrapper").classList.remove("hidden");
   actions.forEach((a) => {
@@ -36,7 +35,6 @@ window.loadActions = async function () {
         <td>${a.description}</td>
         <td>${has_priv ? "✅" : "❌"}</td>
       </tr>`;
-      console.log(tbody);
   });
 };
 

@@ -19,13 +19,10 @@ class Base(DeclarativeBase):
         owns_session = session is None
         session = session or get_session()
         try:
-            print(f"Save called object {type(self)} {stack_inspect.stack()[1].function} from {stack_inspect.stack()[2].function}")
             if inspect(self).identity is None:
-                print("*****************New object using add.")
                 session.add(self)
                 obj = self
             else:
-                print("*****************Old object using merge.")
                 obj = session.merge(self)
 
             if commit:
@@ -44,8 +41,6 @@ class Base(DeclarativeBase):
         owns_session = session is None
         session = session or get_session()
         try:
-            print(f"Delete called object {type(self)} {stack_inspect.stack()[1].function} from {stack_inspect.stack()[2].function}")
-            print(f"*****************Deleting object {self}")
             session.delete(self)
             if commit:
                 session.commit()
