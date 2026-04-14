@@ -1,5 +1,7 @@
 # 🚀 Guachin — Agent Execution & Control Framework
 
+Main Repo: [https://github.com/alex91ar/guachin](https://github.com/alex91ar/guachin)
+
 A modular backend system for managing **agents**, executing **native syscalls**, and dynamically loading **Python-based modules**.
 
 Built with **Flask**, **SQLAlchemy**, and a custom **agent communication layer**.
