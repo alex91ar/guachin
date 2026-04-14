@@ -63,13 +63,13 @@ server/
 python deploy.py dev
 ```
 This will:
-	•	Create virtualenv
-	•	Install dependencies
-	•	Start MySQL (Docker)
-	•	Run migrations / init DB
-	•	Bootstrap actions + modules
-	•	Start Gunicorn
-	•	Start nginx (TLS)
+	* Create virtualenv
+	* Install dependencies
+	* Start MySQL (Docker)
+	* Run migrations / init DB
+	* Bootstrap actions + modules
+	* Start Gunicorn
+	* Start nginx (TLS)
 
 ### 2. 🔌 Agent Connection
 
@@ -80,9 +80,9 @@ Agents connect via WebSocket:
 Flow:
 	1.	Agent connects
 	2.	Handshake initializes:
-	•	OS
-	•	Scratchpad memory
-	•	Syscall table
+	* OS
+	* Scratchpad memory
+	* Syscall table
 	3.	Server sends requests
 	4.	Agent executes and returns responses
 
@@ -97,19 +97,19 @@ def function(agent_id, args):
     return {"result": "ok"}
 
 Features
-	•	Dependency injection
-	•	Type casting (int, hex, bytes, etc.)
-	•	Execution sandbox (namespace-based)
+	* Dependency injection
+	* Type casting (int, hex, bytes, etc.)
+	* Execution sandbox (namespace-based)
 
 
 ### 4. 🔧 Syscall Execution
 
 Supports native Windows syscalls like:
-	•	NtOpenFile
-	•	NtCreateSection
-	•	NtCreateProcessEx
-	•	NtReadVirtualMemory
-	•	NtCreateThreadEx
+	* NtOpenFile
+	* NtCreateSection
+	* NtCreateProcessEx
+	* NtReadVirtualMemory
+	* NtCreateThreadEx
 
 Execution flow:
 	1.	Build structures in scratchpad
@@ -123,12 +123,12 @@ Execution flow:
 Uses SQLAlchemy + MySQL
 
 Core models:
-	•	User
-	•	Role
-	•	Action
-	•	Agent
-	•	Syscall
-	•	Module
+	* User
+	* Role
+	* Action
+	* Agent
+	* Syscall
+	* Module
 
 
 ### 6. 🔐 Authentication
@@ -154,16 +154,16 @@ find . -type d -name "__pycache__" -exec rm -r {} +
 
 
 ### 8. Notes
-	•	Configs and modules are loaded at startup → restart required after changes
-	•	Lazy loading is disabled (lazy='raise_on_sql') → always preload relationships
-	•	Agent communication is stateful → handle sessions carefully
+	* Configs and modules are loaded at startup → restart required after changes
+	* Lazy loading is disabled (lazy='raise_on_sql') → always preload relationships
+	* Agent communication is stateful → handle sessions carefully
 
 
 ### 9. Future Improvements
-	•	Better module sandboxing
-	•	Async agent handling
-	•	UI improvements
-	•	Module hot-reload
+	* Better module sandboxing
+	* Async agent handling
+	* UI improvements
+	* Module hot-reload
 
 ### 10. Author
 
