@@ -229,7 +229,6 @@ def enforce_rbac():
     action_keys = get_jwt().get("perms", [])
     
     if key not in action_keys:
-        logger.info(f"Path not accepted {key} not in {action_keys}")
         return jsonify({
             "result": "error",
             "message": "permission_not_granted",

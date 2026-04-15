@@ -121,6 +121,7 @@ function new_session(access_jwt, refresh_jwt, user_object){
   localStorage.setItem("access_jwt", access_jwt);
   localStorage.setItem("refresh_jwt", refresh_jwt);
   let jwt_info = decodeJwtPayload(access_jwt);
+  console.log(user_object);
   jwt_info["roles"] = user_object["roles"];
   saveUser(jwt_info);
 }

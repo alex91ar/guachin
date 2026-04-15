@@ -124,7 +124,7 @@ async function passkeyLogin() {
 
   if (completeRes.ok && completeJson?.result === "success") {
     setResult("Passkey login successful!");
-    new_session(completeJson.message.access_jwt, completeJson.message.refresh_jwt, completeJson.message.user_obj)
+    new_session(completeJson.message.access_jwt, completeJson.message.refresh_jwt, completeJson.user_obj)
     window.location.href = "/";
   } else {
     setResult(
