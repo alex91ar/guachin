@@ -20,19 +20,17 @@ def NtAllocateVirtualMemory(agent_id, size, protection):
     RegionSize_data, next_ptr = build_ptr(RegionSize_ptr, struct.pack('<Q', size))
     AllocationType = 0x3000
     data = BaseAddress_data + RegionSize_data
-    '''
-    print
+
+    print(
         f"NtAllocateVirtualMemory("
         f"ProcessHandle={hex(ProcessHandle)}, "
         f"BaseAddress={hex(scratchpad)}, "
         f"ZeroBits={zero_bits}, "
         f"RegionSizePtr={hex(RegionSize_ptr)}, "
-        f"RegionSize={size}, "
         f"AllocationType={hex(AllocationType)}, "
         f"Protection={hex(protection)}"
         f")"
     )
-    '''
 
     return (data, push_syscall(syscall, [ProcessHandle, scratchpad, zero_bits, RegionSize_ptr, AllocationType, protection], agent.debug))
 
@@ -44,7 +42,7 @@ def allocate_memory(agent_id, size, protection):
     response_data = int.from_bytes(send_and_wait(agent_id, shellcode), byteorder='little')
     scratchpad = read_scratchpad(agent_id, 8)
     base_address = int.from_bytes(scratchpad[:8], byteorder='little')
-    #printf"Response from NtAllocateVirtualMemory = {hex(response_data)}. base_address = {hex(base_address)}")
+    print(f"Response from NtAllocateVirtualMemory = {hex(response_data)}. base_address = {hex(base_address)}")
     return response_data, base_address # retparams[0] contains BaseAddress
 
 def function(agent_id, args):

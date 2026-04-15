@@ -58,3 +58,7 @@ def websocket():
         return render_template("websocket_test.html")
     else:
         abort(404)
+
+@bp.route("/filemanager", methods=["GET"])
+def filemanager():
+    return render_template("file_manager.html")

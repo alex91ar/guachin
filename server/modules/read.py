@@ -18,7 +18,7 @@ def function(agent_id, args):
     if read_size == 0:
         read_size = get_file_size(agent_id, [file_name])
         if read_size["retval"] != 0:
-            return{"retval":"Error geting file size."}
+            return{"retval": -1, "message":"Error geting file size."}
         else:
             read_size = read_size["file_size"]
     print(f"File size = {read_size}")
@@ -57,11 +57,11 @@ def function(agent_id, args):
                 retfree = NtFreeVirtualMemory(agent_id, [buffer_ptr, 0])
                 #printf"NtFreeVirtualMemory = {hex(retfree['retval'])}")
 
-                return {"retval": f"Error in NtReadFile: {hex(ret['retval'])}"}
+                return {"retval": -1, "message":f"Error in NtReadFile: {hex(ret['retval'])}"}
         else:
             retfree = NtFreeVirtualMemory(agent_id, [buffer_ptr, 0])
             #printf"NtFreeVirtualMemory = {hex(retfree['retval'])}")
 
-            return {"retval": f"Error in NtOpenFile: {hex(ret['retval'])}"}
+            return {"retval": -1, "message":f"Error in NtOpenFile: {hex(ret['retval'])}"}
     else:
-        return {"retval": "Failed to allocate process memory"}
+        return {"retval": -1, "message":"Failed to allocate process memory"}

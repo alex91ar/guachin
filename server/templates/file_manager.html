@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% include "urls.html" %}
+
+{% block content %}
+
+<h1>File Manager</h1>
+
+<div class="topbar">
+    <strong>Current path:</strong>
+    <span id="current-path"></span>
+</div>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/file_manager_agents.css') }}">
+
+<div class="flash" id="status-message">Loading files...</div>
+
+<div class="actions">
+    <form id="upload-form" action="#" method="post" enctype="multipart/form-data">
+        <input type="file" name="file">
+        <button type="submit">Upload</button>
+    </form>
+
+    <hr>
+
+    <form id="create-folder-form" action="#" method="post">
+        <input type="text" name="folder_name" placeholder="New folder name">
+        <button type="submit">Create Folder</button>
+    </form>
+</div>
+
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Size</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody id="file-table-body">
+        <tr>
+            <td colspan="4" class="muted">Loading...</td>
+        </tr>
+    </tbody>
+</table>
+
+<div id="file-read-modal" class="file-modal hidden">
+    <div class="file-modal-backdrop" id="file-read-modal-backdrop"></div>
+
+    <div class="file-modal-dialog file-editor-modal" role="dialog" aria-modal="true" aria-labelledby="file-read-modal-title">
+        <div class="file-modal-header">
+            <div class="file-modal-header-main">
+                <h2 id="file-read-modal-title">File editor</h2>
+                <div class="file-modal-path" id="file-read-modal-path"></div>
+            </div>
+
+            <div class="file-modal-toolbar">
+                <button type="button" class="btn btn-success" id="file-read-save-btn">Save</button>
+                <button type="button" class="file-modal-close" id="file-read-modal-close" aria-label="Close">×</button>
+            </div>
+        </div>
+
+        <div class="file-modal-body">
+            <textarea
+                class="file-modal-editor"
+                id="file-read-modal-editor"
+                spellcheck="false"
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="off"
+            >Loading...</textarea>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/file_manager.js') }}"></script>
+
+{% endblock %}

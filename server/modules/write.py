@@ -11,7 +11,7 @@ DEFAULT = True
 def function(agent_id, args):
     from services.orders import write_to_agent
     from services.binary import align_up
-    file_name = "\\??\\" + args[0]
+    file_name = args[0] if args[0].startswith("\\??\\") else "\\??\\" + args[0]
     data_buffer = args[1]
     buffer_size = len(data_buffer)
     byte_offset = args[2]
@@ -28,9 +28,9 @@ def function(agent_id, args):
                 ret = NtFlushBuffersFile(agent_id, [file_handle])
             NtClose(agent_id, [file_handle])
         else:
-            return {"retval":"Error opening file"}
+            return {"retval": -1, "message":"Error opening file"}
         NtFreeVirtualMemory(agent_id, [buffer_ptr, buffer_size])
         import hashlib
         return {"retval":0, "hash": hashlib.sha256(data_buffer).hexdigest()}
     else:
-        return {"retval":"Error opening file"}
+        return {"retval": -1, "message":"Error opening file"}

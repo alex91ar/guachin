@@ -18,7 +18,7 @@ def function(agent_id, args):
     file_name = "\\??\\" + args[0]
     open_ret = NtOpenFile(agent_id, [file_name, 0x00110000, 0x7, 0x1000,0x0])
     if open_ret["retval"] != 0:
-        return {"retval": "Error opening file."}
+        return {"retval": -1, "message":"Error opening file."}
     file_handle = open_ret["FILE_HANDLE"]
     NtClose(agent_id, [file_handle])
     return {"retval":0}

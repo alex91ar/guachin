@@ -81,7 +81,7 @@ def function(agent_id, args):
     ##printf"[+] Successfully changed directory to: {new_dir}")
 
     return {
-        "Result": "Success",
+        "retval": 0,
         "NewDirectory": new_dir,
         "PEB": hex(peb_addr),
         "ProcessParameters": hex(proc_params_addr)

@@ -419,8 +419,21 @@ function createAgentRow(agent, allAgents) {
         }
     );
 
+    const fileManagerBtn = createActionButton(
+        "File Manager",
+        "btn primary",
+        "filemanager",
+        agent.id,
+        () => {
+            const agentId = fileManagerBtn.dataset.filemanager;
+            window.location = window.filemanager_HTML + "#" + agentId;
+            return;
+        }
+    );
+
     actionsDiv.appendChild(interactBtn);
     actionsDiv.appendChild(deleteBtn);
+    actionsDiv.appendChild(fileManagerBtn);
     actionsTd.appendChild(actionsDiv);
     tr.appendChild(actionsTd);
 

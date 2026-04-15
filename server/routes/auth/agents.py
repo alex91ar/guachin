@@ -5,7 +5,7 @@ from models.agent import Agent
 from routes.auth.sudo.system import sock, verify_tokens
 from services.agent_ws import _shell_ws_agent
 from models.schema import load_modules_from_directory
-
+from models.module import Module
 import logging
 
 logger = logging.getLogger(__name__)
@@ -66,6 +66,50 @@ def list_agents():
         "message": [agent.to_dict() for agent in agents],
     }), 200
 
+@bp.route("/runmodule", methods=["POST"])
+def run_module():
+    from services.agent_ws import dispatch_and_wait
+    import time
+    data = request.get_json()
+    if not all(key in data for key in ["agent_id", "module"]):
+        return jsonify({
+            "result":"error",
+            "message":"missing parameters"
+        })
+    agent_obj = Agent.by_id(data.get("agent_id"))
+    if agent_obj is None:
+        return jsonify({
+                "result":"error",
+                "message":"Agent not found"
+            }), 404
+    ret = dispatch_and_wait(agent_obj, data.get("module"))
+    if ret is not None:
+        if ret["retval"] != 0:
+            return jsonify({
+                "result":"error",
+                "message":ret["message"]
+            }), 500
+        try:
+            if "data" in ret:
+                if type(ret["data"]) != str:
+                    ret["data"] = ret["data"].decode()
+            print(ret)
+            return jsonify({
+                    "result":"success",
+                    "message":ret
+                }), 200
+        except TypeError:
+            return jsonify({
+                "result":"error",
+                "message":"binary content"
+            })
+    else:
+        return jsonify({
+                "result":"error",
+                "message":"Error executing command"
+            }), 500
+            
+    
 
 @bp.route("/delete", methods=["POST"])
 def delete_agent():
