@@ -41,6 +41,26 @@ class Syscall(Base):
         }
 
     @classmethod
+    def all_by_agent(
+        cls,
+        agent_id,
+        session: Session | None = None,
+        *,
+        options: list | None = None,
+    ):
+        owns_session = session is None
+        session = session or get_session()
+        try:
+            stmt = select(cls).where(cls.agent_id == agent_id)
+            for opt in options or []:
+                stmt = stmt.options(opt)
+            return list(session.execute(stmt).unique().scalars().all())
+        finally:
+            if owns_session:
+                session.commit()
+                session.close()
+
+    @classmethod
     def save_syscalls_bytes(cls, agent_id: str, data: bytes, session=None) -> None:
         print("Saving syscalls...")
         owns_session = session is None

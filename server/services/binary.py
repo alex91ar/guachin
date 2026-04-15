@@ -271,6 +271,52 @@ def push_rtl(address, params, debug=False):
 
     return bytes(bytecode)
 
+def fuzz_syscall(syscall_number,params, final =False, debug=False):
+    bytecode = bytearray()
+    # 1. PUSH Extra Parameters (5 and above) FIRST
+    # These must be pushed in REVERSE order (right-to-left)
+    if len(params) > 4:
+        for param in reversed(params[4:]):
+            # MOV RAX, imm64
+            bytecode.extend(b'\x48\xb8')
+            bytecode.extend(struct.pack('<Q', param))
+            # PUSH RAX
+            bytecode.extend(b'\x50')
+
+
+    # 2. ALLOCATE SHADOW SPACE (0x20 bytes) LAST
+    # This pushes 0x0 4 times.
+    bytecode.extend(b'\x6A\x00')
+    bytecode.extend(b'\x6A\x00')
+    bytecode.extend(b'\x6A\x00')
+    bytecode.extend(b'\x6A\x00')
+
+    # 3. Load Parameters 1-4 into Registers (RCX, RDX, R8, R9)
+    regs = [b'\x48\xb9', b'\x48\xba', b'\x49\xb8', b'\x49\xb9']
+    for i in range(min(len(params), 4)):
+        bytecode.extend(regs[i])
+        bytecode.extend(struct.pack('<Q', params[i]))
+
+    # 4. Set Syscall Number (MOV EAX, syscall_id)
+    bytecode.extend(b"\x49\x89\xca")
+    bytecode.extend(b'\xb8')
+    bytecode.extend(struct.pack('<I', syscall_number))
+    # 5. This pushes 0x0
+    bytecode.extend(b'\x6A\x00')
+    # 6. Syscall Instruction
+    if debug:
+        bytecode.extend(b'\xCC')  # int3
+    bytecode.extend(b'\x0f\x05')
+    # Align stack 
+    bytecode.extend(b"\x48\x83\xc4")
+    stack_align = 0x28
+    if len(params) > 4:
+        stack_align +=8*(len(params)-4)
+    bytecode.extend(struct.pack('<B',stack_align))
+    if final:
+        bytecode.extend(b'\xc3')
+    return (bytes(bytecode))
+
 def push_syscall(syscall_number, params, debug = False):
     bytecode = bytearray()
     # 1. PUSH Extra Parameters (5 and above) FIRST
