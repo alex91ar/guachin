@@ -15,6 +15,7 @@ def function(agent_id, args):
 
     file_name = args[0] if args[0].startswith("\\??\\") else "\\??\\" + args[0]
     read_size = args[1]
+    print("asdasdasdasdasdas")
     if read_size == 0:
         read_size = get_file_size(agent_id, [file_name])
         if read_size["retval"] != 0:

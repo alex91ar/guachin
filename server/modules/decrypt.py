@@ -6,7 +6,7 @@ PARAMS = [
 
 # Dependencies: 
 # 1. NtQueryInformationProcess (to find PEB)
-DEPENDENCIES = ["read", "write"]
+DEPENDENCIES = ["read", "write", "isencrypted"]
 DEFAULT = True
 
 def generate_server_key():
@@ -39,33 +39,21 @@ def decrypt_blob(blob: bytes, header_len: int) -> tuple[bytes, bytearray]:
 
     return bytes(plaintext)
 
-def generate_encrypted_header():
-    from flask import current_app
-    from hashlib import pbkdf2_hmac
-    secret = current_app.config["SECRET_KEY"].encode()
-    salt = current_app.config["SECRET_KEY"][:16].encode()
-    iterations = 200
-    header = pbkdf2_hmac("sha256", secret, salt, iterations, dklen=32)[:8]
-    return header
-
-def is_encrypted(data, header):
-    if len(data) > 8 and data[:8] == header:
-        return True
-    return False
 
 def function(agent_id, args):
-    header = generate_encrypted_header()
     file = args[0]
+    ret = isencrypted(agent_id, [file])
+    if ret["retval"] != 0:
+        {"retval":-1, "message":"Error opening file"}
+    if ret["encrypted"] == "0":
+        return {"retval":-1, "message":"File not encrypted"}
     data = read(agent_id, [file])
-    print(f"read = {data}")
     if(data["retval"] != 0):
-        return {"retval":"Error opening file"}
+        return {"retval":-1,"message":"Error opening file"}
     data = data["data"]
-    if not is_encrypted(data, header):
-        return {"retval":"File not encrypted"}
-    decrypted = decrypt_blob(data, len(header))
+    decrypted = decrypt_blob(data, 8)
     write_ret = write(agent_id, [file, decrypted])
     if write_ret["retval"] != 0:
-        return {"retval":"Error writing"}
+        return {"retval":-1, "message":"Error writing"}
     return {"retval":0} 
 

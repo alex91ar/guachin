@@ -135,7 +135,7 @@ def _shell_ws_agent(ws, agent, identity):
 
         while not stop_event.is_set():
             try:
-                message = profile(ws.receive)
+                message = ws.receive()
             except Exception as e:
                 logger.info(f"Websocket receive failed or closed for agent {agent.id}: {e}")
                 break

@@ -17,11 +17,11 @@ def function(agent_id, args):
     ret = NtOpenFile(agent_id, [file_name,  0x100080, 0x00000007, 0x00000020, 0])
     #printf"NtOpenFile {ret}")
     if ret["retval"] != 0:
-        return{"retval"f"Error in NtOpenFile {ret["retval"]}"}
+        return {"retval":-1, "message":f"Error in NtOpenFile {ret["retval"]}"}
     ret_ntquery = NtQueryInformationFile(agent_id, [ret["FILE_HANDLE"], 5,  24])
     if ret_ntquery["retval"] != 0:
         NtClose(agent_id, [ret["FILE_HANDLE"]])
-        return {"retval":f"Error in NtQueryInformationFile {ret_ntquery["retval"]}"}
+        return {"retval":-1, "message":f"Error in NtQueryInformationFile {ret_ntquery["retval"]}"}
     buffer_hex = ret_ntquery["BufferHex"]
     #printf"NtQueryInformationFile returned 0: {buffer_hex}")
     NtClose(agent_id, [ret["FILE_HANDLE"]])
