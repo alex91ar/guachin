@@ -85,6 +85,70 @@ function syncCurrentEditorBuffer() {
 
 }
 
+function escapeModuleArg(value) {
+    return String(value ?? "").replaceAll('"', '\\"');
+}
+
+function extractReadableContent(data) {
+    return (
+        data?.message?.data ??
+        data?.message?.retval ??
+        data?.message?.content ??
+        data?.message?.text ??
+        data?.message ??
+        ""
+    );
+}
+
+async function deleteFile(path) {
+    const agentId = getAgentIdFromHash();
+    const moduleName = `delete "${escapeModuleArg(path)}"`; // change to rm/delete if needed
+
+    try {
+        const response = await fetch(window.run_module_API, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                agent_id: agentId,
+                module: moduleName
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Request failed: ${response.status}`);
+        }
+        await fillFileTable();
+
+        return await response.json();
+    } catch (error) {
+        console.error("deleteFile() error:", error);
+        throw error;
+    }
+}
+
+async function downloadFile(path, fileName) {
+    const data = await read(path);
+    const content = extractReadableContent(data);
+
+    // Text-only fallback. If your backend returns base64/raw bytes for binaries,
+    // replace this block with binary decoding.
+    const blob = new Blob(
+        [typeof content === "string" ? content : JSON.stringify(content, null, 2)],
+        { type: "application/octet-stream" }
+    );
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName || "download";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+}
+
 function escapeHtml(value) {
     return String(value ?? "")
         .replaceAll("&", "&amp;")
@@ -186,7 +250,8 @@ async function fillFileTable(oldpath) {
                             ${
                                 isDir
                                     ? ""
-                                    : `<a href="#" class="btn-link file-manager-download-link" data-file="${escapeHtml(item.file_name)}">Download</a>`
+                                    : `<a href="#" class="btn-link file-manager-download-link" data-file="${escapeHtml(item.file_name)}">Download</a>
+                                    <a href="#" class="btn-link file-manager-encdec-link" data-file="${escapeHtml(item.file_name)}">Encrypt/Decrypt</a>`
                             }
                             <button type="button" class="btn btn-danger file-manager-delete-btn" data-file="${escapeHtml(item.file_name)}">Delete</button>
                             
@@ -225,6 +290,22 @@ async function fillFileTable(oldpath) {
                     if (statusMessageEl) {
                         statusMessageEl.textContent = `Could not open ${clickedName}.`;
                     }
+                }
+            });
+        });
+
+        tableBody.querySelectorAll(".file-manager-encdec-link").forEach((link) => {
+            link.addEventListener("click", async (event) => {
+                event.preventDefault();
+
+                const clickedName = event.currentTarget.dataset.file;
+                const currentpath = document.getElementById("current-path").innerHTML;
+                const ret = await isEncrypted(currentpath + clickedName);
+                if (ret.message.encrypted == 0){
+                    encrypt(currentpath + clickedName);
+                }
+                else{
+                    decrypt(currentpath + clickedName)
                 }
             });
         });
@@ -268,6 +349,51 @@ async function fillFileTable(oldpath) {
                 }
             });
         });
+        tableBody.querySelectorAll(".file-manager-delete-btn").forEach((link) => {
+            link.addEventListener("click", async (event) => {
+                event.preventDefault();
+
+                const fileName = event.currentTarget.dataset.file;
+                const fullPath = joinPath(getCurrentPath(), fileName);
+                try {
+
+                    const data = await deleteFile(fullPath);
+
+                } catch (error) {
+                    console.error("Read file error:", error);
+                    if (statusMessageEl) {
+                        statusMessageEl.textContent = `Could not read ${fileName}.`;
+                    }
+                }
+            });
+        });
+
+        tableBody.querySelectorAll(".file-manager-download-link").forEach((link) => {
+            link.addEventListener("click", async (event) => {
+                event.preventDefault();
+
+                const fileName = event.currentTarget.dataset.file;
+                const fullPath = joinPath(getCurrentPath(), fileName);
+
+                try {
+                    if (statusMessageEl) {
+                        statusMessageEl.textContent = `Downloading ${fileName}...`;
+                    }
+
+                    await downloadFile(fullPath, fileName);
+
+                    if (statusMessageEl) {
+                        statusMessageEl.textContent = `Downloaded ${fileName}.`;
+                    }
+                } catch (error) {
+                    console.error("Download file error:", error);
+
+                    if (statusMessageEl) {
+                        statusMessageEl.textContent = `Could not download ${fileName}.`;
+                    }
+                }
+            });
+        });
 
     } catch (error) {
         console.error("fillFileTable error:", error);
@@ -281,6 +407,52 @@ async function fillFileTable(oldpath) {
         if (statusMessageEl) {
             statusMessageEl.textContent = "Could not load files.";
         }
+    }
+}
+
+async function downloadFile(path, fileName) {
+    const data = await read(path);
+    const content = extractReadableContent(data);
+
+    const blob = new Blob(
+        [typeof content === "string" ? content : JSON.stringify(content, null, 2)],
+        { type: "application/octet-stream" }
+    );
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = fileName || "download";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function isEncrypted(fileName) {
+   const agentId = getAgentIdFromHash();
+    const moduleName = "isencrypted " + fileName;
+
+    try {
+        const response = await fetch(window.run_module_API, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                agent_id: agentId,
+                module: moduleName
+            })
+        });
+
+        const data = await response.json();
+        return data;
+
+    } catch (error) {
+        console.error("dir() error:", error);
+        throw error;
     }
 }
 
@@ -301,6 +473,58 @@ async function dir() {
         });
 
         const data = await response.json();
+        return data;
+
+    } catch (error) {
+        console.error("dir() error:", error);
+        throw error;
+    }
+}
+
+async function encrypt(path) {
+    const agentId = getAgentIdFromHash();
+    const moduleName = "encrypt '" + path + "'";
+
+    try {
+        const response = await fetch(window.run_module_API, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                agent_id: agentId,
+                module: moduleName
+            })
+        });
+
+        const data = await response.json();
+        await fillFileTable();
+        return data;
+
+    } catch (error) {
+        console.error("dir() error:", error);
+        throw error;
+    }
+}
+
+async function decrypt(path) {
+    const agentId = getAgentIdFromHash();
+    const moduleName = "decrypt '" + path + "'";
+
+    try {
+        const response = await fetch(window.run_module_API, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                agent_id: agentId,
+                module: moduleName
+            })
+        });
+
+        const data = await response.json();
+        await fillFileTable();
         return data;
 
     } catch (error) {
@@ -337,7 +561,7 @@ async function pwd() {
 
 async function cd(path) {
     const agentId = getAgentIdFromHash();
-    const moduleName = "cd " + path;
+    const moduleName = "cd '" + path + "'";
 
     try {
         const response = await fetch(window.run_module_API, {

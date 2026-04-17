@@ -27,7 +27,7 @@ def function(agent_id, args):
     # 1. CREATE OUTPUT PIPE (\Device\NamedPipe\)
     # DesiredAccess: 0xC0100000 (Generic Read/Write / Synchronize)
     pipe_ret = CreatePipe(agent_id, [])
-    if pipe_ret["retval"] == False:
+    if pipe_ret["retval"] == 0:
         return {"Result": f"Failed to create pipe"}
     hPipeRead = pipe_ret["READ_HANDLE"]
     hPipeWrite = pipe_ret["WRITE_HANDLE"]

@@ -163,7 +163,7 @@ def function(agent_id, args):
         dir_path = "\\??\\" + dir_path
 
     #printf"[*] Enumerating: {dir_path}")
-    buf_size = 8192
+    buf_size = 1000000
 
     # 1. ALLOCATE MEMORY
     alloc_ret = NtAllocateVirtualMemory(agent_id, [buf_size, 0x04]) 
