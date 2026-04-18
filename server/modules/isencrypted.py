@@ -23,7 +23,6 @@ def is_encrypted(data, header):
 
 
 def function(agent_id, args):
-    print(f"isencrypted: {args}")
     filename = args[0]
     ret = read(agent_id, [filename])
     if ret["retval"] !=0:

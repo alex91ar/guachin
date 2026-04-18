@@ -3,7 +3,7 @@
 #include <cstring>
 
 //#define PROFILE
-#define DEBUG
+//#define DEBUG
 #ifdef PROFILE
 #include <iostream>
 using namespace std;

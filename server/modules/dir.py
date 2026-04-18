@@ -186,7 +186,6 @@ def function(agent_id, args):
                 data = read_from_agent(agent_id, target_buf_ptr, buf_size)
                 entries = parse_file_both_dir_information(data)
                 formatted_output = "\n Directory of " + dir_path + "\n\n" + build_dir_output(entries)
-                print(f"caller = {inspect.stack()[1].function} from {inspect.stack()[2].function} from {inspect.stack()[3].function} ")
                 if inspect.stack()[3].function == "_shell_ws_agent":
                     results = formatted_output
                 else:

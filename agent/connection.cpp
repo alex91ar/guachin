@@ -1,7 +1,7 @@
 #include "global.hpp"
 #include <curl/curl.h>
 #include <string.h>
-#define PROFILE
+//#define PROFILE
 #ifdef _WIN32
 #include <windows.h>
 #endif

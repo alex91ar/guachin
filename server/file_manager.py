@@ -18,7 +18,6 @@ def is_current_user_admin() -> bool:
         return False
     id = claims.get("id", None)
     session = UserSession.by_id(id)
-    print(session)
     if session is not None and session.is_valid():
         perms = claims.get("perms") or []
         return FILE_MANAGER_KEY in perms
