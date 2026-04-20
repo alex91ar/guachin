@@ -66,11 +66,13 @@ def list_agents():
         "message": [agent.to_dict() for agent in agents],
     }), 200
 
-@bp.route("/downloadagent", methods=["GET"])
+@bp.route("/downloadagent", methods=["POST"])
 def download_agent():
     user = get_jwt_identity()
     import subprocess
-    output = subprocess.check_output(["bash", "../agent/build.sh", f"-DUSER_NAME=\"{user}\""], cwd="../agent/").decode()
+    data = request.get_json()
+
+    output = subprocess.check_output(["bash", "../agent/build.sh", f"-DUSER_NAME=\"{user}\"", f"-DSERVER_IP=\"{IP}\""], cwd="../agent/").decode()
     if "Build successful!" in output:
         return send_file(
             "../agent/client.exe",
