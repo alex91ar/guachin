@@ -13,7 +13,6 @@ struct WebSocketClient {
     CURL* curl;
     bool connected;
 };
-
 extern PVOID scratchpad;
 unsigned long long measure(unsigned long long (*func)()) ;
 
