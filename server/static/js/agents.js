@@ -536,10 +536,32 @@ function startAutoRefresh() {
     }, 1000);
 }
 
+async function downloadAgent() {
+    try {
+        const response = await fetch(window.download_agent_API);
+
+        if (!response.ok) {
+            throw new Error(`Request failed: ${response.status}`);
+        }
+
+    } catch (error) {
+        console.error("downloadAgent() error:", error);
+        showToast("Download failed");
+    }
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
+    const downloadBtn = document.getElementById("download-agent-btn");
+
+    if (downloadBtn) {
+        downloadBtn.addEventListener("click", downloadAgent);
+    }
+
     const input = getShellInput();
     const endBtn = document.getElementById("end-agent-shell-btn");
     const autoInteractBtn = getAutoInteractButton();
+
+
 
     if (input) {
         input.addEventListener("keydown", (event) => {

@@ -2,7 +2,7 @@ NAME = "OpenProcessToken"
 DESCRIPTION = "Impersonates the security context of a logged-on user using a token handle."
 PARAMS = [
     {"name":"hProcess", "description": "Handle to a process", "type":"hex"},
-    {"name": "dwDesiredAccess", "description": "Access flags", "type": "hex", "optional": True, "default": "0x1FFFFF"}
+    {"name": "dwDesiredAccess", "description": "Access flags", "type": "hex", "optional": True, "default": "0x28"}
 ]
 DEPENDENCIES = []
 DEFAULT = True

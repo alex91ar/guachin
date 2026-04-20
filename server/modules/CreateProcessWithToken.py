@@ -74,7 +74,7 @@ def CreateProcessWithTokenW(agent_id,h_pipe, h_token, command_line):
         scratchpad      # lpProcessInformation
     ]
 
-    shellcode = push_rtl(func_addr, params, agent.debug)
+    shellcode = push_rtl(func_addr, params, True)
     combined_data = pi_data + si_data + cmdline_data
     
     return combined_data, shellcode

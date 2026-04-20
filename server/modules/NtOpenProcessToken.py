@@ -44,7 +44,7 @@ def function(agent_id, args):
     success_val = int.from_bytes(response_bytes, 'little')
 
     h_token = 0
-    if success_val == 0:
+    if success_val == 0:   
         # 4. Read the 64-bit handle written to our allocated memory
         token_raw = read_scratchpad(agent_id, 8)
         h_token = int.from_bytes(token_raw, 'little')

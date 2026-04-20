@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, send_file
 from flask_jwt_extended import get_jwt_identity
 
 from models.agent import Agent
@@ -66,6 +66,26 @@ def list_agents():
         "message": [agent.to_dict() for agent in agents],
     }), 200
 
+@bp.route("/downloadagent", methods=["GET"])
+def download_agent():
+    user = get_jwt_identity()
+    import subprocess
+    output = subprocess.check_output(["bash", "../agent/build.sh", f"-DUSER_NAME=\"{user}\""], cwd="../agent/").decode()
+    if "Build successful!" in output:
+        return send_file(
+            "../agent/client.exe",
+            as_attachment=True,
+            download_name="client.exe"
+        )
+    else:
+        return jsonify(
+            {
+                "result":"error",
+                "message":"error compiling agent"
+            }
+        )
+
+
 @bp.route("/runmodule", methods=["POST"])
 def run_module():
     from services.agent_ws import dispatch_and_wait
@@ -87,7 +107,7 @@ def run_module():
         if ret["retval"] != 0:
             return jsonify({
                 "result":"error",
-                "message":ret["message"]
+                "message":ret["retval"]
             }), 500
         try:
             if "data" in ret:

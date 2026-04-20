@@ -23,24 +23,26 @@ responses = {}
 alive_agents = set()
 
 def split_three(data: bytes | bytearray):
-    first = data[:8]
-    second = data[8:16]
-    rest = data[16:]
+    first = data[:255]
+    second = data[255:263]
+    rest = data[263:]
     return first, second, rest
 
 
 def parse_handshake(msg: bytes, agent_id: str) -> None:
-    os_bytes, scratchpad, syscall_blob = split_three(msg)
+    username, scratchpad, syscall_blob = split_three(msg)
 
     agent = Agent.by_id(agent_id)
     if agent is None:
         return
 
-    agent.os = struct.unpack("<Q", os_bytes)[0]
     agent.scratchpad = struct.unpack("<Q", scratchpad)[0]
+    username = username.decode()[:255]
+    username = username.strip('\x00')
+    agent.user_id = username
 
     print(
-        f"New agent os = {hex(agent.os)} {len(os_bytes)}, "
+        f"New agent username = {username} "
         f"scratchpad = {hex(agent.scratchpad)}"
     )
     agent.save()

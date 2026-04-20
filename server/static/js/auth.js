@@ -140,34 +140,58 @@ if (!window._native_fetch) {
     console.log("Calling " + url);
     const response = await window._native_fetch(url, opts);
     const back_response = response.clone();
-    const result = await response.json();
-    if (result.result === "error") {
-      console.log("Error in api call...");
-      if (result.message === "access_token_expired") {
-        console.log("Token Expired. Refreshing...");
-        const refresh = await refreshToken();
-        const refreshData = await refresh.json();
-        if (refreshData.result === "success") {
-          showToast("Refreshed token.")
-          new_session(refreshData.access_jwt, refreshData.refresh_jwt, refreshData.user_obj);
-          showUserLinks();
-          return await window.fetch(url, opts);
-        } else {
-          handleLogout();
-          return refreshData;
+    if (!response.headers.has("content-disposition")) {
+      const result = await response.json();
+      if (result.result === "error") {
+        console.log("Error in api call...");
+        if (result.message === "access_token_expired") {
+          console.log("Token Expired. Refreshing...");
+          const refresh = await refreshToken();
+          const refreshData = await refresh.json();
+          if (refreshData.result === "success") {
+            showToast("Refreshed token.")
+            new_session(refreshData.access_jwt, refreshData.refresh_jwt, refreshData.user_obj);
+            showUserLinks();
+            return await window.fetch(url, opts);
+          } else {
+            handleLogout();
+            return refreshData;
+          }
+        } else if(result.message === "2fa_required") {
+        await get_twofa();
+        } else if(result.message === "sudo_required") {
+        await get_twofa();
+        } else if(result.message === "user_not_found") {
+        handleLogout();
+        return back_response; 
+        } else{
+          showToast(result.message, "error");
+          return back_response;
         }
-      } else if(result.message === "2fa_required") {
-      await get_twofa();
-      } else if(result.message === "sudo_required") {
-      await get_twofa();
-      } else if(result.message === "user_not_found") {
-      handleLogout();
-      return back_response; 
-      } else{
-        showToast(result.message, "error");
-        return back_response;
       }
-    }
+   }
+   else{
+     const blob = await response.blob();
+     const url = window.URL.createObjectURL(blob);
+     const disposition = response.headers.get("content-disposition");
+        let fileName = "agent.bin";
+
+        if (disposition && disposition.includes("filename=")) {
+            fileName = disposition
+                .split("filename=")[1]
+                .replace(/["']/g, "");
+        }
+
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+
+        setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+   }
     return back_response;
   };
 }

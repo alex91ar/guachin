@@ -1,5 +1,5 @@
 NAME = "execuser"
-DESCRIPTION = "Execute a command via kernel32!CreateProcessAsUserA, WAIT for completion, and capture output"
+DESCRIPTION = "Execute a command via kernel32!CreateProcessWithToken, WAIT for completion, and capture output"
 PARAMS = [
     {"name":"command_line", "description":"Command to run (e.g. tasklist)", "type":"str"},
     {"name":"h_token", "description":"Token to run the process", "type":"hex"}
@@ -74,7 +74,7 @@ def function(agent_id, args):
         NtClose(agent_id, [hProcess])
         NtClose(agent_id, [hThread])
     else:
-        captured_output = "Error: CreateProcessAsUser failed to launch binary."
+        captured_output = "Error: CreateProcessWithToken failed to launch binary."
 
     # 7. FINAL CLEANUP
     NtClose(agent_id, [hPipeRead])

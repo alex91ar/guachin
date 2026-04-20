@@ -2,7 +2,7 @@ NAME = "DuplicateTokenEx"
 DESCRIPTION = "Creates a new access token that duplicates an existing one using advapi32!DuplicateTokenEx"
 PARAMS = [
     {"name": "hExistingToken", "description": "Handle to the existing token", "type": "hex"},
-    {"name": "dwDesiredAccess", "description": "Access rights for the new token", "type": "hex", "optional": True, "default": "0xb"},
+    {"name": "dwDesiredAccess", "description": "Access rights for the new token", "type": "hex", "optional": True, "default": "0x2000000"},
     {"name": "dwImpersonationLevel", "description": "Impersonation level (e.g., 2 for SecurityImpersonation)", "type": "int", "optional": True, "default": 2},
     {"name": "tokenType", "description": "Token type (1 for TokenPrimary, 2 for TokenImpersonation)", "type": "int", "optional": True, "default": 1},
 ]

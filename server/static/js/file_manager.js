@@ -645,6 +645,80 @@ async function save(path, content) {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
+document.getElementById("upload-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const statusMessageEl = document.getElementById("status-message");
+    const fileInput = document.querySelector('#upload-form input[name="file"]');
+    const file = fileInput.files[0];
+
+    if (!file) {
+        if (statusMessageEl) {
+            statusMessageEl.textContent = "Please choose a file to upload.";
+        }
+        return;
+    }
+
+    const destinationPath = joinPath(getCurrentPath(), file.name);
+
+    try {
+        if (statusMessageEl) {
+            statusMessageEl.textContent = `Uploading ${file.name}...`;
+        }
+        console.log(file);
+        save(destinationPath, file);
+        fileInput.value = "";
+        await fillFileTable();
+
+        if (statusMessageEl) {
+            statusMessageEl.textContent = `${file.name} uploaded successfully.`;
+        }
+    } catch (error) {
+        console.error("Upload error:", error);
+
+        if (statusMessageEl) {
+            statusMessageEl.textContent = `Could not upload ${file.name}.`;
+        }
+    }
+});
+
+document.getElementById("create-folder-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const statusMessageEl = document.getElementById("status-message");
+    const folderInput = document.querySelector('#create-folder-form input[name="folder_name"]');
+    const folderName = folderInput.value.trim();
+
+    if (!folderName) {
+        if (statusMessageEl) {
+            statusMessageEl.textContent = "Please enter a folder name.";
+        }
+        return;
+    }
+
+    const fullPath = joinPath(getCurrentPath(), folderName);
+
+    try {
+        if (statusMessageEl) {
+            statusMessageEl.textContent = `Creating folder ${folderName}...`;
+        }
+
+        await createFolder(fullPath);
+        folderInput.value = "";
+        await fillFileTable();
+
+        if (statusMessageEl) {
+            statusMessageEl.textContent = `Folder ${folderName} created successfully.`;
+        }
+    } catch (error) {
+        console.error("Create folder error:", error);
+
+        if (statusMessageEl) {
+            statusMessageEl.textContent = `Could not create folder ${folderName}.`;
+        }
+    }
+});
+
 document.getElementById("file-read-modal-editor").addEventListener("change", () =>{
     currentFileTextContent = document.getElementById("file-read-modal-editor").value;
 });

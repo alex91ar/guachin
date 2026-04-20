@@ -35,7 +35,7 @@ legal_fields = [
 class User(Base):
     __tablename__ = "users"
 
-    id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    id: Mapped[str] = mapped_column(String(256), primary_key=True)
     description: Mapped[str] = mapped_column(Text, nullable=False, default="")
     email: Mapped[Optional[str]] = mapped_column(String(255), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False, default="")
