@@ -617,6 +617,9 @@ async function read(path) {
     }
 }
 
+
+
+
 async function save(path, content) {
     const agentId = getAgentIdFromHash();
     const moduleName = `write '${path}' '${content}'`;
@@ -645,6 +648,7 @@ async function save(path, content) {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
+    
 document.getElementById("upload-form").addEventListener("submit", async (event) => {
     event.preventDefault();
 

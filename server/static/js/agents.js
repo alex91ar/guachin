@@ -535,10 +535,43 @@ function startAutoRefresh() {
         loadAgents();
     }, 1000);
 }
+async function getCurrrentIp() {
+
+    try {
+        const response = await fetch(window.get_server_ip_API, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json"
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Request failed: ${response.status}`);
+        }
+
+        return await response.json();
+
+    } catch (error) {
+        console.error("read() error:", error);
+        throw error;
+    }
+}
 
 async function downloadAgent() {
     try {
-        const response = await fetch(window.download_agent_API);
+        const user = getUser();
+        const ip = document.getElementById("server-ip-input").value;
+        const response = await fetch(window.download_agent_API, {
+            method: "POST",
+            credentials: "include",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            },
+            body: JSON.stringify({ user: user.sub,
+                ip: ip
+             })
+        });
 
         if (!response.ok) {
             throw new Error(`Request failed: ${response.status}`);
@@ -551,6 +584,9 @@ async function downloadAgent() {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
+    console.log(document.getElementById("download-agent-btn"));
+    const resp = await getCurrrentIp();
+    document.getElementById("server-ip-input").value = resp.message;
     const downloadBtn = document.getElementById("download-agent-btn");
 
     if (downloadBtn) {

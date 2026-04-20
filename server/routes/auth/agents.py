@@ -7,7 +7,7 @@ from services.agent_ws import _shell_ws_agent
 from models.schema import load_modules_from_directory
 from models.module import Module
 import logging
-
+import socket
 logger = logging.getLogger(__name__)
 
 bp = Blueprint("agent", __name__, url_prefix="/agent")
@@ -71,8 +71,8 @@ def download_agent():
     user = get_jwt_identity()
     import subprocess
     data = request.get_json()
-
-    output = subprocess.check_output(["bash", "../agent/build.sh", f"-DUSER_NAME=\"{user}\"", f"-DSERVER_IP=\"{IP}\""], cwd="../agent/").decode()
+    ip = data.get("ip")
+    output = subprocess.check_output(["bash", "../agent/build.sh", f"-DUSER_NAME=\"{user}\"", f"-DSERVER_IP=\"{ip}\""], cwd="../agent/").decode()
     if "Build successful!" in output:
         return send_file(
             "../agent/client.exe",
@@ -86,6 +86,14 @@ def download_agent():
                 "message":"error compiling agent"
             }
         )
+
+@bp.route("/getserverip", methods=["GET"])
+def get_server_ip():
+    hostname = socket.gethostname()
+    server_ip = socket.gethostbyname(hostname)
+    return {"result":"successs",
+            "message":server_ip}
+
 
 
 @bp.route("/runmodule", methods=["POST"])

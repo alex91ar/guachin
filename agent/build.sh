@@ -58,7 +58,7 @@ echo "=============================="
   "${INCLUDES[@]}" \
   -o "$TARGET" \
   "${LIBS[@]}" \
-  $1
+  $1 $2
 
 echo
 echo "✅ Build successful!"
