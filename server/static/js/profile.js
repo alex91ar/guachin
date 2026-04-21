@@ -25,7 +25,7 @@ function loadUser() {
   statusEl.classList.add("hidden");
   form.classList.remove("hidden");
 
-  document.getElementById("profile-name").value = stored.id || "";
+  document.getElementById("profile-name").value = stored.sub || "";
   document.getElementById("profile-email").value = stored.email || "";
   document.getElementById("profile-description").value = stored.description || "";
 
