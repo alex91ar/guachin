@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% include "urls.html" %}
+
+{% block content %}
+
+<h1>Process Manager</h1>
+
+<div class="topbar">
+    <strong>Agent:</strong>
+    <span id="current-agent"></span>
+</div>
+<div class="privileges">
+    <h3>Privileges</h3>
+    <ul id="privileges-list">
+        <li class="muted">Loading...</li>
+    </ul>
+</div>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/process_manager_agents.css') }}">
+
+<div class="flash" id="status-message">Loading processes...</div>
+
+<div class="actions">
+    <form id="start-process-form" action="#" method="post">
+        <input type="text" name="command" placeholder="Command to run" required>
+        <button type="submit">Start Process</button>
+    </form>
+
+    <hr>
+
+    <form id="kill-process-form" action="#" method="post">
+        <input type="number" name="pid" placeholder="PID to kill" required>
+        <button type="submit">Kill Process</button>
+    </form>
+</div>
+<div class="flash" id="output-message">Output: </div>
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>PID</th>
+            <th>Parent PID</th>
+            <th>Threads</th>
+            <th>Handles</th>
+            <th>Memory</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody id="process-table-body">
+        <tr>
+            <td colspan="7" class="muted">Loading...</td>
+        </tr>
+    </tbody>
+</table>
+
+<div id="threads-modal" class="file-modal hidden">
+    <div class="file-modal-backdrop" id="threads-modal-backdrop"></div>
+
+    <div class="file-modal-dialog file-editor-modal" role="dialog" aria-modal="true" aria-labelledby="threads-modal-title">
+        <div class="file-modal-header">
+            <div class="file-modal-header-main">
+                <h2 id="threads-modal-title">Threads</h2>
+                <div class="flash" id="status-message-threads"></div>
+                <div class="file-modal-path" id="threads-modal-path"></div>
+            </div>
+
+            <div class="file-modal-toolbar">
+                <button type="button" class="file-modal-close" id="threads-modal-close" aria-label="Close">×</button>
+            </div>
+        </div>
+
+        <div class="file-modal-body">
+            <div id="threads-modal-content"></div>
+        </div>
+    </div>
+</div>
+
+<div id="handles-modal" class="file-modal hidden">
+    <div class="file-modal-backdrop" id="handles-modal-backdrop"></div>
+
+    <div class="file-modal-dialog file-editor-modal" role="dialog" aria-modal="true" aria-labelledby="handles-modal-title">
+        <div class="file-modal-header">
+            <div class="file-modal-header-main">
+                <h2 id="handles-modal-title">Handles</h2>
+                <div class="flash" id="status-message-handles"></div>
+                <div class="file-modal-path" id="handles-modal-path"></div>
+            </div>
+
+            <div class="file-modal-toolbar">
+                <button type="button" class="file-modal-close" id="handles-modal-close" aria-label="Close">×</button>
+            </div>
+        </div>
+
+        <div class="file-modal-body">
+            <div id="handles-modal-content"></div>
+        </div>
+    </div>
+</div>
+
+<div id="process-action-modal" class="file-modal hidden">
+    <div class="file-modal-backdrop" id="process-action-backdrop"></div>
+
+    <div class="file-modal-dialog file-editor-modal" role="dialog" aria-modal="true" aria-labelledby="file-read-modal-title">
+        <div class="file-modal-header">
+            <div class="file-modal-header-main">
+                <h2 id="rocess-action-title">Action status window.</h2>
+            </div>
+
+            <div class="file-modal-toolbar">
+                <button type="button" class="file-modal-close" id="process-action-modal-close" aria-label="Close">×</button>
+            </div>
+        </div>
+
+        <div class="file-modal-body">
+            <textarea
+                class="file-modal-editor"
+                id="process-action-modal-editor"
+                spellcheck="false"
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="off"
+                readonly
+            >Starting action execution...</textarea>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/process_manager.js') }}"></script>
+
+{% endblock %}

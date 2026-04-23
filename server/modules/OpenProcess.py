@@ -66,13 +66,13 @@ def function(agent_id, args):
     
     if h_process == 0:
         return {
-            "success": -1,
+            "retval": -1,
             "pid": pid,
             "message": "OpenProcess returned NULL. Verify permissions (SeDebugPrivilege) and target PID."
         }
 
     return {
-        "success": 0,
+        "retval": 0,
         "pid": pid,
         "handle": hex(h_process),
         "access_requested": hex(dwDesiredAccess)

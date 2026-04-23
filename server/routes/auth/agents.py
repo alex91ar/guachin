@@ -114,14 +114,9 @@ def run_module():
             }), 404
     ret = dispatch_and_wait(agent_obj, data.get("module"))
     if ret is not None:
-        if ret["retval"] != 0:
-            return jsonify({
-                "result":"error",
-                "message":ret["retval"]
-            }), 500
         try:
             if "data" in ret:
-                if type(ret["data"]) != str:
+                if type(ret["data"]) == bytes or type(ret["data"]) == bytearray:
                     ret["data"] = ret["data"].decode()
             print(ret)
             return jsonify({

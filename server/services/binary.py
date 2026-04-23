@@ -83,8 +83,12 @@ def build_object_attributes(base_address, object_name, attributes =0):
     """
     object_attributes_size = 48
     unicode_base = base_address + object_attributes_size
-
-    unicode_str_data, next_ptr = build_unicode_string(unicode_base, object_name)
+    if object_name == "":
+        unicode_str_data = (b"\x00"*16)
+        unicode_base = 0
+        next_ptr = base_address + object_attributes_size + 16
+    else:
+        unicode_str_data, next_ptr = build_unicode_string(unicode_base, object_name)
 
     blob = bytearray(object_attributes_size)
 

@@ -91,5 +91,5 @@ def function(agent_id, args):
         "retval": 0,
         "h_token": hex(h_token),
         "operation": "Enabled" if enable else "Disabled",
-        "luid": f"{hex(luid_high)}:{hex(luid_low)}"
+        "luid_high": f"{hex(luid_high)}:{hex(luid_low)}"
     }

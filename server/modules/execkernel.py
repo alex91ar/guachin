@@ -44,7 +44,7 @@ def function(agent_id, args):
     # This dependency handles STARTUPINFOA (redirection) and bInheritHandles internally
     proc_ret = CreateProcess(agent_id, [full_command, hPipeWrite])
     captured_output = ""
-    if proc_ret["Success"]:
+    if proc_ret["retval"] == 0:
         hProcess = proc_ret["PROCESS_HANDLE"]
         hThread  = proc_ret["THREAD_HANDLE"]
 
@@ -77,7 +77,7 @@ def function(agent_id, args):
     NtFreeVirtualMemory(agent_id, [p_output_buffer, output_buf_size, 0x8000])
 
     return {
-        "Result": "Success" if proc_ret["Success"] else "Failed",
+        "retval": proc_ret["retval"],
         "Command": full_command,
         "Output": captured_output.strip(),
         "Status": hex(proc_ret.get("retval", 0))

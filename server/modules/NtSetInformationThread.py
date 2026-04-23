@@ -27,10 +27,9 @@ def NtSetInformationThread(agent_id, file_handle, info_class, info_data):
     
     params = [
         file_handle,      # FileHandle
-        scratchpad,       # &IoStatusBlock (at the start of scratchpad)
+        info_class,       # &IoStatusBlock (at the start of scratchpad)
         info_buf_ptr,     # &FileInformation (the actual info structure)
-        len(info),   # Length
-        info_class        # FileInformationClass
+        len(info)   # Length
     ]
     
     shellcode = push_syscall(syscall, params, agent.debug)
@@ -63,7 +62,8 @@ def function(agent_id, args):
     file_handle = args[0]
     info_class = args[1]
     info_data = args[2] # Ensure this is passed as bytes
-    print(args)
+    print(info_class)
+    print(info_data)
     retval = setThreadInfo(agent_id, file_handle, info_class, info_data)
     
     return {"retval": hex(retval)}

@@ -54,7 +54,7 @@ def function(agent_id, args):
     if success_val != 0:
         return {
             "retval": hex(success_val), 
-            "error": "OpenProcessToken returned FALSE. check handle permissions."
+            "error": "NtOpenProcessToken returned FALSE. check handle permissions."
         }
 
     return {

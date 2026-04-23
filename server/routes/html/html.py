@@ -62,3 +62,7 @@ def websocket():
 @bp.route("/filemanager", methods=["GET"])
 def filemanager():
     return render_template("file_manager.html")
+
+@bp.route("/processmanager", methods=["GET"])
+def processmanager():
+    return render_template("process_manager.html")

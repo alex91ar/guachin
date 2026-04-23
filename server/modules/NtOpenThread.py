@@ -15,20 +15,21 @@ def NtOpenThread_Payload(agent_id, h_process, h_thread, dwDesiredAccess):
     
     agent = Agent.by_id(agent_id)
     scratchpad = agent.scratchpad
-    token_data, client_ptr = build_object_attributes(scratchpad, "", 0)
+    thread_output_data, object_attributes_ptr = build_ptr(scratchpad, b"\x00"*8)
+    token_data, client_ptr = build_object_attributes(object_attributes_ptr, "", 0)
     client_data, next_ptr = build_ptr(client_ptr, int.to_bytes(h_process, 8, 'little') + int.to_bytes(h_thread, 8, 'little'))
 
     func_addr = Syscall.sys(agent.id, "NtOpenThread")
     
     # Signature: BOOL OpenProcessToken(HANDLE ProcessHandle, DWORD DesiredAccess, PHANDLE TokenHandle);
     params = [
-        h_thread,       # RCX: ProcessHandle
+        scratchpad,       # RCX: ProcessHandle
         dwDesiredAccess, # RDX: DesiredAccess
-        scratchpad,     # R8:  TokenHandle (Pointer where the output handle will be written)
+        object_attributes_ptr,     # R8:  TokenHandle (Pointer where the output handle will be written)
         client_ptr
     ]
     
-    return token_data + client_data, push_syscall(func_addr, params, agent.debug)
+    return thread_output_data + token_data + client_data, push_syscall(func_addr, params, agent.debug)
 
 def function(agent_id, args):
     from services.orders import send_and_wait, read_scratchpad, write_scratchpad
@@ -58,7 +59,7 @@ def function(agent_id, args):
 
     if success_val != 0:
         return {
-            "retval": -1, 
+            "retval": hex(success_val), 
             "error": "NtOpenThread returned FALSE. check handle permissions."
         }
 

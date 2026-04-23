@@ -78,11 +78,11 @@ def function(agent_id, args):
     
     if ret != 0:
         return {
-            "success": 0,
+            "retval": 0,
             "h_new_token": hex(h_new_token),
         }
 
     return {
-        "success": -1,
+        "retval": -1,
         "error": "Failed to duplicate token."
     }

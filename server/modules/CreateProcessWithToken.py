@@ -8,15 +8,16 @@ PARAMS = [
 DEPENDENCIES = []
 DEFAULT = True
 def build_si_struct(buffer_add, flags, h_pipe):
+    from services.binary import align_up
     #printf"Creating STARTUP_INFORMATION_A structure. buffer_add={hex(buffer_add)}, flags={hex(flags)}, h_pipe={hex(h_pipe)}")
     import struct
     # hStdOutput = h_pipe, hStdError = h_pipe
-    si_data = bytearray(104)
+    si_data = bytearray(align_up(104, 16))
     struct.pack_into('<I', si_data, 0, 104)      # cb
     struct.pack_into('<I', si_data, 60, flags)   # dwFlags
     struct.pack_into('<Q', si_data, 88, h_pipe)  # hStdOutput
     struct.pack_into('<Q', si_data, 96, h_pipe)  # hStdError
-    return si_data, buffer_add+104
+    return si_data, buffer_add+align_up(104, 16)
 
 def CreateProcessWithTokenW(agent_id,h_pipe, h_token, command_line):
     from models.agent import Agent
@@ -36,17 +37,13 @@ def CreateProcessWithTokenW(agent_id,h_pipe, h_token, command_line):
     # 0x80: Command Line String (UTF-16 Wide)
     
     # 1. Build PROCESS_INFORMATION (24 bytes)
-    pi_data, si_ptr = build_ptr(scratchpad, b"\x00" * 24)
+    pi_data, si_ptr = build_ptr(scratchpad, b"\x00" * align_up(24, 16))
     
     # 2. Build STARTUPINFOW (104 bytes)
     # Using 0x400 (STARTF_USESTDHANDLES) is common if you have pipe handles, 
     # but for simplicity, we initialize cb size.
-    si_raw = bytearray(104)
-    struct.pack_into('<I', si_raw, 0, 104) # cb
     si_data, cmdline_ptr = build_si_struct(si_ptr, 0x100, h_pipe)
     
-    # 3. Build Command Line (UTF-16)
-    cmdline_ptr = align_up(cmdline_ptr, 8)
     # CreateProcessWithTokenW expects a mutable wide string
     encoded_cmd = command_line.encode('utf-16-le') + b'\x00\x00'
     cmdline_data, _ = build_ptr(cmdline_ptr, encoded_cmd)
@@ -64,7 +61,7 @@ def CreateProcessWithTokenW(agent_id,h_pipe, h_token, command_line):
     
     params = [
         h_token,
-        0x00000002,    # dwLogonFlags: LOGON_WITH_PROFILE
+        0x00000001,    # dwLogonFlags: LOGON_WITH_PROFILE
         0,             # lpApplicationName
         cmdline_ptr,   # lpCommandLine
         0,             # dwCreationFlags
@@ -74,7 +71,7 @@ def CreateProcessWithTokenW(agent_id,h_pipe, h_token, command_line):
         scratchpad      # lpProcessInformation
     ]
 
-    shellcode = push_rtl(func_addr, params, True)
+    shellcode = push_rtl(func_addr, params, agent.debug)
     combined_data = pi_data + si_data + cmdline_data
     
     return combined_data, shellcode
@@ -98,7 +95,7 @@ def function(agent_id, args):
     # Parse Result
     if ret_val != 0:
         # Read back PROCESS_INFORMATION (hProcess, hThread, dwPid, dwTid)
-        result["retval"] == 0
+        result["retval"] = 0
         pi_raw = read_scratchpad(agent_id, 24)
         result["PROCESS_HANDLE"] = int.from_bytes(pi_raw[0:8], 'little')
         result["THREAD_HANDLE"] = int.from_bytes(pi_raw[8:16], 'little')

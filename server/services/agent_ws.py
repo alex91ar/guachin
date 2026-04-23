@@ -84,7 +84,6 @@ def dispatch_command(agent, text):
         if module is not None:
             agent.save()
             responses[agent.id] = module.exec(agent.id, args)
-            print(f"Got a response!!!!!!: {responses}")
         else:
             responses[agent.id] = Module.get_help()
 

@@ -431,9 +431,22 @@ function createAgentRow(agent, allAgents) {
         }
     );
 
+    const processManagerBtn = createActionButton(
+        "Process Manager",
+        "btn primary",
+        "processmanager",
+        agent.id,
+        () => {
+            const agentId = processManagerBtn.dataset.processmanager;
+            window.location = window.processmanager_HTML + "#" + agentId;
+            return;
+        }
+    );
+
     actionsDiv.appendChild(interactBtn);
     actionsDiv.appendChild(deleteBtn);
     actionsDiv.appendChild(fileManagerBtn);
+    actionsDiv.appendChild(processManagerBtn);
     actionsTd.appendChild(actionsDiv);
     tr.appendChild(actionsTd);
 

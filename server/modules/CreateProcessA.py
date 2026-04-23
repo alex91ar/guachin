@@ -110,9 +110,12 @@ def function(agent_id, args):
         h_thread = int.from_bytes(pi_raw[8:16], 'little')
 
     NtFreeVirtualMemory(agent_id, [p_private, mem_size, 0x8000])
-
+    if ret_val != 0:
+        ret_val = 0
+    else:
+        ret_val = -1
     return {
-        "Success": ret_val,
+        "retval": ret_val,
         "PROCESS_HANDLE": h_proc,
         "THREAD_HANDLE": h_thread
     }
