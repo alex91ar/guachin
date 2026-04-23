@@ -211,6 +211,31 @@ Senior Cybersecurity Engineer with experience in:
 
 Skilled in developing custom tooling across multiple languages, with a strong track record in identifying logic flaws and privilege escalation paths.
 
+## Legal considerations
+
+This project is intended for legitimate security research and authorized
+red teaming activities only.
+
+By using this software, you agree that:
+- You will only use it on systems you own or have explicit permission to test
+- You will comply with all applicable laws and regulations
+- You are solely responsible for your actions and any consequences
+
+Unauthorized use of this software against systems, networks, or devices
+without prior consent is illegal and strictly discouraged.
+
+The author does not condone or support malicious use of this software.
+
+If you use, modify, or distribute this project, you must:
+
+- Include the original copyright notice and license
+- Provide clear credit to the original author
+- Indicate if changes were made
+
+Suggested attribution format:
+
+"Based on guachin by Alejo Popovici (https://github.com/alex91ar/guachin)[https://github.com/alex91ar/guachin]"
+
 ---
 
 ## 💖 Support
