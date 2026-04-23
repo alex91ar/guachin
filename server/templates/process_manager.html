@@ -9,8 +9,21 @@
     <strong>Agent:</strong>
     <span id="current-agent"></span>
 </div>
+<br>
+<div class="topbar">
+    <strong>Impersonation Token:</strong>
+    <span id="current-impersonation-token">Not Impersonating.</span>
+</div>
+<br>
+<div class="topbar">
+    <strong>Current Thread Owner:</strong>
+    <span id="current-thread-owner">Unknown.</span>
+</div>
 <div class="privileges">
-    <h3>Privileges</h3>
+    <h3>Privileges 
+        <button class="btn btn-danger process-manager-enable-all-btn" id="btn-enable-all" type="submit">Enable All</button>
+        <button class="btn btn-priv process-manager-disable-all-btn" id="btn-disable-all" type="submit">Disable All</button>
+    </h3>
     <ul id="privileges-list">
         <li class="muted">Loading...</li>
     </ul>

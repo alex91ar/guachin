@@ -173,7 +173,6 @@ async function NtQueryObject(type_value, handle) {
     if(ret_mod.message.retval == 0){
         newType = {"type":type_value, "name":ret_mod.message.object_info};
         typeArray.push(newType);
-        console.log(typeArray);
         localStorage.setItem("typeCache", JSON.stringify(typeArray));
         return ret_mod.message.object_info;
     }
@@ -194,7 +193,15 @@ async function killProcess(pid) {
 async function startProcess(command) {
     const imp_token = localStorage.getItem("imp_token");
     if(!imp_token) return await runModule(`execkernel "${String(command).replaceAll('"', '\\"')}"`);
-    else return await runModule(`execuser "${String(command).replaceAll('"', '\\"')}" ${imp_token}`);
+    else {
+        const execUserRet = await runModule(`execuser "${String(command).replaceAll('"', '\\"')}" ${imp_token}`);
+        if(execUserRet.message.Output == "Error: CreateProcessWithToken failed to launch binary."){
+            localStorage.removeItem("imp_token");
+            renderImpersonationToken();
+            return await startProcess(command);
+        }
+        else return execUserRet;
+    }
 }
 
 function getMemoryValue(process) {
@@ -248,76 +255,222 @@ function normalizeHandlesResponse(data, pid) {
 
 
 function parseAccessMask(maskValue, typeName = "") {
-    const mask = Number(maskValue);
+    let mask;
 
-    if (!Number.isFinite(mask)) {
+    try {
+        if (typeof maskValue === "bigint") {
+            mask = maskValue;
+        } else if (typeof maskValue === "number") {
+            if (!Number.isFinite(maskValue)) {
+                return "-";
+            }
+            mask = BigInt(maskValue >>> 0) | (maskValue > 0xFFFFFFFF ? BigInt(maskValue) : 0n);
+            if (BigInt(maskValue) > mask) {
+                mask = BigInt(maskValue);
+            }
+        } else if (typeof maskValue === "string") {
+            const trimmed = maskValue.trim();
+            if (!trimmed) {
+                return "-";
+            }
+            mask = trimmed.startsWith("0x") || trimmed.startsWith("0X")
+                ? BigInt(trimmed)
+                : BigInt(parseInt(trimmed, 10));
+        } else {
+            return "-";
+        }
+    } catch {
         return "-";
     }
 
     const rights = [];
+    const seen = new Set();
 
     const add = (flag, label) => {
-        if ((mask & flag) === flag) {
+        if ((mask & flag) === flag && !seen.has(label)) {
             rights.push(label);
+            seen.add(label);
         }
     };
 
-    // Standard / generic rights
-    add(0x80000000, "GENERIC_READ");
-    add(0x40000000, "GENERIC_WRITE");
-    add(0x20000000, "GENERIC_EXECUTE");
-    add(0x10000000, "GENERIC_ALL");
+    const lower = String(typeName || "").toLowerCase().trim();
 
-    add(0x00100000, "SYNCHRONIZE");
-    add(0x00080000, "WRITE_OWNER");
-    add(0x00040000, "WRITE_DAC");
-    add(0x00020000, "READ_CONTROL");
-    add(0x00010000, "DELETE");
+    // Generic rights
+    add(0x80000000n, "GENERIC_READ");
+    add(0x40000000n, "GENERIC_WRITE");
+    add(0x20000000n, "GENERIC_EXECUTE");
+    add(0x10000000n, "GENERIC_ALL");
 
-    const lower = String(typeName || "").toLowerCase();
+    // Standard rights
+    add(0x00100000n, "SYNCHRONIZE");
+    add(0x00080000n, "WRITE_OWNER");
+    add(0x00040000n, "WRITE_DAC");
+    add(0x00020000n, "READ_CONTROL");
+    add(0x00010000n, "DELETE");
 
-    if (lower.includes("file")) {
-        add(0x0001, "FILE_READ_DATA");
-        add(0x0002, "FILE_WRITE_DATA");
-        add(0x0004, "FILE_APPEND_DATA");
-        add(0x0008, "FILE_READ_EA");
-        add(0x0010, "FILE_WRITE_EA");
-        add(0x0020, "FILE_EXECUTE");
-        add(0x0040, "FILE_DELETE_CHILD");
-        add(0x0080, "FILE_READ_ATTRIBUTES");
-        add(0x0100, "FILE_WRITE_ATTRIBUTES");
-    } else if (lower.includes("process")) {
-        add(0x0001, "PROCESS_TERMINATE");
-        add(0x0002, "PROCESS_CREATE_THREAD");
-        add(0x0008, "PROCESS_VM_OPERATION");
-        add(0x0010, "PROCESS_VM_READ");
-        add(0x0020, "PROCESS_VM_WRITE");
-        add(0x0040, "PROCESS_DUP_HANDLE");
-        add(0x0080, "PROCESS_CREATE_PROCESS");
-        add(0x0100, "PROCESS_SET_QUOTA");
-        add(0x0200, "PROCESS_SET_INFORMATION");
-        add(0x0400, "PROCESS_QUERY_INFORMATION");
-        add(0x0800, "PROCESS_SUSPEND_RESUME");
-        add(0x1000, "PROCESS_QUERY_LIMITED_INFORMATION");
-    } else if (lower.includes("thread")) {
-        add(0x0001, "THREAD_TERMINATE");
-        add(0x0002, "THREAD_SUSPEND_RESUME");
-        add(0x0008, "THREAD_GET_CONTEXT");
-        add(0x0010, "THREAD_SET_CONTEXT");
-        add(0x0020, "THREAD_SET_INFORMATION");
-        add(0x0040, "THREAD_QUERY_INFORMATION");
-        add(0x0080, "THREAD_SET_THREAD_TOKEN");
-        add(0x0100, "THREAD_IMPERSONATE");
-        add(0x0200, "THREAD_DIRECT_IMPERSONATION");
-        add(0x0400, "THREAD_SET_LIMITED_INFORMATION");
-        add(0x0800, "THREAD_QUERY_LIMITED_INFORMATION");
+    // Standard combinations
+    if ((mask & 0x000F0000n) === 0x000F0000n) {
+        rights.push("STANDARD_RIGHTS_REQUIRED");
     }
+    if ((mask & 0x001F0000n) === 0x001F0000n) {
+        rights.push("STANDARD_RIGHTS_ALL");
+    }
+
+    // File / Directory
+    if (lower.includes("file") || lower.includes("directory")) {
+        add(0x0001n, "FILE_READ_DATA / FILE_LIST_DIRECTORY");
+        add(0x0002n, "FILE_WRITE_DATA / FILE_ADD_FILE");
+        add(0x0004n, "FILE_APPEND_DATA / FILE_ADD_SUBDIRECTORY");
+        add(0x0008n, "FILE_READ_EA");
+        add(0x0010n, "FILE_WRITE_EA");
+        add(0x0020n, "FILE_EXECUTE / FILE_TRAVERSE");
+        add(0x0040n, "FILE_DELETE_CHILD");
+        add(0x0080n, "FILE_READ_ATTRIBUTES");
+        add(0x0100n, "FILE_WRITE_ATTRIBUTES");
+    }
+
+    // Process
+    else if (lower.includes("process")) {
+        add(0x0001n, "PROCESS_TERMINATE");
+        add(0x0002n, "PROCESS_CREATE_THREAD");
+        add(0x0004n, "PROCESS_SET_SESSIONID");
+        add(0x0008n, "PROCESS_VM_OPERATION");
+        add(0x0010n, "PROCESS_VM_READ");
+        add(0x0020n, "PROCESS_VM_WRITE");
+        add(0x0040n, "PROCESS_DUP_HANDLE");
+        add(0x0080n, "PROCESS_CREATE_PROCESS");
+        add(0x0100n, "PROCESS_SET_QUOTA");
+        add(0x0200n, "PROCESS_SET_INFORMATION");
+        add(0x0400n, "PROCESS_QUERY_INFORMATION");
+        add(0x0800n, "PROCESS_SUSPEND_RESUME");
+        add(0x1000n, "PROCESS_QUERY_LIMITED_INFORMATION");
+        add(0x2000n, "PROCESS_SET_LIMITED_INFORMATION");
+    }
+
+    // Thread
+    else if (lower.includes("thread")) {
+        add(0x0001n, "THREAD_TERMINATE");
+        add(0x0002n, "THREAD_SUSPEND_RESUME");
+        add(0x0004n, "THREAD_ALERT");
+        add(0x0008n, "THREAD_GET_CONTEXT");
+        add(0x0010n, "THREAD_SET_CONTEXT");
+        add(0x0020n, "THREAD_SET_INFORMATION");
+        add(0x0040n, "THREAD_QUERY_INFORMATION");
+        add(0x0080n, "THREAD_SET_THREAD_TOKEN");
+        add(0x0100n, "THREAD_IMPERSONATE");
+        add(0x0200n, "THREAD_DIRECT_IMPERSONATION");
+        add(0x0400n, "THREAD_SET_LIMITED_INFORMATION");
+        add(0x0800n, "THREAD_QUERY_LIMITED_INFORMATION");
+        add(0x1000n, "THREAD_RESUME");
+    }
+
+    // Token
+    else if (lower.includes("token")) {
+        add(0x0001n, "TOKEN_ASSIGN_PRIMARY");
+        add(0x0002n, "TOKEN_DUPLICATE");
+        add(0x0004n, "TOKEN_IMPERSONATE");
+        add(0x0008n, "TOKEN_QUERY");
+        add(0x0010n, "TOKEN_QUERY_SOURCE");
+        add(0x0020n, "TOKEN_ADJUST_PRIVILEGES");
+        add(0x0040n, "TOKEN_ADJUST_GROUPS");
+        add(0x0080n, "TOKEN_ADJUST_DEFAULT");
+        add(0x0100n, "TOKEN_ADJUST_SESSIONID");
+    }
+
+    // Event
+    else if (lower.includes("event")) {
+        add(0x0001n, "EVENT_QUERY_STATE");
+        add(0x0002n, "EVENT_MODIFY_STATE");
+    }
+
+    // Mutant / Mutex
+    else if (lower.includes("mutant") || lower.includes("mutex")) {
+        add(0x0001n, "MUTANT_QUERY_STATE");
+    }
+
+    // Semaphore
+    else if (lower.includes("semaphore")) {
+        add(0x0001n, "SEMAPHORE_QUERY_STATE");
+        add(0x0002n, "SEMAPHORE_MODIFY_STATE");
+    }
+
+    // Timer
+    else if (lower.includes("timer")) {
+        add(0x0001n, "TIMER_QUERY_STATE");
+        add(0x0002n, "TIMER_MODIFY_STATE");
+    }
+
+    // Section
+    else if (lower.includes("section")) {
+        add(0x0001n, "SECTION_QUERY");
+        add(0x0002n, "SECTION_MAP_WRITE");
+        add(0x0004n, "SECTION_MAP_READ");
+        add(0x0008n, "SECTION_MAP_EXECUTE");
+        add(0x0010n, "SECTION_EXTEND_SIZE");
+        add(0x0020n, "SECTION_MAP_EXECUTE_EXPLICIT");
+    }
+
+    // Key / Registry
+    else if (lower.includes("key")) {
+        add(0x0001n, "KEY_QUERY_VALUE");
+        add(0x0002n, "KEY_SET_VALUE");
+        add(0x0004n, "KEY_CREATE_SUB_KEY");
+        add(0x0008n, "KEY_ENUMERATE_SUB_KEYS");
+        add(0x0010n, "KEY_NOTIFY");
+        add(0x0020n, "KEY_CREATE_LINK");
+        add(0x0100n, "KEY_WOW64_64KEY");
+        add(0x0200n, "KEY_WOW64_32KEY");
+    }
+
+    // Job
+    else if (lower.includes("job")) {
+        add(0x0001n, "JOB_OBJECT_ASSIGN_PROCESS");
+        add(0x0002n, "JOB_OBJECT_SET_ATTRIBUTES");
+        add(0x0004n, "JOB_OBJECT_QUERY");
+        add(0x0008n, "JOB_OBJECT_TERMINATE");
+        add(0x0010n, "JOB_OBJECT_SET_SECURITY_ATTRIBUTES");
+        add(0x0020n, "JOB_OBJECT_IMPERSONATE");
+    }
+
+    // Desktop
+    else if (lower.includes("desktop")) {
+        add(0x0001n, "DESKTOP_READOBJECTS");
+        add(0x0002n, "DESKTOP_CREATEWINDOW");
+        add(0x0004n, "DESKTOP_CREATEMENU");
+        add(0x0008n, "DESKTOP_HOOKCONTROL");
+        add(0x0010n, "DESKTOP_JOURNALRECORD");
+        add(0x0020n, "DESKTOP_JOURNALPLAYBACK");
+        add(0x0040n, "DESKTOP_ENUMERATE");
+        add(0x0080n, "DESKTOP_WRITEOBJECTS");
+        add(0x0100n, "DESKTOP_SWITCHDESKTOP");
+    }
+
+    // Window station
+    else if (lower.includes("windowstation")) {
+        add(0x0001n, "WINSTA_ENUMDESKTOPS");
+        add(0x0002n, "WINSTA_READATTRIBUTES");
+        add(0x0004n, "WINSTA_ACCESSCLIPBOARD");
+        add(0x0008n, "WINSTA_CREATEDESKTOP");
+        add(0x0010n, "WINSTA_WRITEATTRIBUTES");
+        add(0x0020n, "WINSTA_ACCESSGLOBALATOMS");
+        add(0x0040n, "WINSTA_EXITWINDOWS");
+        add(0x0100n, "WINSTA_ENUMERATE");
+        add(0x0200n, "WINSTA_READSCREEN");
+    }
+
+    // ALPC / Port
+    else if (lower.includes("port") || lower.includes("alpc")) {
+        add(0x0001n, "PORT_CONNECT");
+        add(0x0002n, "PORT_ALL_ACCESS_LOWBIT_2");
+    }
+
+    const hexMask = `0x${mask.toString(16).toUpperCase()}`;
 
     if (rights.length === 0) {
-        return `0x${mask.toString(16).toUpperCase()}`;
+        return hexMask;
     }
 
-    return `${rights.join(" | ")} (0x${mask.toString(16).toUpperCase()})`;
+    return `${rights.join(" | ")} (${hexMask})`;
 }
 
 async function openProcess(pid){
@@ -482,7 +635,6 @@ async function renderHandlesTable(handleList, pid) {
 }
 
 async function adjustPriv(priv, enabled){
-    setStatusWindow("", "begin");
     let enable;
     if(enabled == "Enabled") enable = "False";
     else enable = "True";
@@ -492,7 +644,7 @@ async function adjustPriv(priv, enabled){
         setStatusWindow(`NtOpenProcess succeeded NTSTATUS = ${ntopt_ret.message.retval}.`, "append");
         const lookup_ret = await runModule(`LookupPrivilegeValueA ${priv}`);
         if(lookup_ret.message.retval != 0){
-            setStatusWindow(`LookupPrivilegeValueA failed. retval = ${lookup_ret.message.retval}.`, "end");
+            setStatusWindow(`LookupPrivilegeValueA failed. retval = ${lookup_ret.message.retval}.`, "append");
             return {"retval":ntopt_ret.message.retval};
         }
         else{
@@ -500,10 +652,10 @@ async function adjustPriv(priv, enabled){
 
             const ntapt_ret = await runModule(`NtAdjustPrivilegesToken ${ntopt_ret.message.h_token} ${lookup_ret.message.luid_low} ${lookup_ret.message.luid_high} ${enable}`);
             if(ntapt_ret.message.retval == 0) setStatusWindow(`NtAdjustPrivilegesToken succeeded. retval = ${ntapt_ret.message.retval}.`, "append");
-            else setStatusWindow(`NtAdjustPrivilegesToken failed. retval = ${ntapt_ret.message.retval}.`, "end");
+            else setStatusWindow(`NtAdjustPrivilegesToken failed. retval = ${ntapt_ret.message.retval}.`, "append");
             const ntclose_ret = await runModule(`NtClose ${ntopt_ret.message.h_token}`);
-            if(ntclose_ret.message.retval == 0) setStatusWindow(`NtClose succeeded. retval = ${ntclose_ret.message.retval}.`, "end");
-            else setStatusWindow(`NtClose failed. retval = ${ntclose_ret.message.retval}.`, "end");
+            if(ntclose_ret.message.retval == 0) setStatusWindow(`NtClose succeeded. retval = ${ntclose_ret.message.retval}.`, "append");
+            else setStatusWindow(`NtClose failed. retval = ${ntclose_ret.message.retval}.`, "append");
             return {"retval":ntapt_ret.message.retval};
         }
     }
@@ -512,6 +664,51 @@ async function adjustPriv(priv, enabled){
 
 function closeActionModal() {
     document.getElementById("process-action-modal").classList.add("hidden");
+}
+
+function renderImpersonationToken(){
+    const impersonationSpan = document.getElementById("current-impersonation-token");
+    const savedImpersonationToken = localStorage.getItem("imp_token");
+    if(savedImpersonationToken){
+        impersonationSpan.textContent = savedImpersonationToken;
+    }
+    else impersonationSpan.textContent = "Not Impersonating.";
+}
+
+async function renderThreadOwner(){
+    const threadOwnerSpan = document.getElementById("current-thread-owner");
+    const whoamiRet = await startProcess(`powershell whoami`);
+    if(whoamiRet.message.retval == 0){
+        threadOwnerSpan.textContent = whoamiRet.message.Output;
+    }
+    else threadOwnerSpan.textContent = "Unknown.";
+}
+
+async function adjustAllPrivs(newStatus){
+    document.querySelectorAll(".priv-btn").forEach((button) =>{
+        button.disabled = true;
+    });
+    setStatusWindow("", "begin");
+    const buttons = document.querySelectorAll(".priv-btn");
+    for(const button of buttons){
+        const priv = button.dataset.priv;
+        const enabled = button.dataset.enabled;
+        if(enabled == newStatus){
+            try {
+                const ret_ap = await adjustPriv(priv, enabled);
+                if(ret_ap.retval == 0) setStatusWindow(`Adjusted privilege ${priv}.`, "append");
+                else setStatusWindow(`Error adjusting privilege ${priv} = ${ret_ap.retval}.`, "append");
+            } catch (error) {
+                setStatusWindow(`Error adjusting privilege ${priv}.`, "append");
+            }
+        }
+    }
+    const data = await getPrivileges();
+    renderPrivileges(data);
+    setStatusWindow("Finished enabling all privileges.", "end");
+    document.querySelectorAll(".priv-btn").forEach((button) =>{
+        button.disabled = false;
+    });
 }
 
 function bindPrivActions() {
@@ -523,7 +720,9 @@ function bindPrivActions() {
             const priv = event.currentTarget.dataset.priv;
             const enabled = event.currentTarget.dataset.enabled;
             try {
+                setStatusWindow("", "begin");
                 const ret_ap = await adjustPriv(priv, enabled);
+                setStatusWindow("", "end");
                 if(ret_ap.retval == 0) setStatus(`Adjusted privilege ${priv}.`);
                 else setStatus(`Error adjusting privilege ${priv} = ${ret_ap.retval}.`);
             } catch (error) {
@@ -560,7 +759,6 @@ function bindHandleModalActions() {
             const statusMessageEl = document.getElementById("status-message-handles");
             try {
                 const pid = document.querySelector(".process-manager-view-handles-link").dataset.pid;
-                console.log(pid);
                 const returnval = await duplicateHandle(pid, handleValue);
                 
                 statusMessageEl.textContent = `New handle ${returnval}.`;
@@ -629,6 +827,7 @@ function setStatusWindow(text, startend){
     if(startend == "end") {
         statusText.value += "\n";
         statusText.value += text;
+        statusText.selectionStart = statusText.selectionEnd = statusText.value.length;
         setTimeout(() =>{
             statusWindow.classList.add("hidden");
         }, 5000);
@@ -642,6 +841,7 @@ function setStatusWindow(text, startend){
         statusText.value += "\n";
         statusText.value += text;
     }
+    statusText.selectionStart = statusText.selectionEnd = statusText.value.length;
 }
 
 async function impersonateProcess(pid, name){
@@ -660,6 +860,11 @@ async function impersonateProcess(pid, name){
                 setStatusWindow(`DuplicateTokenEx h_token = ${ntOpenProcTokenRet.message.h_token} succeeded. h_new_token = ${duplicateTokenExret.message.h_new_token}.`, "append");
                 const ntSetInformationThreadRet = await runModule(`NtSetInformationThread 0xFFFFFFFFFFFFFFFE 5 ${duplicateTokenExret.message.h_new_token}`);
                 if(ntSetInformationThreadRet.message.retval == 0){
+                    const oldImpToken = localStorage.getItem("imp_token");
+                    if(oldImpToken){
+                        const ntOldTokenClose = await runModule(`NtClose ${oldImpToken}`);
+                        setStatusWindow(`NtClose of old impersonation handle = ${oldImpToken} (NTSTATUS = ${ntOldTokenClose.message.retval}).`, "append");
+                    }
                     setStatusWindow(`ntSetInformationThreadRet h_token = ${duplicateTokenExret.message.h_new_token} succeeded. NTSTATUS = ${ntSetInformationThreadRet.message.retval}.`, "append");
                     localStorage.setItem("imp_token", duplicateTokenExret.message.h_new_token);
                 }
@@ -669,6 +874,8 @@ async function impersonateProcess(pid, name){
                     setStatusWindow(`NtClose of token handle = ${duplicateTokenExret.message.h_new_token} (NTSTATUS = ${ntClose1Ret.message.retval}).`, "append");
                     localStorage.removeItem("imp_token");
                 }
+                renderImpersonationToken();
+                await renderThreadOwner();
                 const ntClose2Ret = await runModule(`NtClose ${ntOpenProcRet.message.handle}`);
                 setStatusWindow(`NtClose of process handle = ${ntOpenProcRet.message.handle} (NTSTATUS = ${ntClose2Ret.message.retval}).`, "append");
                 setStatusWindow(`Finished impersonation.`, "append");
@@ -691,6 +898,8 @@ async function impersonateProcess(pid, name){
 }
 
 async function fillProcessTable() {
+    renderImpersonationToken();
+    await renderThreadOwner();
     const tableBody = document.getElementById("process-table-body");
 
     if (!tableBody) {
@@ -846,6 +1055,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     document.getElementById("process-action-modal-close").addEventListener("click", closeActionModal);
     document.getElementById("process-action-backdrop").addEventListener("click", closeActionModal);
+    document.getElementById("btn-enable-all").addEventListener("click", async (event) => {
+        event.preventDefault();
+        event.target.disabled = true;
+        await adjustAllPrivs("Disabled");
+        event.target.disabled = false;
+    });
+    document.getElementById("btn-disable-all").addEventListener("click", async (event) => {
+        event.preventDefault();
+        event.target.disabled = true;
+        await adjustAllPrivs("Enabled");
+        event.target.disabled = false;
+    });
     document.getElementById("start-process-form").addEventListener("submit", async (event) => {
         event.preventDefault();
 
