@@ -4,7 +4,7 @@ PARAMS = [
     {"name": "h_token", "description": "Handle to the access token", "type": "hex"},
     {"name": "luid_low", "description": "LUID LowPart (hex)", "type": "hex"},
     {"name": "luid_high", "description": "LUID HighPart (hex)", "type": "hex"},
-    {"name": "enable", "description": "True to enable, False to disable", "type": "bool", "optional": True, "default": True},
+    {"name": "enable", "description": "True to enable, False to disable", "type": "str", "optional": True, "default": True},
 ]
 DEPENDENCIES = []
 DEFAULT = True
@@ -64,8 +64,12 @@ def function(agent_id, args):
     h_token = args[0]
     luid_low = args[1]
     luid_high = args[2]
-    enable = args[3] if len(args) > 3 else True
-    print(f"{h_token}, {luid_high}, {luid_low}")
+    enable = args[3]
+    if enable == "True" or enable == "true" or enable == "1":
+        enable = True
+    else:
+        enable = False
+    print(f"{h_token}, {luid_high}, {luid_low}, {enable}")
 
     # 2. Generate and write the TP struct/shellcode
     data, shellcode = AdjustTokenPrivileges_Payload(agent_id, h_token, luid_low, luid_high, enable)

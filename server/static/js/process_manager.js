@@ -31,7 +31,7 @@ function renderPrivileges(privileges) {
                     (${escapeHtml(p.status)})
                 </span>
                 <td>
-                    <button type="button" class="btn btn-sm priv-btn" data-priv="${p.name}" data-enabled="${p.status}">
+                    <button type="button" class="btn btn-sm priv-btn ${p.status === "Enabled" ? "btn-priv" : "btn-danger"}" data-priv="${p.name}" data-enabled="${p.status}">
                         ${p.status === "Enabled" ? "Disable" : "Enable"}
                     </button>
                 </td>
