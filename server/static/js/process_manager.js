@@ -483,7 +483,10 @@ async function renderHandlesTable(handleList, pid) {
 
 async function adjustPriv(priv, enabled){
     setStatusWindow("", "begin");
-    setStatusWindow(`Setting privilege ${priv} to ${enabled}`, "append");
+    let enable;
+    if(enabled == "Enabled") enable = "False";
+    else enable = "True";
+    setStatusWindow(`Setting privilege ${priv} to ${enable}`, "append");
     const ntopt_ret = await runModule(`NtOpenProcessToken 0xFFFFFFFFFFFFFFFF 0x28`);
     if(ntopt_ret.message.retval == 0){
         setStatusWindow(`NtOpenProcess succeeded NTSTATUS = ${ntopt_ret.message.retval}.`, "append");
@@ -494,9 +497,7 @@ async function adjustPriv(priv, enabled){
         }
         else{
             setStatusWindow(`LookupPrivilegeValueA succeeded. luid_low = ${lookup_ret.message.luid_low} luid_high = ${lookup_ret.message.luid_high}.`, "append");
-            let enable;
-            if(enabled) enable = "False";
-            else enable = "True";
+
             const ntapt_ret = await runModule(`NtAdjustPrivilegesToken ${ntopt_ret.message.h_token} ${lookup_ret.message.luid_low} ${lookup_ret.message.luid_high} ${enable}`);
             if(ntapt_ret.message.retval == 0) setStatusWindow(`NtAdjustPrivilegesToken succeeded. retval = ${ntapt_ret.message.retval}.`, "append");
             else setStatusWindow(`NtAdjustPrivilegesToken failed. retval = ${ntapt_ret.message.retval}.`, "end");
