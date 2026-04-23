@@ -2,8 +2,9 @@ NAME = "CreateProcessAsUser"
 DESCRIPTION = "Execute a command using kernel32!CreateProcessA with redirected handles"
 PARAMS = [
     {"name":"command_line", "description":"Command to run", "type":"str"},
-    {"name":"h_pipe", "description":"Handle for stdout redirection", "type":"hex"},
     {"name":"h_token", "description":"Handle for token to execute.", "type":"hex"},
+    {"name":"h_pipe", "description":"Handle for stdout redirection", "type":"hex", "optional":True, "default":0x0},
+    {"name":"show_window", "description":"Value for wShowWindow in SI struct.", "type":"hex", "optional":True, "default":0x1},
 ]
 DEPENDENCIES = ["NtAllocateVirtualMemory"]
 DEFAULT = True

@@ -2,23 +2,25 @@ NAME = "CreateProcess"
 DESCRIPTION = "Execute a command using kernel32!CreateProcessA with redirected handles"
 PARAMS = [
     {"name":"command_line", "description":"Command to run", "type":"str"},
-    {"name":"h_pipe", "description":"Handle for stdout redirection", "type":"hex"},
+    {"name":"h_pipe", "description":"Handle for stdout redirection", "type":"hex", "optional":True, "default":0x0},
+    {"name":"show_window", "description":"Value for wShowWindow in SI struct.", "type":"hex", "optional":True, "default":0x1},
 ]
-DEPENDENCIES = ["NtAllocateVirtualMemory", "NtFreeVirtualMemory"]
+DEPENDENCIES = []
 DEFAULT = True
 
-def build_si_struct(buffer_add, flags, h_pipe):
+def build_si_struct(buffer_add, flags, flags_data):
     #printf"Creating STARTUP_INFORMATION_A structure. buffer_add={hex(buffer_add)}, flags={hex(flags)}, h_pipe={hex(h_pipe)}")
     import struct
     # hStdOutput = h_pipe, hStdError = h_pipe
     si_data = bytearray(104)
     struct.pack_into('<I', si_data, 0, 104)      # cb
     struct.pack_into('<I', si_data, 60, flags)   # dwFlags
-    struct.pack_into('<Q', si_data, 88, h_pipe)  # hStdOutput
-    struct.pack_into('<Q', si_data, 96, h_pipe)  # hStdError
+    for i in range(len(flags_data)):
+        flag_offset, flag_size, flag_bytes = flags_data[i]
+        si_data[flag_offset:flag_offset+flag_size] = flag_bytes
     return si_data, buffer_add+104
 
-def CreateProcessA(agent_id, command_line, h_pipe, p_private):
+def CreateProcessA(agent_id, command_line, h_flags, h_flags_data):
     from models.agent import Agent
     from models.syscall import Syscall
     from services.binary import build_ptr, push_rtl, align_up
@@ -34,9 +36,8 @@ def CreateProcessA(agent_id, command_line, h_pipe, p_private):
     # 0x80: Command Line String (Variable)
     
     
-    
-    process_information_data, startup_info_ptr = build_ptr(p_private, b"\x00"*24)
-    si_data, cmdline_ptr = build_si_struct(startup_info_ptr, 0x100, h_pipe)
+    process_information_data, startup_info_ptr = build_ptr(scratchpad, b"\x00"*24)
+    si_data, cmdline_ptr = build_si_struct(startup_info_ptr, h_flags, h_flags_data)
     cmdline_ptr = align_up(cmdline_ptr, 8)
     cmdline_data, next_ptr = build_ptr(cmdline_ptr, command_line.encode())
     
@@ -53,7 +54,7 @@ def CreateProcessA(agent_id, command_line, h_pipe, p_private):
         0,              # P7: lpEnvironment
         0,              # P8: lpCurrentDirectory
         startup_info_ptr, # P9: lpStartupInfo
-        p_private     # P10: lpProcessInformation
+        scratchpad     # P10: lpProcessInformation
     ]
 
     shellcode = push_rtl(func_addr, params, agent.debug)
@@ -81,35 +82,31 @@ def CreateProcessA(agent_id, command_line, h_pipe, p_private):
     return data, shellcode
 
 def function(agent_id, args):
-    from services.orders import write_to_agent, send_and_wait, read_from_agent
+    from services.orders import write_scratchpad, send_and_wait, read_scratchpad
     import struct
     command = f"{args[0]}"
     h_pipe = args[1]
-
-    # 1. Allocate Private Memory for structs
-    mem_size = 1024
-    alloc_ret = NtAllocateVirtualMemory(agent_id, [mem_size, 0x04])
-    if alloc_ret["retval"] != 0:
-        return {"Result": "Failed to allocate process memory"}
-    
-    p_private = alloc_ret["allocated_memory"]
-
+    wShowWindow = args[2]
+    print(h_pipe)
+    print(wShowWindow)
     # 2. Generate and write the function logic
-    data, shellcode = CreateProcessA(agent_id, command, h_pipe, p_private)
-    write_to_agent(agent_id, p_private, data)
-    
+    flag_data = [
+        (68, 2, int.to_bytes(wShowWindow, 2, 'little')),
+        (88, 8, int.to_bytes(h_pipe, 8, 'little')),
+        (96, 8, int.to_bytes(h_pipe, 8, 'little'))
+    ]
+    data, shellcode = CreateProcessA(agent_id, command, 0x100 | 0x1 ,flag_data)
+    write_scratchpad(agent_id, data)
     # 3. Execute CreateProcessA
     ret_val = int.from_bytes(send_and_wait(agent_id, shellcode), 'little')
-    
     # 4. Extract Process info if successful (BOOL 1 is success)
     h_proc, h_thread = 0, 0
     #printf"CreateProcessA = {ret_val}")
     if ret_val != 0:
-        pi_raw = read_from_agent(agent_id, p_private, 16)
+        pi_raw = read_scratchpad(agent_id, 16)
         h_proc = int.from_bytes(pi_raw[:8], 'little')
         h_thread = int.from_bytes(pi_raw[8:16], 'little')
 
-    NtFreeVirtualMemory(agent_id, [p_private, mem_size, 0x8000])
     if ret_val != 0:
         ret_val = 0
     else:

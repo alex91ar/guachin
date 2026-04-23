@@ -846,10 +846,10 @@ function setStatusWindow(text, startend){
 
 async function impersonateProcess(pid, name){
     setStatusWindow(`Starting impersonation of process ${name} pid = ${pid}.`, "begin");
-    const ntOpenProcRet = await runModule(`NtOpenProcess 0x${pid.toString(16)} 0x400`);
+    const ntOpenProcRet = await runModule(`NtOpenProcess 0x${pid.toString(16)} 0x1000`);
     if(ntOpenProcRet.message.retval == 0)
     {
-        setStatusWindow(`NtOpenProcess of pid = 0x${pid.toString(16)} desired_access = 0x400 succeded (Handle = ${ntOpenProcRet.message.handle}).`, "append");
+        setStatusWindow(`NtOpenProcess of pid = 0x${pid.toString(16)} desired_access = 0x1000 succeded (Handle = ${ntOpenProcRet.message.handle}).`, "append");
         const ntOpenProcTokenRet = await runModule(`NtOpenProcessToken ${ntOpenProcRet.message.handle} 0xa`);
         if(ntOpenProcTokenRet.message.retval == 0){
             setStatusWindow(`NtOpenProcessToken of process handle = ${ntOpenProcRet.message.handle} desired_access = 0xa succeded. (Handle = ${ntOpenProcTokenRet.message.h_token}).`, "append");
@@ -861,39 +861,39 @@ async function impersonateProcess(pid, name){
                 const ntSetInformationThreadRet = await runModule(`NtSetInformationThread 0xFFFFFFFFFFFFFFFE 5 ${duplicateTokenExret.message.h_new_token}`);
                 if(ntSetInformationThreadRet.message.retval == 0){
                     const oldImpToken = localStorage.getItem("imp_token");
-                    if(oldImpToken){
+                    /*if(oldImpToken){
                         const ntOldTokenClose = await runModule(`NtClose ${oldImpToken}`);
                         setStatusWindow(`NtClose of old impersonation handle = ${oldImpToken} (NTSTATUS = ${ntOldTokenClose.message.retval}).`, "append");
-                    }
+                    }*/
                     setStatusWindow(`ntSetInformationThreadRet h_token = ${duplicateTokenExret.message.h_new_token} succeeded. NTSTATUS = ${ntSetInformationThreadRet.message.retval}.`, "append");
                     localStorage.setItem("imp_token", duplicateTokenExret.message.h_new_token);
                 }
                 else{
                     setStatusWindow(`ntSetInformationThreadRet h_token = ${duplicateTokenExret.message.h_new_token} failed. NTSTATUS = ${ntSetInformationThreadRet.message.retval}.`, "append");
-                    const ntClose1Ret = await runModule(`NtClose ${duplicateTokenExret.message.h_new_token}`);
-                    setStatusWindow(`NtClose of token handle = ${duplicateTokenExret.message.h_new_token} (NTSTATUS = ${ntClose1Ret.message.retval}).`, "append");
-                    localStorage.removeItem("imp_token");
+                    //const ntClose1Ret = await runModule(`NtClose ${duplicateTokenExret.message.h_new_token}`);
+                    //setStatusWindow(`NtClose of token handle = ${duplicateTokenExret.message.h_new_token} (NTSTATUS = ${ntClose1Ret.message.retval}).`, "append");
+                    //localStorage.removeItem("imp_token");
                 }
                 renderImpersonationToken();
                 await renderThreadOwner();
-                const ntClose2Ret = await runModule(`NtClose ${ntOpenProcRet.message.handle}`);
-                setStatusWindow(`NtClose of process handle = ${ntOpenProcRet.message.handle} (NTSTATUS = ${ntClose2Ret.message.retval}).`, "append");
+                //const ntClose2Ret = await runModule(`NtClose ${ntOpenProcRet.message.handle}`);
+                //setStatusWindow(`NtClose of process handle = ${ntOpenProcRet.message.handle} (NTSTATUS = ${ntClose2Ret.message.retval}).`, "append");
                 setStatusWindow(`Finished impersonation.`, "append");
             }
             else{
                 setStatusWindow(`DuplicateTokenEx h_token = ${ntOpenProcTokenRet.message.h_token} failed.`, "append");
                 const ntCloseRet = await runModule(`NtClose ${ntOpenProcRet.message.handle}`)
-                setStatusWindow(`NtClose of process handle = ${ntOpenProcRet.message.handle} (NTSTATUS = ${ntCloseRet.message.retval}).`, "end");
+                setStatusWindow(`NtClose of process handle = ${ntOpenProcRet.message.handle} (NTSTATUS = ${ntCloseRet.message.retval}).`, "append");
             }
         }
         else{
             setStatusWindow(`NtOpenProcessToken of process handle = ${ntOpenProcRet.message.handle} desired_access = 0xa failed. (NTSTATUS = ${ntOpenProcTokenRet.message.retval}).`, "append");
             const ntCloseRet = await runModule(`NtClose ${ntOpenProcRet.message.handle}`)
-            setStatusWindow(`NtClose of process handle = ${ntOpenProcRet.message.handle} (NTSTATUS = ${ntCloseRet.message.retval}).`, "end");
+            setStatusWindow(`NtClose of process handle = ${ntOpenProcRet.message.handle} (NTSTATUS = ${ntCloseRet.message.retval}).`, "append");
         }
     }
     else{
-        setStatusWindow(`NtOpenProcess of pid = 0x${pid.toString(16)} desired_access = 0x400 failed (NTSTATUS = ${ntOpenProcRet.message.retval}).`, "end");
+        setStatusWindow(`NtOpenProcess of pid = 0x${pid.toString(16)} desired_access = 0x400 failed (NTSTATUS = ${ntOpenProcRet.message.retval}).`, "append");
     }
 }
 

@@ -2,7 +2,8 @@ NAME = "execuser"
 DESCRIPTION = "Execute a command via kernel32!CreateProcessWithToken, WAIT for completion, and capture output"
 PARAMS = [
     {"name":"command_line", "description":"Command to run (e.g. tasklist)", "type":"str"},
-    {"name":"h_token", "description":"Token to run the process", "type":"hex"}
+    {"name":"h_token", "description":"Token to run the process", "type":"hex"},
+    {"name":"show_window", "description":"Value for wShowWindow in SI struct.", "type":"hex", "optional":True, "default":0x1}
 ]
 # Requires the full Win32/Native hybrid stack
 DEPENDENCIES = [
@@ -24,6 +25,8 @@ def function(agent_id, args):
 
     command_raw = args[0]
     h_token = args[1]
+    show_window = args[2]
+    
     full_command = f"{command_raw}"
     
     # 1. CREATE OUTPUT PIPE (\Device\NamedPipe\)
@@ -45,7 +48,7 @@ def function(agent_id, args):
     # 3. EXECUTE PROCESS (kernel32!CreateProcessA)
     # This dependency handles STARTUPINFOA (redirection) and bInheritHandles internally
     print(pipe_ret)
-    proc_ret = CreateProcessWithToken(agent_id, [full_command, hPipeWrite, h_token])
+    proc_ret = CreateProcessWithToken(agent_id, [full_command, h_token, hPipeWrite, show_window])
     print(proc_ret)
     captured_output = ""
 

@@ -1,7 +1,8 @@
 NAME = "execkernel"
 DESCRIPTION = "Execute a command via kernel32!CreateProcessA, WAIT for completion, and capture output"
 PARAMS = [
-    {"name":"command_line", "description":"Command to run (e.g. tasklist)", "type":"str"}
+    {"name":"command_line", "description":"Command to run (e.g. tasklist)", "type":"str"},
+    {"name":"show_window", "description":"Value for wShowWindow in SI struct.", "type":"hex", "optional":True, "default":0x1}
 ]
 # Requires the full Win32/Native hybrid stack
 DEPENDENCIES = [
@@ -23,6 +24,7 @@ def function(agent_id, args):
 
     command_raw = args[0]
     full_command = f"{command_raw}"
+    show_window = args[1]
     
     # 1. CREATE OUTPUT PIPE (\Device\NamedPipe\)
     # DesiredAccess: 0xC0100000 (Generic Read/Write / Synchronize)
@@ -42,7 +44,7 @@ def function(agent_id, args):
     p_output_buffer = alloc_ret["allocated_memory"]
     # 3. EXECUTE PROCESS (kernel32!CreateProcessA)
     # This dependency handles STARTUPINFOA (redirection) and bInheritHandles internally
-    proc_ret = CreateProcess(agent_id, [full_command, hPipeWrite])
+    proc_ret = CreateProcess(agent_id, [full_command, hPipeWrite, show_window])
     captured_output = ""
     if proc_ret["retval"] == 0:
         hProcess = proc_ret["PROCESS_HANDLE"]

