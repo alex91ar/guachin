@@ -476,7 +476,7 @@ server {{
     server_name {domain};
 
     location /api/v1/anon/agent/ws/ {{
-        proxy_pass http://host.docker.internal:{upstream_port};
+        proxy_pass http://127.0.0.1:{upstream_port};
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -507,11 +507,11 @@ server {{
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto https;
-        proxy_pass http://host.docker.internal:{upstream_port};
+        proxy_pass http://127.0.0.1:{upstream_port};
     }}
 
     location /api/v1/auth/agent/ws/ {{
-        proxy_pass http://host.docker.internal:{upstream_port};
+        proxy_pass http://127.0.0.1:{upstream_port};
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -525,7 +525,7 @@ server {{
     }}
 
     location /api/v1/auth/sudo/system/shell/ws {{
-        proxy_pass http://host.docker.internal:{upstream_port};
+        proxy_pass http://127.0.0.1:{upstream_port};
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
