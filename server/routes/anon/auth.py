@@ -163,7 +163,7 @@ def refresh():
         "user_obj": user_obj.to_dict(),
     }), 200
 
-
+''' Signup for a c2?, pointless...
 @bp.route("/signup", methods=["POST"])
 def signup():
     data = request.get_json(silent=True) or {}
@@ -223,6 +223,8 @@ def signup():
         "refresh_jwt": refresh,
         "user_obj": new_user.to_dict(),
     }), 201
+
+'''
 
 
 @bp.route("/passkey/begin", methods=["POST"])

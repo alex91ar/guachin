@@ -5,7 +5,7 @@ if (meta) {
 }
 
 // ✅ Public pages that don’t require authentication
-const SAFE_URLS = ["/", "/login", "/signup"];
+const SAFE_URLS = ["/", "/login"];
 
 // ---------- TOAST UTILS ----------
 function showToast(message, type = "info") {
@@ -57,7 +57,6 @@ function showUserLinks() {
   }
   else return showGuestLinks();
   document.getElementById("login-link").hidden = true;
-  document.getElementById("signup-link").hidden = true;
   document.getElementById("profile-link").hidden = false;
   document.getElementById("agents-link").hidden = false;
   document.getElementById("security-link").hidden = false;
@@ -66,7 +65,6 @@ function showUserLinks() {
 
 function showGuestLinks() {
   document.getElementById("login-link").hidden = false;
-  document.getElementById("signup-link").hidden = false;
   document.getElementById("security-link").hidden = true;
   document.getElementById("profile-link").hidden = true;
   document.getElementById("agents-link").hidden = true;

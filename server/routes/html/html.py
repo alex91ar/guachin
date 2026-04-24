@@ -25,10 +25,12 @@ def login_page():
     """Login page"""
     return render_template("account/login.html", title="Login")
 
+'''No Signup in a C2
 @bp.route("/signup")
 def signup_page():
     """Login page"""
     return render_template("account/signup.html", title="Signup")
+'''
 
 @bp.route("/reset", methods=["GET"])
 def reset_page():

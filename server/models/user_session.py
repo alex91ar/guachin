@@ -85,7 +85,6 @@ class UserSession(Base):
     valid_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     valid_until_refresh: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     partial: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    is_signup: Mapped[bool] = mapped_column(Boolean, nullable=False)
 
     user_id: Mapped[str] = mapped_column(
         String(255),
@@ -94,8 +93,7 @@ class UserSession(Base):
         index=True,
     )
 
-    def __init__(self, user_obj, is_signup=False):
-        self.is_signup = is_signup
+    def __init__(self, user_obj):
         self.id = secrets.token_hex(16)
         self.user = user_obj
         self.user_id = user_obj.id
@@ -151,8 +149,8 @@ class UserSession(Base):
             ).unique().scalar_one()
 
             perms = set()
-            print(f"sudo = {fresh.sudo}. password = {fresh.password}. passkey = {fresh.passkey}. is_signup = {fresh.is_signup}. partial = {fresh.partial}")
-            if (fresh.sudo and fresh.password) or fresh.passkey or fresh.is_signup:
+            print(f"sudo = {fresh.sudo}. password = {fresh.password}. passkey = {fresh.passkey}. partial = {fresh.partial}")
+            if (fresh.sudo and fresh.password) or fresh.passkey:
                 for role_obj in fresh.user.roles:
                     for action in role_obj.actions:
                         perms.add(action.id)
