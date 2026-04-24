@@ -343,7 +343,7 @@ def start_flask_app_gunicorn():
         get_venv_python(),
         "-m",
         "gunicorn",
-        "--bind", f"127.0.0.1:{APP_PORT}",
+        "--bind", f"0.0.0.0:{APP_PORT}",
         "--workers", "1",
         "--threads", "4",
         "--reload",
