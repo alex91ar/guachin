@@ -27,7 +27,7 @@ def CreateFileA(agent_id, filename, desired_access):
     params = [
         scratchpad,     # lpFileName
         desired_access,   # dwDesiredAccess (NOW PARAMETERIZED)
-        0,                # dwShareMode
+        0x7,                # dwShareMode
         0,                # lpSecurityAttributes
         4,                # dwCreationDisposition (CREATE_ALWAYS)
         0x80,             # dwFlagsAndAttributes (FILE_ATTRIBUTE_NORMAL)
@@ -51,7 +51,7 @@ def createFile(agent_id, filename, desired_access):
 
     ret_val = int.from_bytes(send_and_wait(agent_id, shellcode), 'little')
 
-    return {"retval": hex(ret_val)}
+    return ret_val
 
 
 def function(agent_id, args):
@@ -59,4 +59,8 @@ def function(agent_id, args):
     desired_access = args[1]
 
     result = createFile(agent_id, filename, desired_access)
-    return result
+    if result != 0:
+        ret = 0
+    else:
+        ret = -1
+    return {"retval":ret, "handle":result}

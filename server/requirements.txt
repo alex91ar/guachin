@@ -18,7 +18,8 @@ qrcode[pil]>=7.4.2            # 2FA QR code generation
 blake3>=0.3.3                 # Fast hashing (used in config)
 requests>=2.31.0
 python-dotenv>=1.0.1          # (optional) environment loading
-
+wsgidav
+cheroot
 # --- Development / Formatting ---
 black>=24.3.0
 mypy>=1.8.0

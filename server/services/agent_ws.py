@@ -15,15 +15,15 @@ COMMANDS = {
     "help": cmd_help,
 }
 
-def dispatch_and_wait(agent, text):
+def dispatch_and_wait(agent, text, long =False):
     dispatch_command(agent, text)
-    attempts = 10
+    attempts = 100
     while True:
-        attempts = attempts -1
+        if not long:
+            attempts = attempts -1
         if attempts == 0:
             return None
         if agent.id in responses.keys() and responses[agent.id] is not None:
-            print(responses[agent.id])
             response = responses[agent.id]
             del responses[agent.id]
             return response

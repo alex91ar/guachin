@@ -139,6 +139,20 @@ def create_app():
             "html": "/",
         })
 
+        def run_server():
+            print(f"[+] WebDAV running on http://{host}:{port}/")
+            print(f"[+] Serving: {root_path}")
+            if username:
+                print(f"[+] Auth: {username} / {password}")
+            else:
+                print("[+] Auth: anonymous")
+
+            server.start()
+
+        thread = threading.Thread(target=run_server, daemon=True)
+        thread.start()
+
+        return server, thread
     return app
 
 

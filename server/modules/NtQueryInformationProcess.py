@@ -44,29 +44,64 @@ def function(agent_id, args):
     from services.orders import write_scratchpad, send_and_wait, read_scratchpad
     import struct
 
-    process_handle = args[0]
-    info_class = args[1]
-    buffer_size = args[2]
+    process_handle = int(args[0], 0) if isinstance(args[0], str) else args[0]
+    info_class = int(args[1], 0) if isinstance(args[1], str) else args[1]
+    buffer_size = int(args[2], 0) if isinstance(args[2], str) else args[2]
 
-    data, shellcode = NtQueryInformationProcess_Shellcode(agent_id, process_handle, info_class, buffer_size)
-    
-    # 1. Prepare scratchpad with null bytes to receive the structure
+    data, shellcode = NtQueryInformationProcess_Shellcode(
+        agent_id,
+        process_handle,
+        info_class,
+        buffer_size
+    )
+
     write_scratchpad(agent_id, data)
-    
-    # 2. Trigger the syscall execution
+
     response = send_and_wait(agent_id, shellcode)
-    ntstatus = int.from_bytes(response, 'little')
-    
-    # 3. Read the returned structure from the scratchpad
+    ntstatus = int.from_bytes(response, "little", signed=False)
+
     result_content = read_scratchpad(agent_id, buffer_size)
-    #printresult_content)
-    # Optional: Manual parsing logic if class is ProcessBasicInformation (0)
-    # Struct: [ExitStatus(4)][PEB_Base(8)][Affinity(8)][Priority(8)][PID(8)][InheritedPID(8)]
-    peb_base = 0
-    if ntstatus == 0 and info_class == 0 and len(result_content) >= 16:
+
+    parsed = {}
+
+    # ProcessBasicInformation = 0
+    #
+    # x64 PROCESS_BASIC_INFORMATION:
+    # NTSTATUS ExitStatus;              4
+    # padding                           4
+    # PPEB PebBaseAddress;              8
+    # ULONG_PTR AffinityMask;           8
+    # KPRIORITY BasePriority;           4
+    # padding                           4
+    # ULONG_PTR UniqueProcessId;        8
+    # ULONG_PTR InheritedFromUniqueProcessId; 8
+    #
+    # Total: 48 bytes
+    print(result_content)
+    if ntstatus == 0 and info_class == 0 and len(result_content) >= 48:
+        exit_status = struct.unpack_from("<i", result_content, 0)[0]
         peb_base = struct.unpack_from("<Q", result_content, 8)[0]
+        affinity_mask = struct.unpack_from("<Q", result_content, 16)[0]
+        base_priority = struct.unpack_from("<i", result_content, 24)[0]
+        unique_process_id = struct.unpack_from("<Q", result_content, 32)[0]
+        inherited_from_pid = struct.unpack_from("<Q", result_content, 40)[0]
+
+        parsed = {
+            "info_class": "ProcessBasicInformation",
+            "exit_status": exit_status,
+            "peb_base": peb_base,
+            "peb_base_hex": f"0x{peb_base:x}",
+            "affinity_mask": affinity_mask,
+            "affinity_mask_hex": f"0x{affinity_mask:x}",
+            "base_priority": base_priority,
+            "unique_process_id": unique_process_id,
+            "unique_process_id_hex": f"0x{unique_process_id:x}",
+            "inherited_from_unique_process_id": inherited_from_pid,
+            "inherited_from_unique_process_id_hex": f"0x{inherited_from_pid:x}",
+        }
+
     return {
-        "retval": ntstatus, 
-        "peb_base": peb_base,
-        "raw_buffer": result_content.hex()
+        "retval": ntstatus,
+        "retval_hex": f"0x{ntstatus:x}",
+        "parsed": parsed
     }

@@ -18,17 +18,19 @@ def function(agent_id, args):
     ret = NtAllocateVirtualMemory(agent_id, [buffer_size, 0x04])
     buffer_ptr = ret["allocated_memory"]
     if ret["retval"] == 0:
-        ret = NtCreateFile(agent_id, [file_name, 0x01, 0x1fffff])
+        ret = NtCreateFile(agent_id, [file_name, 0x40, 0x120116])
         if ret["retval"] == 0:
-            file_handle = ret["FILE_HANDLE"]
+            file_handle = ret["file_handle"]
             write_to_agent(agent_id, buffer_ptr, data_buffer)
+            print("ASDASDASASDADSASASD")
             ret = NtWriteFile(agent_id, [file_handle, buffer_ptr, len(data_buffer), byte_offset])
             if ret["retval"] == 0:
+                print("OQIWJW*DJ(*DJ(!*DJD*))")
                 ret = set_eof(agent_id, [file_handle, len(data_buffer)])
                 ret = NtFlushBuffersFile(agent_id, [file_handle])
             NtClose(agent_id, [file_handle])
         else:
-            return {"retval": -1, "message":"Error opening file", "ret":hex(ret["retval"])}
+            return {"retval": -1, "message":"Error opening file", "ret":ret["retval"]}
         NtFreeVirtualMemory(agent_id, [buffer_ptr, buffer_size])
         import hashlib
         return {"retval":0, "hash": hashlib.sha256(data_buffer).hexdigest()}

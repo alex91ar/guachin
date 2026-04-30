@@ -130,7 +130,7 @@ async function deleteFile(path) {
 
 async function downloadFile(path, fileName) {
     const data = await read(path);
-    const content = extractReadableContent(data);
+    const content = atob(extractReadableContent(data));
 
     // Text-only fallback. If your backend returns base64/raw bytes for binaries,
     // replace this block with binary decoding.
@@ -331,10 +331,7 @@ async function fillFileTable(oldpath) {
                         data?.message?.text ??
                         data?.message ??
                         "[empty]";
-                    if(data.message == "binary content"){
-                        openReadModal(fileName, fullPath, typeof content === "string" ? content : JSON.stringify(content, null, 2), true);
-                    }
-                    else openReadModal(fileName, fullPath, data.message.data, false);
+                    openReadModal(fileName, fullPath, atob(data.message.data), false);
 
                     if (statusMessageEl) {
                         statusMessageEl.textContent = `Opened ${fileName}.`;
@@ -412,7 +409,7 @@ async function fillFileTable(oldpath) {
 
 async function downloadFile(path, fileName) {
     const data = await read(path);
-    const content = extractReadableContent(data);
+    const content = atob(extractReadableContent(data));
 
     const blob = new Blob(
         [typeof content === "string" ? content : JSON.stringify(content, null, 2)],

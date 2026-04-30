@@ -4,7 +4,7 @@ import time
 
 responses = {}
 
-def send_and_wait(agent_id, shellcode):
+def send_and_wait(agent_id, shellcode, long=False):
     from routes.anon.agent import handle_msg_type, requests as agent_requests
     from routes.anon.agent import ATTEMPTS
     global responses
@@ -14,7 +14,8 @@ def send_and_wait(agent_id, shellcode):
     agent_requests[agent_id] = shellcode
     attempts = ATTEMPTS
     while True:
-        attempts = attempts -1
+        if long == False:
+            attempts = attempts -1
         time.sleep(0.1)
         if agent_id in responses.keys() and responses.get(agent_id) is not None or attempts ==0:
             break

@@ -51,7 +51,7 @@ def CreatePipe(agent_id):
     hRead_data, hWrite_ptr = build_ptr(scratchpad, b"\x00" * 8)
     hWrite_data, sa_ptr = build_ptr(hWrite_ptr, b"\x00" * 8)
     sa_data, next_ptr = build_security_attributes(sa_ptr)
-    buffer_size = 0
+    buffer_size = 0x100000
     
     # 4 Parameters for CreatePipe (x64 ABI)
     params = [
@@ -92,9 +92,13 @@ def createAnonymousPipe(agent_id):
 
 def function(agent_id, args):
     success, hRead, hWrite = createAnonymousPipe(agent_id)
+    if success == 0:
+        success = -1
+    else:
+        success = 0
     
     return {
-        "retval": bool(success),
-        "READ_HANDLE": hRead,
-        "WRITE_HANDLE": hWrite
+        "retval": success,
+        "read_handle": hRead,
+        "write_handle": hWrite
     }

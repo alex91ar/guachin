@@ -17,7 +17,7 @@ def function(agent_id, args):
         #printf"Error opening write handle to pipe {pipename}")
         NtClose(read_pipe_h)
         return {"retval": False}
-    write_pipe_h = ret["FILE_HANDLE"]
+    write_pipe_h = ret["file_handle"]
     #printf"createpipesforexeckernel read_pipe_h = {hex(read_pipe_h)}, write_pipe_h = {hex(write_pipe_h)}")
     return {
         "retval": True,

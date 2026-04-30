@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% include "urls.html" %}
+
+{% block content %}
+
+<h1>Services Manager</h1>
+
+<div class="topbar">
+    <strong>Agent:</strong>
+    <span id="current-agent"></span>
+</div>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='css/services_manager_agents.css') }}">
+
+<div class="flash" id="status-message">Loading services...</div>
+
+<div class="actions">
+    <button type="button" class="btn btn-priv" id="refresh-services-btn">Refresh Services</button>
+</div>
+
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Display Name</th>
+            <th>Status</th>
+            <th>Start Type</th>
+            <th>PID</th>
+            <th>Binary Path</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody id="services-table-body">
+        <tr>
+            <td colspan="7" class="muted">Loading...</td>
+        </tr>
+    </tbody>
+</table>
+
+<div id="service-action-modal" class="file-modal hidden">
+    <div class="file-modal-backdrop" id="service-action-backdrop"></div>
+
+    <div class="file-modal-dialog file-editor-modal" role="dialog" aria-modal="true" aria-labelledby="service-action-title">
+        <div class="file-modal-header">
+            <div class="file-modal-header-main">
+                <h2 id="service-action-title">Service action status.</h2>
+            </div>
+
+            <div class="file-modal-toolbar">
+                <button type="button" class="file-modal-close" id="service-action-modal-close" aria-label="Close">×</button>
+            </div>
+        </div>
+
+        <div class="file-modal-body">
+            <textarea
+                class="file-modal-editor"
+                id="service-action-modal-editor"
+                spellcheck="false"
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="off"
+                readonly
+            >Starting service action...</textarea>
+        </div>
+    </div>
+</div>
+
+<div id="service-query-modal" class="file-modal hidden">
+    <div class="file-modal-backdrop" id="service-query-backdrop"></div>
+
+    <div class="file-modal-dialog file-editor-modal" role="dialog" aria-modal="true" aria-labelledby="service-action-title">
+        <div class="file-modal-header">
+            <div class="file-modal-header-main">
+                <h2 id="service-query-title">Service query status.</h2>
+            </div>
+
+            <div class="file-modal-toolbar">
+                <button type="button" class="btn btn-success" id="service-query-save-btn">Save</button>
+                <button type="button" class="file-modal-close" id="service-query-modal-close" aria-label="Close">×</button>
+            </div>
+        </div>
+
+        <div class="file-modal-body">
+            <p
+                class="file-modal-editor"
+                id="service-query-modal-editor"
+            >Starting service action...<p>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/services_manager.js') }}"></script>
+
+{% endblock %}

@@ -2,11 +2,12 @@ NAME = "NtCreateProcessEx"
 DESCRIPTION = "Create a process object from a section handle using Native API"
 PARAMS = [
     {"name":"section_handle", "description":"Handle to the image section", "type":"hex"},
+    {"name":"parent", "description":"Parent Process", "type":"hex"},
     {"name":"flags", "description":"Flags", "type":"hex"},
 ]
 DEFAULT = True
 
-def NtCreateProcessEx(agent_id, section_handle, flags):
+def NtCreateProcessEx(agent_id, parent_process, section_handle, flags):
     from models.agent import Agent
     from models.syscall import Syscall
     from services.binary import build_ptr, push_syscall
@@ -23,7 +24,7 @@ def NtCreateProcessEx(agent_id, section_handle, flags):
         scratchpad,          # &ProcessHandle
         0x001F0FFF,          # DesiredAccess (PROCESS_ALL_ACCESS)
         0,        # ObjectAttributes (NULL)
-        0xFFFFFFFFFFFFFFFF,          # ParentProcess
+        parent_process,          # ParentProcess
         flags,          # Flags (PROCESS_CREATE_FLAGS_INHERIT_HANDLES)
         section_handle,      # SectionHandle
         0,                   # DebugPort (NULL)
@@ -38,9 +39,10 @@ def NtCreateProcessEx(agent_id, section_handle, flags):
 def function(agent_id, args):
     from services.orders import write_scratchpad, send_and_wait, read_scratchpad
     section_handle = args[0]
-    flags = args[1]
+    parent_process = args[1]
+    flags = args[2]
     #printf"Preparing NtCreateProcessEx {section_handle}")
-    data, shellcode = NtCreateProcessEx(agent_id, section_handle, flags)
+    data, shellcode = NtCreateProcessEx(agent_id, parent_process, section_handle, flags)
     write_scratchpad(agent_id, data)
     
     # Execute NtCreateProcessEx
@@ -51,4 +53,4 @@ def function(agent_id, args):
     scratch_data = read_scratchpad(agent_id, 8)
     process_handle = int.from_bytes(scratch_data[:8], 'little')
     
-    return {"retval": ntstatus, "process_handle": process_handle}
+    return {"retval": hex(ntstatus), "process_handle": hex(process_handle)}

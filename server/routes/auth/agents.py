@@ -8,6 +8,7 @@ from models.schema import load_modules_from_directory
 from models.module import Module
 import logging
 import socket
+import requests
 logger = logging.getLogger(__name__)
 
 bp = Blueprint("agent", __name__, url_prefix="/agent")
@@ -89,11 +90,26 @@ def download_agent():
 
 @bp.route("/getserverip", methods=["GET"])
 def get_server_ip():
-    hostname = socket.gethostname()
-    server_ip = socket.gethostbyname(hostname)
-    return {"result":"successs",
-            "message":server_ip}
+    return {
+        "result": "success",
+        "message": "192.168.2.7"
+    }
+    '''
+    try:
+        response = requests.get("https://ifconfig.me", timeout=3)
+        response.raise_for_status()
+        ip = response.text.strip()
 
+        return {
+            "result": "success",
+            "message": ip
+        }
+    except Exception as e:
+        return {
+            "result": "error",
+            "message": str(e)
+        }, 500
+    '''
 
 
 @bp.route("/runmodule", methods=["POST"])
@@ -106,28 +122,22 @@ def run_module():
             "result":"error",
             "message":"missing parameters"
         })
+    if "long" in data and data.get("long") == True:
+        long = True
+    else:
+        long = False
     agent_obj = Agent.by_id(data.get("agent_id"))
     if agent_obj is None:
         return jsonify({
                 "result":"error",
                 "message":"Agent not found"
             }), 404
-    ret = dispatch_and_wait(agent_obj, data.get("module"))
+    ret = dispatch_and_wait(agent_obj, data.get("module"), long)
     if ret is not None:
-        try:
-            if "data" in ret:
-                if type(ret["data"]) == bytes or type(ret["data"]) == bytearray:
-                    ret["data"] = ret["data"].decode()
-            print(ret)
-            return jsonify({
-                    "result":"success",
-                    "message":ret
-                }), 200
-        except TypeError:
-            return jsonify({
-                "result":"error",
-                "message":"binary content"
-            })
+        return jsonify({
+                "result":"success",
+                "message":ret
+            }), 200
     else:
         return jsonify({
                 "result":"error",

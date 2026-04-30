@@ -389,8 +389,6 @@ function createAgentRow(agent, allAgents) {
     const tr = document.createElement("tr");
 
     tr.appendChild(createCell(agent.id));
-    tr.appendChild(createCell(agent.ip));
-    tr.appendChild(createCell(agent.os));
     tr.appendChild(createCell(formatDate(agent.last_seen)));
 
     const actionsTd = document.createElement("td");
@@ -443,10 +441,23 @@ function createAgentRow(agent, allAgents) {
         }
     );
 
+    const serviceManagerBtn = createActionButton(
+        "Services Manager",
+        "btn primary",
+        "servicesmanager",
+        agent.id,
+        () => {
+            const agentId = serviceManagerBtn.dataset.servicesmanager;
+            window.location = window.servicesmanager_HTML + "#" + agentId;
+            return;
+        }
+    );
+
     actionsDiv.appendChild(interactBtn);
     actionsDiv.appendChild(deleteBtn);
     actionsDiv.appendChild(fileManagerBtn);
     actionsDiv.appendChild(processManagerBtn);
+    actionsDiv.appendChild(serviceManagerBtn);
     actionsTd.appendChild(actionsDiv);
     tr.appendChild(actionsTd);
 

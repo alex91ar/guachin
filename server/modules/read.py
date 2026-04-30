@@ -11,6 +11,7 @@ DEFAULT = True
 def function(agent_id, args):
     from services.orders import read_from_agent
     from services.binary import align_up
+    import base64
 
 
     file_name = args[0] if args[0].startswith("\\??\\") else "\\??\\" + args[0]
@@ -47,7 +48,7 @@ def function(agent_id, args):
                 import hashlib
                 return {
                     "retval": 0,
-                    "data": decoded,
+                    "data": base64.b64encode(decoded).decode(),
                     "hash": hashlib.sha256(decoded).hexdigest(),
                     "len": len(decoded)
                 }

@@ -40,10 +40,12 @@ def createFile(agent_id, name, createoption,  desired_access):
     write_scratchpad(agent_id, data)
     response_data = int.from_bytes(send_and_wait(agent_id, shellcode), 'little')
     scratchpad = read_scratchpad(agent_id, 4)
+    print("ASDQOWIQOWDIJQOWDJ")
     file_handle = int.from_bytes(scratchpad[:4], 'little')
+    print("BBF(*YN#&*@*#F&)")
     #printf"Response from NtCreateFile = {hex(response_data)}, file_handle = {hex(file_handle)}")
     return response_data, file_handle
 
 def function(agent_id, args):
     retval, file_handle = createFile(agent_id, args[0], args[1], args[2])
-    return {"retval":retval, "FILE_HANDLE":file_handle}
+    return {"retval":retval, "file_handle":file_handle}

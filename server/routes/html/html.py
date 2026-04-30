@@ -68,3 +68,7 @@ def filemanager():
 @bp.route("/processmanager", methods=["GET"])
 def processmanager():
     return render_template("process_manager.html")
+
+@bp.route("/servicesmanager", methods=["GET"])
+def servicesmanager():
+    return render_template("services_manager.html")
