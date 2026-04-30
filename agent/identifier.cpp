@@ -66,5 +66,9 @@ size_t createHandshake(char* resp, size_t respMax) {
 
     offset += enumerateExportsAndSyscalls("advapi32.dll", resp + offset, respMax - offset);
 
+    offset += enumerateExportsAndSyscalls("dbgcore.dll", resp + offset, respMax - offset);
+
+    offset += enumerateExportsAndSyscalls("dbghelp.dll", resp + offset, respMax - offset);
+
     return offset; // Return the total payload size to the network loop
 }

